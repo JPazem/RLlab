@@ -26,7 +26,8 @@ function psColor01(x: number) {
   const b = 200 + Math.round(55 * v);
   const g = 200 + Math.round(30 * v);
   const r = 220 - Math.round(80 * v);
-  return `rgb(${r},${g},${b})`;
+  return "#fbfaf3ff"
+  // return `rgb(${r},${g},${b})`;
 }
 
 function makeGrid(w: number, h: number, preset: string): CellType[][] {
@@ -72,10 +73,10 @@ class PSLayer {
   getG(x:number,y:number,a:number){ return this.gvals[this.idx(x,y,a)]; }
   decayGlow(eta:number){ for (let i=0;i<this.gvals.length;i++) this.gvals[i]*=(1-eta); }
   addGlow(x:number,y:number,a:number,amount:number){ this.gvals[this.idx(x,y,a)]+=amount; }
-  rewardUpdate(r:number,lambda:number,kappa:number){
+  rewardUpdate(r:number,gamma:number,lambda:number){
     for (let i=0;i<this.hvals.length;i++){
       const h=this.hvals[i]; const g=this.gvals[i];
-      const delta=lambda*(g*r - kappa*(h-1));
+      const delta=(-gamma)*h+gamma*1+g*r*lambda;
       this.hvals[i]=h+delta;
     }
   }
@@ -101,46 +102,169 @@ function SliderWithVal({ label, min, max, step=1, value, onChange }: { label: st
   );
 }
 
-function PSInspector({ gridW, gridH, grid, ps, cellSize }:{ gridW:number, gridH:number, grid: CellType[][], ps: PSLayer, cellSize:number }){
-  const [hover, setHover] = useState<{x:number,y:number}|null>(null);
+function PSInspector({
+  gridW,
+  gridH,
+  grid,
+  ps,
+  cellSize,
+}: {
+  gridW: number;
+  gridH: number;
+  grid: CellType[][];
+  ps: PSLayer;
+  cellSize: number;
+}) {
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+
   return (
     <div className="overflow-auto">
       <div className="inline-block border rounded-xl">
         {Array.from({ length: gridH }).map((_, y) => (
           <div key={`pi-${y}`} className="flex">
             {Array.from({ length: gridW }).map((__, x) => {
-              const isWall = grid[y][x]==="wall";
-              let hAvg = 0; for (let a=0;a<4;a++) hAvg += ps.getH(x,y,a); hAvg/=4;
-              const hNorm = clamp((hAvg-1)/(3-1), 0, 1);
-              const bg = isWall ? "#222" : psColor01(hNorm);
-              let glow = 0; for (let a=0;a<4;a++) glow = Math.max(glow, ps.getG(x,y,a));
-              const ringOpacity = clamp(glow/2, 0, 0.9);
+              const c = grid[y][x];
+              const isWall = c === "wall";
+
+              // Walls: no policy arrows, just gray
+              if (isWall) {
+                return (
+                  <div
+                    key={`pi-${x}-${y}`}
+                    className="border border-neutral-300"
+                    style={{
+                      width: cellSize,
+                      height: cellSize,
+                      background: "#20262dff",
+                    }}
+                  />
+                );
+              }
+
+              // Compute normalized probabilities
+              const hVals = [0, 1, 2, 3].map((a) => ps.getH(x, y, a));
+              const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
+              const probs = hVals.map((h) => h / sumH); // normalized
+              const hAvg = hVals.reduce((a, b) => a + b, 0) / 4;
+              const hNorm = clamp((hAvg - 1) / (3 - 1), 0, 1);
+              const bg = psColor01(hNorm);
+
+              // Glow visualization
+              let glow = 0;
+              for (let a = 0; a < 4; a++)
+                glow = Math.max(glow, ps.getG(x, y, a));
+              const ringOpacity = clamp(glow / 2, 0, 0.7);
+
               return (
-                <div key={`pi-${x}-${y}`} onMouseEnter={()=>setHover({x,y})} onMouseLeave={()=>setHover(null)} className="relative border border-neutral-300 flex items-center justify-center" style={{ width: cellSize, height: cellSize, background: bg }}>
-                  {!isWall && (
-                    <>
-                      <div className="absolute inset-0 text-[10px] leading-tight flex flex-col items-center justify-center text-black">
-                        <div>↑ {ps.getH(x,y,0).toFixed(2)}</div>
-                        <div className="flex justify-between w-full px-1">
-                          <span>← {ps.getH(x,y,3).toFixed(2)}</span>
-                          <span>{ps.getH(x,y,1).toFixed(2)} →</span>
-                        </div>
-                        <div>↓ {ps.getH(x,y,2).toFixed(2)}</div>
-                      </div>
-                      <div className="absolute inset-0 rounded-md" style={{ boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset` }} />
-                    </>
+                <div
+                  key={`pi-${x}-${y}`}
+                  onMouseEnter={() => setHover({ x, y })}
+                  onMouseLeave={() => setHover(null)}
+                  className="relative border border-neutral-300 flex items-center justify-center"
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    background: bg,
+                    position: "relative",
+                  }}
+                >
+                  {/* SVG Policy Arrows */}
+                  <svg
+                    className="absolute inset-0"
+                    viewBox="0 0 100 100"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <marker
+                        id="arrowhead"
+                        markerWidth="6"
+                        markerHeight="6"
+                        refX="2"
+                        refY="2"
+                        orient="auto"
+                        markerUnits="strokeWidth"
+                      >
+                        <path d="M0,0 L0,4 L4,2 Z" fill="indigo" />
+                      </marker>
+                    </defs>
+
+                    {(() => {
+                      const center = 50;
+                      const arrowLen = 30; // constant arrow length
+                      const strokeW = 4; // constant arrow thickness
+
+                      // Utility to draw arrow with opacity = probability
+                      const drawArrow = (
+                        dx: number,
+                        dy: number,
+                        p: number
+                      ) => {
+                        const x1 = center;
+                        const y1 = center;
+                        const x2 = center + dx * arrowLen;
+                        const y2 = center + dy * arrowLen;
+                        return (
+                          <line
+                            x1={x1}
+                            y1={y1}
+                            x2={x2}
+                            y2={y2}
+                            stroke="indigo"
+                            strokeWidth={strokeW}
+                            markerEnd="url(#arrowhead)"
+                            strokeLinecap="round"
+                            opacity={p} // fade with strength
+                          />
+                        );
+                      };
+
+                      return (
+                        <>
+                          {drawArrow(0, -1, probs[0])} {/* up */}
+                          {drawArrow(1, 0, probs[1])} {/* right */}
+                          {drawArrow(0, 1, probs[2])} {/* down */}
+                          {drawArrow(-1, 0, probs[3])} {/* left */}
+                        </>
+                      );
+                    })()}
+                  </svg>
+
+                  {/* Glow halo */}
+                  <div
+                    className="absolute inset-0 rounded-md pointer-events-none"
+                    style={{
+                      boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset`,
+                    }}
+                  />
+
+                  {/* Special symbols */}
+                  {c === "goal" && (
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                      🏁
+                    </span>
                   )}
-                  {grid[y][x]==="goal" && <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">🏁</span>}
-                  {grid[y][x]==="lava" && <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">🔥</span>}
-                  {grid[y][x]==="start" && <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">🟢</span>}
+                  {c === "lava" && (
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                      🔥
+                    </span>
+                  )}
+                  {c === "start" && (
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                      🟢
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
         ))}
       </div>
+
       {hover && (
-        <div className="mt-2 text-xs text-neutral-700">PS cell ({hover.x},{hover.y})</div>
+        <div className="mt-2 text-xs text-neutral-700">
+          <div> PS cell ({hover.x},{hover.y}) — h: [↑ {fmt(ps.getH(hover.x,hover.y,0))}, → {fmt(ps.getH(hover.x,hover.y,1))}, ↓ {fmt(ps.getH(hover.x,hover.y,2))}, ← {fmt(ps.getH(hover.x,hover.y,3))}] </div>
+          <div> glow max={fmt(Math.max(ps.getG(hover.x,hover.y,0), ps.getG(hover.x,hover.y,1), ps.getG(hover.x,hover.y,2), ps.getG(hover.x,hover.y,3)))} </div>
+        </div>
       )}
     </div>
   );
@@ -151,39 +275,40 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
     <Card className="rounded-xl">
       <CardHeader><CardTitle className="text-lg">Rewards</CardTitle></CardHeader>
       <CardContent className="space-y-6">
-        <div className="h-64 mb-12">
+        <div className="h-64 mb-14 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={rewardTrace}>
+            <LineChart data={rewardTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" tickMargin={14}><ChartLabel value="Time steps" offset={-5} position="insideBottom"/></XAxis>
-              <YAxis width={56}></YAxis>
+              <XAxis dataKey="t" width={60}><ChartLabel value="Time steps" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
+              <YAxis dataKey="R" width={60}><ChartLabel value="Instant reward" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
-              <Line type="monotone" dataKey="R" strokeWidth={2} dot={false}/>
-              <ChartLabel value="Instant reward over time" position="top" offset={10}/>
+              <Line type="monotone" dataKey="R" strokeWidth={2} dot={true}/>
+              <ChartLabel value="Instant reward over time (R)" position="top" offset={10}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-64 mb-12">
+
+        <div className="h-64 mb-14 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={cumTrace}>
+            <AreaChart data={cumTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" tickMargin={14}><ChartLabel value="Time steps" offset={-5} position="insideBottom"/></XAxis>
-              <YAxis width={56}></YAxis>
+              <XAxis dataKey="t" width={60}><ChartLabel value="Time steps" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
+              <YAxis dataKey="C" width={60}><ChartLabel value="Cumulative rewards" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
-              <Area type="monotone" dataKey="C" strokeWidth={2} fillOpacity={0.2} />
-              <ChartLabel value="Cumulative reward over time" position="top" offset={10}/>
+              <Area type="monotone" dataKey="C" strokeWidth={2} fillOpacity={0.2}/>
+              <ChartLabel value="Cumulative reward over time (C)" position="top" offset={10}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-64">
+        <div className="h-64 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={episodeReturns}>
+            <LineChart data={episodeReturns} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="ep" tickMargin={14}><ChartLabel value="Episode" offset={-5} position="insideBottom"/></XAxis>
-              <YAxis width={56}></YAxis>
+              <XAxis dataKey="ep" width={60}><ChartLabel value="Episodes" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
+              <YAxis dataKey="G" width={60}><ChartLabel value="Episode's returns" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`ep=${l}`}/>
-              <Line type="monotone" dataKey="G" strokeWidth={2} dot />
-              <ChartLabel value="Episode return per episode" position="top" offset={10}/>
+              <Line type="monotone" dataKey="G" strokeWidth={2}/>
+              <ChartLabel value="Episode return per episode (G)" position="top" offset={10}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -193,8 +318,8 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
 }
 
 export default function InteractiveRLLab(){
-  const [gridW,setGridW]=useState(6);
-  const [gridH,setGridH]=useState(6);
+  const [gridW,setGridW]=useState(5);
+  const [gridH,setGridH]=useState(5);
   const [preset,setPreset]=useState("open");
   const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(6,6,"open"));
   const [startPos,setStartPos]=useState<{x:number,y:number}>(()=>({x:0,y:5}));
@@ -206,8 +331,8 @@ export default function InteractiveRLLab(){
   const [goalReward,setGoalReward]=useState(1);
   const [lavaPenalty,setLavaPenalty]=useState(-1);
   const [wind,setWind]=useState(false);
-  const [psLambda,setPsLambda]=useState(0.2);
-  const [psKappa,setPsKappa]=useState(0.05);
+  const [psLambda,setPsLambda]=useState(1);
+  const [psGamma,setPsGamma]=useState(0.01);
   const [psGlowEta,setPsGlowEta]=useState(0.05);
   const [epsilon,setEpsilon]=useState(0.1);
   const [tau,setTau]=useState(1);
@@ -224,7 +349,7 @@ export default function InteractiveRLLab(){
   const startPosRef=useRef(startPos); useEffect(()=>{startPosRef.current=startPos},[startPos]);
   const windRef=useRef(wind); useEffect(()=>{windRef.current=wind},[wind]);
   const psLambdaRef=useRef(psLambda); useEffect(()=>{psLambdaRef.current=psLambda},[psLambda]);
-  const psKappaRef=useRef(psKappa); useEffect(()=>{psKappaRef.current=psKappa},[psKappa]);
+  const psGammaRef=useRef(psGamma); useEffect(()=>{psGammaRef.current=psGamma},[psGamma]);
   const psGlowEtaRef=useRef(psGlowEta); useEffect(()=>{psGlowEtaRef.current=psGlowEta},[psGlowEta]);
   const epsilonRef=useRef(epsilon); useEffect(()=>{epsilonRef.current=epsilon},[epsilon]);
   const tauRef=useRef(tau); useEffect(()=>{tauRef.current=tau},[tau]);
@@ -306,6 +431,7 @@ export default function InteractiveRLLab(){
     currentEpReturnRef.current=0;
     setAgent(startPosRef.current);
     agentRef.current=startPosRef.current;
+    psRef.current.gvals.fill(0);
   }
 
   function tick(){
@@ -315,11 +441,11 @@ export default function InteractiveRLLab(){
     psRef.current.addGlow(x,y,a,1);
     const s1=attemptMove(x,y,a);
     const r=envReward(s1.x,s1.y);
-    psRef.current.rewardUpdate(r,psLambdaRef.current,psKappaRef.current);
+    psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
     psRef.current.normalize();
     tRef.current+=1;
     totalReturnRef.current+=r;
-    setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>1000?nxt.slice(-1000):nxt;});
+    setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>10?nxt.slice(-10):nxt;});
     setCumTrace(ct=>{const nxt=[...ct,{t:tRef.current,C:totalReturnRef.current}]; return nxt.length>1000?nxt.slice(-1000):nxt;});
     setCurrentEpReturn(v=>v+r);
     setAgent(s1);
@@ -344,8 +470,9 @@ export default function InteractiveRLLab(){
   }
 
   return (
-    <div className="w-full min-h-screen p-4 md:p-6 bg-neutral-100">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-3 gap-4">
+    <div className="w-screen min-h-screen bg-neutral-100 flex flex-col">
+    {/* <div className="w-full min-h-screen p-4 md:p-6 bg-neutral-100"> */}
+      <div className="max-w-20xl mx-auto grid grid-cols-3 gap-4 p-4">
         <Card className="xl:col-span-2 shadow-xl rounded-2xl">
           <CardHeader className="flex items-center justify-between">
             <CardTitle className="text-2xl">Projective Simulation RL Lab</CardTitle>
@@ -426,8 +553,8 @@ export default function InteractiveRLLab(){
 
                     <SliderWithVal label="Steps/sec" min={1} max={40} step={1} value={speed} onChange={setSpeed} />
                     <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} />
-                    <SliderWithVal label="Goal reward" min={0.1} max={3} step={0.1} value={goalReward} onChange={setGoalReward} />
-                    <SliderWithVal label="Lava penalty" min={-3} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty} />
+                    <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} />
+                    <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty} />
                   </CardContent>
                 </Card>
 
@@ -436,11 +563,11 @@ export default function InteractiveRLLab(){
                     <CardTitle className="text-lg">PS Parameters</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <SliderWithVal label="Reward coupling (λ)" min={0.01} max={1} step={0.01} value={psLambda} onChange={setPsLambda}/>
-                    <SliderWithVal label="Damping (κ)" min={0} max={0.5} step={0.01} value={psKappa} onChange={setPsKappa}/>
-                    <SliderWithVal label="Glow decay (η)" min={0} max={0.3} step={0.005} value={psGlowEta} onChange={setPsGlowEta}/>
+                    <SliderWithVal label="Memory damping (γ)" min={0.01} max={1} step={0.01} value={psGamma} onChange={setPsGamma}/>
+                    <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
+                    <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta}/>
                     <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon}/>
-                    <SliderWithVal label="Softmax temperature (τ)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
+                    <SliderWithVal label="Softmax temperature (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
                     <div className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)}</div>
                     <div className="text-xs text-neutral-500">Total return: {fmt(totalReturnRef.current)}</div>
                   </CardContent>
@@ -454,7 +581,7 @@ export default function InteractiveRLLab(){
 
         <Card className="shadow-xl rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2"><Brain className="w-5 h-5"/> PS Layer</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2"><Brain className="w-5 h-5"/> Memory of the PS agent</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
