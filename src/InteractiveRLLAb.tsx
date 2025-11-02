@@ -325,9 +325,12 @@ export default function InteractiveRLLab(){
   const [gridW,setGridW]=useState(5);
   const [gridH,setGridH]=useState(5);
   const [preset,setPreset]=useState("open");
-  const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(5,5,"open"));
-  const [startPos,setStartPos]=useState<{x:number,y:number}>(()=>({x:0,y:5}));
-  const [agent,setAgent]=useState<{x:number,y:number}>({x:startPos.x,y:startPos.y});
+  const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(gridW,gridH,"preset"));
+  //const [startPos,setStartPos]=useState<{x:number,y:number}>(()=>({x:0,y:5}));
+  // start positions depend on gridH (use gridH - 1 safely)
+  const [startPos, setStartPos] = useState<{ x: number; y: number }>(() => ({ x: 0, y: Math.max(0, gridH - 1) }));
+  const [agent, setAgent] = useState<{ x: number; y: number }>(() => ({ x: 0, y: Math.max(0, gridH - 1) }));
+  // const [agent,setAgent]=useState<{x:number,y:number}>({x:startPos.x,y:startPos.y});
   const [episode,setEpisode]=useState(1);
   const [running,setRunning]=useState(true);
   const [speed,setSpeed]=useState(6);
@@ -473,9 +476,76 @@ export default function InteractiveRLLab(){
     if(b==="start"){ setStartPos({x,y}); setAgent({x,y}); agentRef.current={x,y}; }
   }
 
+const StaticGrid = React.memo(function StaticGrid({
+  grid,
+  gridW,
+  gridH,
+  cellSize,
+  cellBG,
+  onCellClick,
+}: {
+  grid: string[][],
+  gridW: number,
+  gridH: number,
+  cellSize: number,
+  cellBG: (cell: string) => string,
+  onCellClick: (x: number, y: number) => void,
+}) {
   return (
-    <div className="w-screen min-h-screen bg-neutral-100 flex flex-col">
-    <Card className="border-slate-100 p-1 m-1">
+    <div
+      className="absolute top-0 left-0 select-none"
+      style={{
+        width: gridW * cellSize,
+        height: gridH * cellSize,
+      }}
+    >
+      {Array.from({ length: gridH }).map((_, y) => (
+        <div key={y} className="flex">
+          {Array.from({ length: gridW }).map((__, x) => {
+            const cell = grid[y][x];
+            return (
+              <div
+                key={`${x}-${y}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onCellClick(x, y);
+                }}
+                onMouseEnter={(e) => {
+                  if (e.buttons === 1) onCellClick(x, y);
+                }}
+                className="border border-neutral-300 flex items-center justify-center relative"
+                style={{
+                  width: cellSize,
+                  height: cellSize,
+                  background: cellBG(cell),
+                }}
+                title={`(${x},${y})`}
+              >
+                {/* 🧱 Environment Icons */}
+                {cell === "goal" && (
+                  <Trophy className="w-5 h-5 text-emerald-600" strokeWidth={2.5} />
+                )}
+                {cell === "lava" && (
+                  <Skull className="w-5 h-5 text-red-500" strokeWidth={2.5} />
+                )}
+                {cell === "start" && (
+                  <CirclePlay className="w-5 h-5 text-yellow-500" strokeWidth={2.5} />
+                )}
+                {cell === "wall" && (
+                  <Ban className="w-5 h-5 text-gray-500 opacity-60" strokeWidth={2.5} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+});
+
+  return (
+    <div className="w-screen min-h-screen flex flex-col" style={{ background: "#241848ff" }}>
+    <Card className="border-slate-100 p-1 m-1" style={{ background: "#cbf0e8ff" }}>
     <CardHeader className="flex items-center justify-center">
     <div>
     <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
@@ -521,7 +591,7 @@ export default function InteractiveRLLab(){
     </Card>
 
       <div className="max-w-20xl mx-auto grid grid-cols-3 gap-2 p-2">
-        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col gap-4">
+        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col gap-4" style={{ background:"#f5f5f5ff"  }}>
           <CardHeader className="flex items-center justify-center">
             <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your environment!</CardTitle>
           </CardHeader>
@@ -539,7 +609,30 @@ export default function InteractiveRLLab(){
             <div className="grid md:grid-cols-[auto,300px] gap-4 justify-between items-center">
               <div className="overflow-auto">
                 <div className="relative select-none" style={{ width: canvasW, height: canvasH }}>
-                  {Array.from({ length: gridH }).map((_, y) => (
+                {/* Static grid layer */}
+                <StaticGrid
+                  grid={gridRef.current}
+                  gridW={gridW}
+                  gridH={gridH}
+                  cellSize={cellSize}
+                  cellBG={cellBG}
+                  onCellClick={onCellClick}
+                />
+
+                {/* Agent overlay */}
+                <motion.div
+                  layoutId="agent"
+                  className="absolute w-6 h-6 rounded-full shadow"
+                  initial={false}
+                  animate={{
+                    left: agent.x * cellSize + (cellSize - 24) / 2,
+                    top: agent.y * cellSize + (cellSize - 24) / 2,
+                    scale: 1,
+                  }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  style={{ background: "black" }}
+                />
+                  {/* {Array.from({ length: gridH }).map((_, y) => (
                     <div key={y} className="flex">
                       {Array.from({ length: gridW }).map((__, x) => {
                         const cell = gridRef.current[y][x];
@@ -553,8 +646,8 @@ export default function InteractiveRLLab(){
                           style={{ width: cellSize, height: cellSize, background: cellBG(gridRef.current[y][x]) }}
                           title={`(${x},${y})`}
                         >
-                          {/* 🧱 Environment Icons */}
-                          {cell === "goal" && (
+                        {/* 🧱 Environment Icons */}
+                          {/* {cell === "goal" && (
                             <Trophy className="w-5 h-5 text-emerald-600" strokeWidth={2.5} />
                           )}
                           {cell === "lava" && (
@@ -570,12 +663,12 @@ export default function InteractiveRLLab(){
                             <motion.div layoutId="agent" className="w-6 h-6 rounded-full shadow" initial={false} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ background: "black" }} />
                           )}
                         </div>
-                          );    
-                      })}
+                          );   
+                      })}*/}
                       </div>
-                    ))}
+                   {/* ))}*/}
               </div>
-            </div>
+             {/*</div> */}
               <div className="space-y-1 flex-row">
                 {/* <Card className="rounded-xl"> */}
                   <CardHeader>
@@ -639,7 +732,7 @@ export default function InteractiveRLLab(){
           </CardContent>
         </Card>
 
-        <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 p-1">
+        <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 p-1" style={{ background: "#f5f5f5ff"}}>
           <CardHeader>
             <CardTitle className="text-2xl flex items-center justify-center gap-2"><Brain className="w-10 h-10"/> Memory of the PS Agent</CardTitle>
           </CardHeader>
@@ -662,7 +755,7 @@ export default function InteractiveRLLab(){
                   </CardContent>
                 {/* </Card> */}
         </Card>
-        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col">
+        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col" style={{ background: "#f5f5f5ff"  }}>
           <CardHeader className="flex items-center justify-center">
             <CardTitle className="text-2xl flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning curves</CardTitle>
           </CardHeader>   
