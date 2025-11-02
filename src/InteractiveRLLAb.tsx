@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Eraser, Wand2, MousePointer2, Brain } from "lucide-react";
+import { Play, Pause, RotateCcw, Eraser, Wand2, MousePointer2, Brain, Bot, Sprout, Trophy} from "lucide-react";
 import { motion } from "framer-motion";
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
@@ -471,17 +471,67 @@ export default function InteractiveRLLab(){
 
   return (
     <div className="w-screen min-h-screen bg-neutral-100 flex flex-col">
-    {/* <div className="w-full min-h-screen p-4 md:p-6 bg-neutral-100"> */}
+    <Card className="border-slate-100 p-1 m-1">
+    <CardHeader className="flex items-center justify-center">
+    <div>
+    <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
+    <p className="text-xl text-slate-500 mt-1"> Come and train your reinforcement learnng agent in real life!</p>
+    </div>
+    <div className="flex items-center gap-2">
+    <Button
+          variant={running ? "secondary" : "default"}
+          onClick={() => setRunning(r => !r)}
+        >
+          {running ? (
+            <>
+              <Pause className="w-4 h-4 mr-1" /> Pause
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 mr-1" /> Run
+            </>
+          )}
+    </Button>
+
+    <Button
+        variant="outline"
+        onClick={() => {
+          // Reset everything:
+          setAgent(startPosRef.current);
+          agentRef.current = startPosRef.current;
+          setEpisode(1);
+          setRewardTrace([]);
+          setCumTrace([]);
+          setEpisodeReturns([]);
+          setCurrentEpReturn(0);
+          tRef.current = 0;
+          totalReturnRef.current = 0;
+          currentEpReturnRef.current = 0;
+          psRef.current = new PSLayer(gridW, gridH); // reset memory!
+        }}
+      >
+        <RotateCcw className="w-4 h-4 mr-1" /> Reset Agent
+    </Button>
+    </div>
+    </CardHeader>
+    </Card>
+
       <div className="max-w-20xl mx-auto grid grid-cols-3 gap-4 p-4">
-        <Card className="xl:col-span-2 shadow-xl rounded-2xl">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle className="text-2xl">Projective Simulation RL Lab</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant={running?"secondary":"default"} onClick={()=>setRunning(r=>!r)}>{running?(<><Pause className="w-4 h-4 mr-1"/>Pause</>):(<><Play className="w-4 h-4 mr-1"/>Run</>)}</Button>
-              <Button variant="outline" onClick={()=>{ setAgent(startPosRef.current); agentRef.current=startPosRef.current; setEpisode(1); setRewardTrace([]); setCumTrace([]); setEpisodeReturns([]); setCurrentEpReturn(0); tRef.current=0; totalReturnRef.current=0; currentEpReturnRef.current=0; }}><RotateCcw className="w-4 h-4 mr-1"/>Reset Agent</Button>
-            </div>
+        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1">
+          <CardHeader className="flex items-center justify-center">
+            <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your environment!</CardTitle>
           </CardHeader>
           <CardContent>
+              <Label className="text-sm">Preset</Label>
+                  <Select value={preset} onValueChange={setPreset}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Open Field</SelectItem>
+                      <SelectItem value="corridor">Corridor</SelectItem>
+                      <SelectItem value="two-rooms">Two Rooms</SelectItem>
+                      <SelectItem value="maze">Maze</SelectItem>
+                    </SelectContent>
+                  </Select>
             <div className="grid md:grid-cols-[auto,300px] gap-4">
               <div className="overflow-auto">
                 <div className="relative select-none" style={{ width: canvasW, height: canvasH }}>
@@ -542,7 +592,7 @@ export default function InteractiveRLLab(){
 
                     <div className="grid grid-cols-5 gap-2 text-xs">
                       {(["wall","empty","goal","lava","start"] as CellType[]).map(c => (
-                        <button key={c} onClick={()=>{ setBrush(c); setTool("draw"); }} className={`rounded-md border p-2 ${brush===c?"ring-2 ring-black":""}`} style={{ background: cellBG(c) }}>{c}</button>
+                        <button key={c} onClick={()=>{ setBrush(c); setTool("draw"); }} className={`rounded-md border p-2 ring-black`} style={{ background: cellBG(c) }}>{c}</button>
                       ))}
                     </div>
 
@@ -558,7 +608,7 @@ export default function InteractiveRLLab(){
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-xl">
+                {/* <Card className="rounded-xl">
                   <CardHeader>
                     <CardTitle className="text-lg">PS Parameters</CardTitle>
                   </CardHeader>
@@ -571,23 +621,45 @@ export default function InteractiveRLLab(){
                     <div className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)}</div>
                     <div className="text-xs text-neutral-500">Total return: {fmt(totalReturnRef.current)}</div>
                   </CardContent>
-                </Card>
+                </Card> */}
 
-                <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} />
+                {/* <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} /> */}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-xl rounded-2xl">
+        <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 p-1">
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2"><Brain className="w-5 h-5"/> Memory of the PS Agent</CardTitle>
+            <CardTitle className="text-2xl flex items-center justify-center gap-2"><Brain className="w-10 h-10"/> Memory of the PS Agent</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="w-64"><SliderWithVal label="Inspector size" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} /></div>
+              <div className="w-84"><SliderWithVal label="Inspector size" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} /></div>
               <PSInspector gridW={gridW} gridH={gridH} grid={grid} ps={psRef.current} cellSize={inspectorSize} />
             </div>
+          </CardContent>
+          {/* <Card className="rounded-xl"> */}
+                  <CardHeader>
+                    <CardTitle className="text-lg">PS Parameters</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <SliderWithVal label="Memory damping (γ)" min={0.01} max={1} step={0.01} value={psGamma} onChange={setPsGamma}/>
+                    <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
+                    <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta}/>
+                    <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon}/>
+                    <SliderWithVal label="Softmax temperature (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
+                  </CardContent>
+                {/* </Card> */}
+        </Card>
+        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1">
+          <CardHeader className="flex items-center justify-center">
+            <CardTitle className="text-2xl flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning curves</CardTitle>
+          </CardHeader>   
+          <CardContent className="space-y-1">
+              <p className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)}</p>
+              <p className="text-xs text-neutral-500">Total return: {fmt(totalReturnRef.current)}</p>
+            <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} />
           </CardContent>
         </Card>
       </div>
