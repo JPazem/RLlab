@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Eraser, Wand2, MousePointer2, Brain, Bot, Sprout, Trophy} from "lucide-react";
+import { Play, Pause, RotateCcw, Eraser, Wand2, MousePointer2, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban} from "lucide-react";
 import { motion } from "framer-motion";
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
@@ -90,6 +90,7 @@ function stepXY(x:number,y:number,a:Action){
   if(a==="up")return{x,y:y-1};
   if(a==="down")return{x,y:y+1};
   if(a==="left")return{x:x-1,y};
+  if(a==="right")return{x:x+1,y};
   return{x:x+1,y};
 }
 
@@ -135,7 +136,7 @@ function PSInspector({
                     style={{
                       width: cellSize,
                       height: cellSize,
-                      background: "#20262dff",
+                      background: "#3b434bff",
                     }}
                   />
                 );
@@ -240,17 +241,20 @@ function PSInspector({
                   {/* Special symbols */}
                   {c === "goal" && (
                     <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      🏁
+                      {/*🏁*/}
+                      <Trophy className="absolute inset-0 m-auto w-7 h-7 text-green-700" />
                     </span>
                   )}
                   {c === "lava" && (
                     <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      🔥
+                      {/* 🔥 */}
+                      <Skull className="absolute inset-0 m-auto w-7 h-7 text-red-700" />
                     </span>
                   )}
                   {c === "start" && (
                     <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      🟢
+                      {/* 🟢 */}
+                      <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
                     </span>
                   )}
                 </div>
@@ -272,10 +276,10 @@ function PSInspector({
 
 function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: PointTR[]; cumTrace: PointTC[]; episodeReturns: PointEG[]; }) {
   return (
-    <Card className="rounded-xl">
-      <CardHeader><CardTitle className="text-lg">Rewards</CardTitle></CardHeader>
-      <CardContent className="space-y-6">
-        <div className="h-64 mb-14 overflow-visible">
+    <Card className="rounded-xl m-0 p-0 shadow-xl flow-col border-slate-100">
+      {/* <CardHeader><CardTitle className="text-lg">Rewards</CardTitle></CardHeader> */}
+      <CardContent className="space-y-1">
+        <div className="h-54 mb-2 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rewardTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -288,7 +292,7 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
           </ResponsiveContainer>
         </div>
 
-        <div className="h-64 mb-14 overflow-visible">
+        <div className="h-54 mb-2 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={cumTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -300,7 +304,7 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-64 overflow-visible">
+        <div className="h-54 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={episodeReturns} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -321,13 +325,13 @@ export default function InteractiveRLLab(){
   const [gridW,setGridW]=useState(5);
   const [gridH,setGridH]=useState(5);
   const [preset,setPreset]=useState("open");
-  const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(6,6,"open"));
+  const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(5,5,"open"));
   const [startPos,setStartPos]=useState<{x:number,y:number}>(()=>({x:0,y:5}));
   const [agent,setAgent]=useState<{x:number,y:number}>({x:startPos.x,y:startPos.y});
   const [episode,setEpisode]=useState(1);
   const [running,setRunning]=useState(true);
-  const [speed,setSpeed]=useState(12);
-  const [stepCost,setStepCost]=useState(-0.01);
+  const [speed,setSpeed]=useState(6);
+  const [stepCost,setStepCost]=useState(0);
   const [goalReward,setGoalReward]=useState(1);
   const [lavaPenalty,setLavaPenalty]=useState(-1);
   const [wind,setWind]=useState(false);
@@ -453,7 +457,7 @@ export default function InteractiveRLLab(){
     if(isTerminal(s1.x,s1.y)) restartEpisode(r);
   }
 
-  const cellSize=36;
+  const cellSize=50;
   const [inspectorSize,setInspectorSize]=useState(60);
   const canvasW=gridW*cellSize;
   const canvasH=gridH*cellSize;
@@ -516,8 +520,8 @@ export default function InteractiveRLLab(){
     </CardHeader>
     </Card>
 
-      <div className="max-w-20xl mx-auto grid grid-cols-3 gap-4 p-4">
-        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1">
+      <div className="max-w-20xl mx-auto grid grid-cols-3 gap-2 p-2">
+        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col gap-4">
           <CardHeader className="flex items-center justify-center">
             <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your environment!</CardTitle>
           </CardHeader>
@@ -532,46 +536,52 @@ export default function InteractiveRLLab(){
                       <SelectItem value="maze">Maze</SelectItem>
                     </SelectContent>
                   </Select>
-            <div className="grid md:grid-cols-[auto,300px] gap-4">
+            <div className="grid md:grid-cols-[auto,300px] gap-4 justify-between items-center">
               <div className="overflow-auto">
                 <div className="relative select-none" style={{ width: canvasW, height: canvasH }}>
                   {Array.from({ length: gridH }).map((_, y) => (
                     <div key={y} className="flex">
-                      {Array.from({ length: gridW }).map((__, x) => (
+                      {Array.from({ length: gridW }).map((__, x) => {
+                        const cell = gridRef.current[y][x];
+                      return(
+                      // {Array.from({ length: gridW }).map((__, x) => (
                         <div
                           key={`${x}-${y}`}
                           onMouseDown={(e) => { e.preventDefault(); onCellClick(x,y); }}
                           onMouseEnter={(e)=>{ if (e.buttons===1) onCellClick(x,y); }}
-                          className="border border-neutral-300 flex items-center justify-center"
+                          className="border border-neutral-300 flex items-center justify-center relative"
                           style={{ width: cellSize, height: cellSize, background: cellBG(gridRef.current[y][x]) }}
                           title={`(${x},${y})`}
                         >
+                          {/* 🧱 Environment Icons */}
+                          {cell === "goal" && (
+                            <Trophy className="w-5 h-5 text-emerald-600" strokeWidth={2.5} />
+                          )}
+                          {cell === "lava" && (
+                            <Skull className="w-5 h-5 text-red-500" strokeWidth={2.5} />
+                          )}
+                          {cell === "start" && (
+                            <CirclePlay className="w-5 h-5 text-yellow-500" strokeWidth={2.5} />
+                          )}
+                          {cell === "wall" && (
+                            <Ban className="w-5 h-5 text-gray-500 opacity-60" strokeWidth={2.5} />
+                          )}
                           {agent.x===x && agent.y===y && (
                             <motion.div layoutId="agent" className="w-6 h-6 rounded-full shadow" initial={false} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ background: "black" }} />
                           )}
                         </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+                          );    
+                      })}
+                      </div>
+                    ))}
               </div>
-
-              <div className="space-y-4">
-                <Card className="rounded-xl">
+            </div>
+              <div className="space-y-1 flex-row">
+                {/* <Card className="rounded-xl"> */}
                   <CardHeader>
-                    <CardTitle className="text-lg">Environment</CardTitle>
+                    <CardTitle className="text-lg text-center justify-center text-blue-800 font-bold">Add new challenges!</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Label className="text-sm">Preset</Label>
-                    <Select value={preset} onValueChange={setPreset}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open">Open Field</SelectItem>
-                        <SelectItem value="corridor">Corridor</SelectItem>
-                        <SelectItem value="two-rooms">Two Rooms</SelectItem>
-                        <SelectItem value="maze">Maze</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* <CardContent className="space-y-3"> */}
 
                     <div className="grid grid-cols-2 gap-2 items-center">
                       <div>
@@ -605,8 +615,8 @@ export default function InteractiveRLLab(){
                     <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} />
                     <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} />
                     <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty} />
-                  </CardContent>
-                </Card>
+                  {/* </CardContent>
+                </Card> */}
 
                 {/* <Card className="rounded-xl">
                   <CardHeader>
@@ -641,24 +651,24 @@ export default function InteractiveRLLab(){
           </CardContent>
           {/* <Card className="rounded-xl"> */}
                   <CardHeader>
-                    <CardTitle className="text-lg">PS Parameters</CardTitle>
+                    <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Tune the agent to make it learn!</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <SliderWithVal label="Memory damping (γ)" min={0.01} max={1} step={0.01} value={psGamma} onChange={setPsGamma}/>
                     <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
                     <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta}/>
                     <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon}/>
-                    <SliderWithVal label="Softmax temperature (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
+                    <SliderWithVal label="Inverse temperature policy (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
                   </CardContent>
                 {/* </Card> */}
         </Card>
-        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1">
+        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col">
           <CardHeader className="flex items-center justify-center">
             <CardTitle className="text-2xl flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning curves</CardTitle>
           </CardHeader>   
-          <CardContent className="space-y-1">
-              <p className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)}</p>
-              <p className="text-xs text-neutral-500">Total return: {fmt(totalReturnRef.current)}</p>
+          <CardContent className="space-y-0">
+              <p className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)} · Total return: {fmt(totalReturnRef.current)}</p>
+              {/* <p className="text-xs text-neutral-500">Total return: {fmt(totalReturnRef.current)}</p> */}
             <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} />
           </CardContent>
         </Card>
