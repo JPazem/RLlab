@@ -279,11 +279,11 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rewardTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" width={60}><ChartLabel value="Time steps" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-              <YAxis dataKey="R" width={60}><ChartLabel value="Instant reward" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+              <XAxis dataKey="t" width={60}><ChartLabel value="Time Step" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
+              <YAxis dataKey="R" width={60}><ChartLabel value="Instantaneous Reward" dx={5} dy={-75} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
-              <Line type="monotone" dataKey="R" strokeWidth={2} dot={true}/>
-              <ChartLabel value="Instant reward over time (R)" position="top" offset={10}/>
+              <Line type="monotone" dataKey="R" strokeWidth={2} dot={false} isAnimationActive={false}/>
+              <ChartLabel value="Instantaneous Reward Over Time (R)" position="top" offset={10}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -292,11 +292,11 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={cumTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" width={60}><ChartLabel value="Time steps" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-              <YAxis dataKey="C" width={60}><ChartLabel value="Cumulative rewards" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+              <XAxis dataKey="t" width={60}><ChartLabel value="Time Step" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
+              <YAxis dataKey="C" width={60}><ChartLabel value="Cumulative Reward" dx={5} dy={-60} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
               <Area type="monotone" dataKey="C" strokeWidth={2} fillOpacity={0.2}/>
-              <ChartLabel value="Cumulative reward over time (C)" position="top" offset={10}/>
+              <ChartLabel value="Cumulative Reward Over Time (C)" position="top" offset={10}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -304,11 +304,11 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={episodeReturns} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="ep" width={60}><ChartLabel value="Episodes" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-              <YAxis dataKey="G" width={60}><ChartLabel value="Episode's returns" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+              <XAxis dataKey="ep" width={60}><ChartLabel value="Episode Number" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
+              <YAxis dataKey="G" width={60}><ChartLabel value="Episode Return" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`ep=${l}`}/>
-              <Line type="monotone" dataKey="G" strokeWidth={2}/>
-              <ChartLabel value="Episode return per episode (G)" position="top" offset={10}/>
+              <Line type="monotone" dataKey="G" strokeWidth={2} dot={false} isAnimationActive={false}/>
+              <ChartLabel value="Episode Return Per Episode (G)" position="top" offset={10}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -425,7 +425,7 @@ export default function InteractiveRLLab(){
 
   function restartEpisode(lastReward:number){
     const G=currentEpReturnRef.current+lastReward;
-    setEpisodeReturns(l=>[...l,{ep:episode,G}]);
+    setEpisodeReturns(l => [...l, { ep: (l.length ? l[l.length - 1].ep + 1 : 1), G }]);
     setEpisode(e=>e+1);
     setCurrentEpReturn(0);
     currentEpReturnRef.current=0;
@@ -454,7 +454,7 @@ export default function InteractiveRLLab(){
   }
 
   const cellSize=36;
-  const [inspectorSize,setInspectorSize]=useState(54);
+  const [inspectorSize,setInspectorSize]=useState(60);
   const canvasW=gridW*cellSize;
   const canvasH=gridH*cellSize;
   const [tool,setTool]=useState<"draw"|"pick"|"erase">("draw");
@@ -581,7 +581,7 @@ export default function InteractiveRLLab(){
 
         <Card className="shadow-xl rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2"><Brain className="w-5 h-5"/> Memory of the PS agent</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2"><Brain className="w-5 h-5"/> Memory of the PS Agent</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
