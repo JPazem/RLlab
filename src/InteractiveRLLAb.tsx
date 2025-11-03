@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Button } from "./components/ui/button";
+import { Slider } from "./components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
+// import { Switch } from "./components/ui/switch";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
 import { Play, Pause, RotateCcw, Eraser, Wand2, MousePointer2, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban} from "lucide-react";
 import { motion } from "framer-motion";
@@ -20,15 +20,6 @@ type PointTC = { t: number; C: number };
 type PointEG = { ep: number; G: number };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-
-function psColor01(x: number) {
-  const v = clamp(x, 0, 1);
-  const b = 200 + Math.round(55 * v);
-  const g = 200 + Math.round(30 * v);
-  const r = 220 - Math.round(80 * v);
-  return "#fbfaf3ff"
-  // return `rgb(${r},${g},${b})`;
-}
 
 function makeGrid(w: number, h: number, preset: string): CellType[][] {
   const grid: CellType[][] = Array.from({ length: h }, () => Array.from({ length: w }, () => "empty" as CellType));
@@ -98,20 +89,17 @@ function SliderWithVal({ label, min, max, step=1, value, onChange }: { label: st
   return (
     <div>
       <div className="flex items-center justify-between mb-1"><Label>{label}</Label><span className="text-xs text-neutral-600">{typeof value==="number"? value.toFixed(2): value}</span></div>
-      <Slider min={min} max={max} step={step} value={[value as number]} onValueChange={(v)=>onChange(v[0])} />
+      <Slider min={min} max={max} step={step} value={[value as number]} onValueChange={(v :number[])=>onChange(v[0])} />
     </div>
   );
 }
 
 function PSInspector({
-  gridW,
-  gridH,
   grid,
   ps,
   cellSize,
 }: {
-  gridW: number;
-  gridH: number;
+
   grid: CellType[][];
   ps: PSLayer;
   cellSize: number;
@@ -146,9 +134,9 @@ function PSInspector({
               const hVals = [0, 1, 2, 3].map((a) => ps.getH(x, y, a));
               const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
               const probs = hVals.map((h) => h / sumH); // normalized
-              const hAvg = hVals.reduce((a, b) => a + b, 0) / 4;
-              const hNorm = clamp((hAvg - 1) / (3 - 1), 0, 1);
-              const bg = psColor01(hNorm);
+              // const hAvg = hVals.reduce((a, b) => a + b, 0) / 4;
+              // const hNorm = clamp((hAvg - 1) / (3 - 1), 0, 1);
+              const bg = "#fbfaf3ff"
 
               // Glow visualization
               let glow = 0;
@@ -337,7 +325,7 @@ export default function InteractiveRLLab(){
   const [stepCost,setStepCost]=useState(0);
   const [goalReward,setGoalReward]=useState(1);
   const [lavaPenalty,setLavaPenalty]=useState(-1);
-  const [wind,setWind]=useState(false);
+  // const [wind,setWind]=useState(false);
   const [psLambda,setPsLambda]=useState(1);
   const [psGamma,setPsGamma]=useState(0.01);
   const [psGlowEta,setPsGlowEta]=useState(0.05);
@@ -354,7 +342,7 @@ export default function InteractiveRLLab(){
   const gridRef=useRef(grid); useEffect(()=>{gridRef.current=grid},[grid]);
   const agentRef=useRef(agent); useEffect(()=>{agentRef.current=agent},[agent]);
   const startPosRef=useRef(startPos); useEffect(()=>{startPosRef.current=startPos},[startPos]);
-  const windRef=useRef(wind); useEffect(()=>{windRef.current=wind},[wind]);
+  // const windRef=useRef(wind); useEffect(()=>{windRef.current=wind},[wind]);
   const psLambdaRef=useRef(psLambda); useEffect(()=>{psLambdaRef.current=psLambda},[psLambda]);
   const psGammaRef=useRef(psGamma); useEffect(()=>{psGammaRef.current=psGamma},[psGamma]);
   const psGlowEtaRef=useRef(psGlowEta); useEffect(()=>{psGlowEtaRef.current=psGlowEta},[psGlowEta]);
@@ -404,10 +392,10 @@ export default function InteractiveRLLab(){
   }
 
   function windJitter(a:number){
-    if(!windRef.current) return a;
-    const r=Math.random();
-    if(r<0.1) return (a+1)%4;
-    if(r<0.2) return (a+3)%4;
+    // if(!windRef.current) return a;
+    // const r=Math.random();
+    // if(r<0.1) return (a+1)%4;
+    // if(r<0.2) return (a+3)%4;
     return a;
   }
 
@@ -481,14 +469,14 @@ const StaticGrid = React.memo(function StaticGrid({
   gridW,
   gridH,
   cellSize,
-  cellBG,
+  // cellBG,
   onCellClick,
 }: {
   grid: string[][],
   gridW: number,
   gridH: number,
   cellSize: number,
-  cellBG: (cell: string) => string,
+  // cellBG: (cell: CellType) => string,
   onCellClick: (x: number, y: number) => void,
 }) {
   return (
@@ -518,7 +506,7 @@ const StaticGrid = React.memo(function StaticGrid({
                 style={{
                   width: cellSize,
                   height: cellSize,
-                  background: cellBG(grid[y]?.[x] ?? "empty"),
+                  background: cellBG((grid[y]?.[x] ?? "empty") as CellType),
                 }}
                 title={`(${x},${y})`}
               >
@@ -616,7 +604,7 @@ const StaticGrid = React.memo(function StaticGrid({
                   gridW={gridW}
                   gridH={gridH}
                   cellSize={cellSize}
-                  cellBG={cellBG}
+                  // cellBG={cellBG}
                   onCellClick={onCellClick}
                 />
 
@@ -646,11 +634,17 @@ const StaticGrid = React.memo(function StaticGrid({
                     <div className=" grid grid-cols-2 gap-2 justify-center items-center">
                       <div>
                         <Label className="mb-1">Width</Label>
-                        <Input type="number" min={4} max={30} value={gridW} onChange={e=>setGridW(clamp(parseInt(e.target.value||"6"),4,30))}/>
+                        <Input type="number" min={4} max={30} value={gridW} 
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setGridW(clamp(parseInt(e.target.value || "6"), 4, 30))}/>
+                        {/* onChange={e=>setGridW(clamp(parseInt(e.target.value||"6"),4,30))}/> */}
                       </div>
                       <div>
                         <Label className="mb-1">Height</Label>
-                        <Input type="number" min={4} max={22} value={gridH} onChange={e=>setGridH(clamp(parseInt(e.target.value||"6"),4,22))}/>
+                        <Input type="number" min={4} max={22} value={gridH} 
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setGridH(clamp(parseInt(e.target.value || "6"), 4, 22))}/>
+                            {/* onChange={e=>setGridH(clamp(parseInt(e.target.value||"6"),4,22))}/> */}
                       </div>
                     </div>
 
@@ -708,7 +702,7 @@ const StaticGrid = React.memo(function StaticGrid({
           <CardContent>
             <div className="space-y-4">
               <div className="w-84"><SliderWithVal label="Size of the grid" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} /></div>
-              <PSInspector gridW={gridW} gridH={gridH} grid={grid} ps={psRef.current} cellSize={inspectorSize} />
+              <PSInspector grid={grid} ps={psRef.current} cellSize={inspectorSize} />
             </div>
           </CardContent>
           {/* <Card className="rounded-xl"> */}
