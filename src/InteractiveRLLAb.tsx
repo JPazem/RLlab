@@ -121,9 +121,9 @@ function PSInspector({
   return (
     <div className="overflow-auto">
       <div className="inline-block border rounded-xl">
-        {Array.from({ length: gridH }).map((_, y) => (
+        {Array.from({ length: grid.length }).map((_, y) => (
           <div key={`pi-${y}`} className="flex">
-            {Array.from({ length: gridW }).map((__, x) => {
+            {Array.from({ length: grid[0]?.length ?? 0  }).map((__, x) => {
               const c = grid[y][x];
               const isWall = c === "wall";
 
@@ -279,7 +279,7 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
     <Card className="rounded-xl m-0 p-0 shadow-xl flow-col border-slate-100">
       {/* <CardHeader><CardTitle className="text-lg">Rewards</CardTitle></CardHeader> */}
       <CardContent className="space-y-1">
-        <div className="h-54 mb-2 overflow-visible">
+        <div className="w-100 h-64 mb-2 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rewardTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -292,7 +292,7 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
           </ResponsiveContainer>
         </div>
 
-        <div className="h-54 mb-2 overflow-visible">
+        <div className="w-100 h-64 mb-2 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={cumTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -304,7 +304,7 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-54 overflow-visible">
+        <div className="w-100 h-64 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={episodeReturns} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -400,7 +400,7 @@ export default function InteractiveRLLab(){
   }
 
   function legal(x:number,y:number){
-    return x>=0&&y>=0&&x<gridW&&y<gridH&&gridRef.current[y][x]!=="wall";
+    return x>=0&&y>=0&&x<gridW&&y<gridH&&gridRef.current[y]?.[x]!=="wall";
   }
 
   function windJitter(a:number){
@@ -468,7 +468,7 @@ export default function InteractiveRLLab(){
   const [brush,setBrush]=useState<CellType>("wall");
 
   function onCellClick(x:number,y:number){
-    if(tool==="pick"){ setBrush(gridRef.current[y][x]); return; }
+    if(tool==="pick"){ setBrush(gridRef.current[y]?.[x] ?? "empty"); return; }
     const b = tool==="erase"?"empty":brush;
     const g = gridRef.current.map(row=>[...row]);
     g[y][x]=b;
@@ -498,10 +498,11 @@ const StaticGrid = React.memo(function StaticGrid({
         width: gridW * cellSize,
         height: gridH * cellSize,
       }}
+
     >
-      {Array.from({ length: gridH }).map((_, y) => (
+      {Array.from({ length: grid.length }).map((_, y) => (
         <div key={y} className="flex">
-          {Array.from({ length: gridW }).map((__, x) => {
+          {Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
             const cell = grid[y][x];
             return (
               <div
@@ -517,7 +518,7 @@ const StaticGrid = React.memo(function StaticGrid({
                 style={{
                   width: cellSize,
                   height: cellSize,
-                  background: cellBG(cell),
+                  background: cellBG(grid[y]?.[x] ?? "empty"),
                 }}
                 title={`(${x},${y})`}
               >
@@ -549,7 +550,7 @@ const StaticGrid = React.memo(function StaticGrid({
     <CardHeader className="flex items-center justify-center">
     <div>
     <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
-    <p className="text-xl text-slate-500 mt-1"> Come and train your reinforcement learnng agent in real life!</p>
+    <p className="text-xl text-slate-500 mt-1"> Come and train your reinforcement learning agent in real life!</p>
     </div>
     <div className="flex items-center gap-2">
     <Button
@@ -593,10 +594,10 @@ const StaticGrid = React.memo(function StaticGrid({
       <div className="max-w-20xl mx-auto grid grid-cols-3 gap-2 p-2">
         <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col gap-4" style={{ background:"#f5f5f5ff"  }}>
           <CardHeader className="flex items-center justify-center">
-            <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your environment!</CardTitle>
+            <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle>
           </CardHeader>
-          <CardContent>
-              <Label className="text-sm">Preset</Label>
+          <CardContent className="space-y-3">
+              <Label className="text-sm mb-1">Preset</Label>
                   <Select value={preset} onValueChange={setPreset}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -669,7 +670,7 @@ const StaticGrid = React.memo(function StaticGrid({
                    {/* ))}*/}
               </div>
              {/*</div> */}
-              <div className="space-y-1 flex-row">
+              <div className="space-y-1 flex-row flex-col">
                 {/* <Card className="rounded-xl"> */}
                   <CardHeader>
                     <CardTitle className="text-lg text-center justify-center text-blue-800 font-bold">Add new challenges!</CardTitle>
@@ -678,11 +679,11 @@ const StaticGrid = React.memo(function StaticGrid({
 
                     <div className="grid grid-cols-2 gap-2 items-center">
                       <div>
-                        <Label>Width</Label>
+                        <Label className="mb-1">Width</Label>
                         <Input type="number" min={4} max={30} value={gridW} onChange={e=>setGridW(clamp(parseInt(e.target.value||"6"),4,30))}/>
                       </div>
                       <div>
-                        <Label>Height</Label>
+                        <Label className="mb-1">Height</Label>
                         <Input type="number" min={4} max={22} value={gridH} onChange={e=>setGridH(clamp(parseInt(e.target.value||"6"),4,22))}/>
                       </div>
                     </div>
@@ -757,7 +758,7 @@ const StaticGrid = React.memo(function StaticGrid({
         </Card>
         <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col" style={{ background: "#f5f5f5ff"  }}>
           <CardHeader className="flex items-center justify-center">
-            <CardTitle className="text-2xl flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning curves</CardTitle>
+            <CardTitle className="text-2xl flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning Curves</CardTitle>
           </CardHeader>   
           <CardContent className="space-y-0">
               <p className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)} · Total return: {fmt(totalReturnRef.current)}</p>
