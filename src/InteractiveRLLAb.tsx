@@ -120,7 +120,7 @@ function PSInspector({
 
   return (
     <div className="overflow-auto">
-      <div className="inline-block border rounded-xl">
+      <div className="inline-block border">
         {Array.from({ length: grid.length }).map((_, y) => (
           <div key={`pi-${y}`} className="flex">
             {Array.from({ length: grid[0]?.length ?? 0  }).map((__, x) => {
@@ -654,7 +654,7 @@ const StaticGrid = React.memo(function StaticGrid({
                       </div>
                     </div>
 
-                    <div className="flex-col grid grid-cols-3 gap-2 justify-center items-center">
+                    <div className="flex-col grid grid-cols-3 gap-2 mt-3 ustify-center items-center">
                       <Button variant={tool==="draw"?"default":"outline"} onClick={()=>setTool("draw")}><MousePointer2 className="w-4 h-4 mr-1"/>Draw</Button>
                       <Button variant={tool==="pick"?"default":"outline"} onClick={()=>setTool("pick")}><Wand2 className="w-4 h-4 mr-1"/>Pick</Button>
                       <Button variant={tool==="erase"?"default":"outline"} onClick={()=>setTool("erase")}><Eraser className="w-4 h-4 mr-1"/>Erase</Button>
@@ -720,7 +720,7 @@ const StaticGrid = React.memo(function StaticGrid({
                     <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
                     <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta}/>
                     <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon}/>
-                    <SliderWithVal label="Inverse temperature policy (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
+                    <SliderWithVal label="Inverse temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
                   </CardContent>
                 {/* </Card> */}
         </Card>
