@@ -279,40 +279,40 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
     <Card className="rounded-xl m-0 p-0 shadow-xl flow-col border-slate-100">
       {/* <CardHeader><CardTitle className="text-lg">Rewards</CardTitle></CardHeader> */}
       <CardContent className="space-y-1">
-        <div className="w-100 h-64 mb-2 overflow-visible">
+        <div className="w-full h-54 mb-2 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rewardTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="t" width={60}><ChartLabel value="Time Step" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-              <YAxis dataKey="R" width={60}><ChartLabel value="Instantaneous Reward" dx={5} dy={-75} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+              <YAxis dataKey="R" width={60}><ChartLabel value="Instantaneous Reward" dx={12} dy={-75} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
               <Line type="monotone" dataKey="R" strokeWidth={2} dot={false} isAnimationActive={false}/>
-              <ChartLabel value="Instantaneous Reward Over Time (R)" position="top" offset={10}/>
+              <ChartLabel value="Instantaneous Reward Over Time (R)" position="top" offset={10} fill="#18233bff" fontWeight="bold" fontSize={16}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="w-100 h-64 mb-2 overflow-visible">
+        <div className="w-full h-54 mb-2 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={cumTrace} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="t" width={60}><ChartLabel value="Time Step" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-              <YAxis dataKey="C" width={60}><ChartLabel value="Cumulative Reward" dx={5} dy={-60} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+              <YAxis dataKey="C" width={60}><ChartLabel value="Cumulative Reward" dx={12} dy={-60} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
               <Area type="monotone" dataKey="C" strokeWidth={2} fillOpacity={0.2}/>
-              <ChartLabel value="Cumulative Reward Over Time (C)" position="top" offset={10}/>
+              <ChartLabel value="Cumulative Reward Over Time (C)" position="top" offset={10} fill="#18233bff" fontWeight="bold" fontSize={16}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="w-100 h-64 overflow-visible">
+        <div className="w-full h-54 overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={episodeReturns} margin={{ top: 30, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="ep" width={60}><ChartLabel value="Episode Number" offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-              <YAxis dataKey="G" width={60}><ChartLabel value="Episode Return" dx={5} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+              <YAxis dataKey="G" width={60}><ChartLabel value="Episode Return" dx={12} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
               <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`ep=${l}`}/>
               <Line type="monotone" dataKey="G" strokeWidth={2} dot={false} isAnimationActive={false}/>
-              <ChartLabel value="Episode Return Per Episode (G)" position="top" offset={10}/>
+              <ChartLabel value="Episode Return (G)" position="top" offset={10} fill="#18233bff" fontWeight="bold" fontSize={16}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -591,12 +591,12 @@ const StaticGrid = React.memo(function StaticGrid({
     </CardHeader>
     </Card>
 
-      <div className="max-w-20xl mx-auto grid grid-cols-3 gap-2 p-2">
-        <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col gap-4" style={{ background:"#f5f5f5ff"  }}>
+      <div className="max-w-20xl mx-auto grid grid-cols-3 gap-2">
+         <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 p-1" style={{ background: "#f5f5f5ff"}}>
           <CardHeader className="flex items-center justify-center">
             <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-1">
               <Label className="text-sm mb-1">Preset</Label>
                   <Select value={preset} onValueChange={setPreset}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -607,7 +607,7 @@ const StaticGrid = React.memo(function StaticGrid({
                       <SelectItem value="maze">Maze</SelectItem>
                     </SelectContent>
                   </Select>
-            <div className="grid md:grid-cols-[auto,300px] gap-4 justify-between items-center">
+            <div className="grid grid-cols-[auto,300px] gap-4 justify-center items-center">
               <div className="overflow-auto">
                 <div className="relative select-none" style={{ width: canvasW, height: canvasH }}>
                 {/* Static grid layer */}
@@ -633,51 +633,17 @@ const StaticGrid = React.memo(function StaticGrid({
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   style={{ background: "black" }}
                 />
-                  {/* {Array.from({ length: gridH }).map((_, y) => (
-                    <div key={y} className="flex">
-                      {Array.from({ length: gridW }).map((__, x) => {
-                        const cell = gridRef.current[y][x];
-                      return(
-                      // {Array.from({ length: gridW }).map((__, x) => (
-                        <div
-                          key={`${x}-${y}`}
-                          onMouseDown={(e) => { e.preventDefault(); onCellClick(x,y); }}
-                          onMouseEnter={(e)=>{ if (e.buttons===1) onCellClick(x,y); }}
-                          className="border border-neutral-300 flex items-center justify-center relative"
-                          style={{ width: cellSize, height: cellSize, background: cellBG(gridRef.current[y][x]) }}
-                          title={`(${x},${y})`}
-                        >
-                        {/* 🧱 Environment Icons */}
-                          {/* {cell === "goal" && (
-                            <Trophy className="w-5 h-5 text-emerald-600" strokeWidth={2.5} />
-                          )}
-                          {cell === "lava" && (
-                            <Skull className="w-5 h-5 text-red-500" strokeWidth={2.5} />
-                          )}
-                          {cell === "start" && (
-                            <CirclePlay className="w-5 h-5 text-yellow-500" strokeWidth={2.5} />
-                          )}
-                          {cell === "wall" && (
-                            <Ban className="w-5 h-5 text-gray-500 opacity-60" strokeWidth={2.5} />
-                          )}
-                          {agent.x===x && agent.y===y && (
-                            <motion.div layoutId="agent" className="w-6 h-6 rounded-full shadow" initial={false} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ background: "black" }} />
-                          )}
-                        </div>
-                          );   
-                      })}*/}
-                      </div>
-                   {/* ))}*/}
+                  </div>
               </div>
-             {/*</div> */}
-              <div className="space-y-1 flex-row flex-col">
+
+              <div className="w-100 flex-col rounded-2xl xl:col-span-1 m-2 p-0 items-center justify-center">
                 {/* <Card className="rounded-xl"> */}
                   <CardHeader>
-                    <CardTitle className="text-lg text-center justify-center text-blue-800 font-bold">Add new challenges!</CardTitle>
+                    <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Add new challenges!</CardTitle>
                   </CardHeader>
-                  {/* <CardContent className="space-y-3"> */}
+                  {/* <CardContent className="space-y-1"> */}
 
-                    <div className="grid grid-cols-2 gap-2 items-center">
+                    <div className=" grid grid-cols-2 gap-2 justify-center items-center">
                       <div>
                         <Label className="mb-1">Width</Label>
                         <Input type="number" min={4} max={30} value={gridW} onChange={e=>setGridW(clamp(parseInt(e.target.value||"6"),4,30))}/>
@@ -688,29 +654,31 @@ const StaticGrid = React.memo(function StaticGrid({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex-col grid grid-cols-3 gap-2 justify-center items-center">
                       <Button variant={tool==="draw"?"default":"outline"} onClick={()=>setTool("draw")}><MousePointer2 className="w-4 h-4 mr-1"/>Draw</Button>
                       <Button variant={tool==="pick"?"default":"outline"} onClick={()=>setTool("pick")}><Wand2 className="w-4 h-4 mr-1"/>Pick</Button>
                       <Button variant={tool==="erase"?"default":"outline"} onClick={()=>setTool("erase")}><Eraser className="w-4 h-4 mr-1"/>Erase</Button>
                     </div>
 
-                    <div className="grid grid-cols-5 gap-2 text-xs">
+                    <div className="flex-col grid grid-cols-5 gap-1 py-2 space-y-2 justify-center items-center text-xs">
                       {(["wall","empty","goal","lava","start"] as CellType[]).map(c => (
-                        <button key={c} onClick={()=>{ setBrush(c); setTool("draw"); }} className={`rounded-md border p-2 ring-black`} style={{ background: cellBG(c) }}>{c}</button>
+                        <button key={c} onClick={()=>{ setBrush(c); setTool("draw"); }} className={`rounded-md border p-1 m-1 ring-black`} style={{ background: cellBG(c) }}>{c}</button>
                       ))}
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    {/* <div className="flex items-center justify-between space-y-3 ">
                       <Label>Wind/Stochasticity</Label>
                       <Switch checked={wind} onCheckedChange={setWind} />
-                    </div>
+                    </div> */}
 
+                  <div className="flex-row items-center justify-between space-y-4 w-full">
                     <SliderWithVal label="Steps/sec" min={1} max={40} step={1} value={speed} onChange={setSpeed} />
                     <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} />
                     <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} />
                     <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty} />
-                  {/* </CardContent>
-                </Card> */}
+                  </div>
+                  {/* </CardContent> */}
+                {/* </Card> */}
 
                 {/* <Card className="rounded-xl">
                   <CardHeader>
@@ -739,7 +707,7 @@ const StaticGrid = React.memo(function StaticGrid({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="w-84"><SliderWithVal label="Inspector size" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} /></div>
+              <div className="w-84"><SliderWithVal label="Size of the grid" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} /></div>
               <PSInspector gridW={gridW} gridH={gridH} grid={grid} ps={psRef.current} cellSize={inspectorSize} />
             </div>
           </CardContent>
