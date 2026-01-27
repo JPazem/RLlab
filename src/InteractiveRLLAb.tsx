@@ -26,7 +26,7 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
   if (preset === "open") {
     grid[0][w - 1] = "goal";
     grid[h - 1][0] = "start";
-    grid[h - 1][w - 2] = "lava";
+    // grid[h - 1][w - 2] = "lava";
   } else if (preset === "corridor") {
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) grid[y][x] = y === Math.floor(h / 2) ? "empty" : "wall";
     grid[h - 1][0] = "start";
@@ -461,7 +461,32 @@ export default function InteractiveRLLab(){
     const g = gridRef.current.map(row=>[...row]);
     g[y][x]=b;
     setGrid(g);
-    if(b==="start"){ setStartPos({x,y}); setAgent({x,y}); agentRef.current={x,y}; }
+
+    if (b === "start") {
+    // Remove previous start
+    for (let yy = 0; yy < gridH; yy++) {
+      for (let xx = 0; xx < gridW; xx++) {
+        if (g[yy][xx] === "start") {
+          g[yy][xx] = "empty";
+        }
+      }
+    }
+
+    // Place new start
+    g[y][x] = "start";
+
+    // Update refs & state
+    const sp = { x, y };
+    setStartPos(sp);
+    setAgent(sp);
+    agentRef.current = sp;
+  } else {
+    g[y][x] = b;
+  }
+
+  setGrid(g);
+    
+    // if(b==="start"){ setStartPos({x,y}); setAgent({x,y}); agentRef.current={x,y}; }
   }
 
 const StaticGrid = React.memo(function StaticGrid({
@@ -714,7 +739,7 @@ const StaticGrid = React.memo(function StaticGrid({
                     <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
                     <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta}/>
                     <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon}/>
-                    <SliderWithVal label="Inverse temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
+                    <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
                   </CardContent>
                 {/* </Card> */}
         </Card>
