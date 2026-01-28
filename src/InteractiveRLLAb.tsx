@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Eraser, Wand2, MousePointer2, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban} from "lucide-react";
+import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban} from "lucide-react";
 import { motion } from "framer-motion";
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
