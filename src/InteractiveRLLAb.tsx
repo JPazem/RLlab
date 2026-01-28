@@ -678,11 +678,11 @@ const StaticGrid = React.memo(function StaticGrid({
                       </div>
                     </div>
 
-                    <div className="flex-col grid grid-cols-3 gap-2 mt-3 ustify-center items-center">
+                {/*<div className="flex-col grid grid-cols-3 gap-2 mt-3 ustify-center items-center">
                       <Button variant={tool==="draw"?"default":"outline"} onClick={()=>setTool("draw")}><MousePointer2 className="w-4 h-4 mr-1"/>Draw</Button>
                       <Button variant={tool==="pick"?"default":"outline"} onClick={()=>setTool("pick")}><Wand2 className="w-4 h-4 mr-1"/>Pick</Button>
                       <Button variant={tool==="erase"?"default":"outline"} onClick={()=>setTool("erase")}><Eraser className="w-4 h-4 mr-1"/>Erase</Button>
-                    </div>
+                    </div>*/}
 
                     <div className="flex-col grid grid-cols-5 gap-1 py-2 space-y-2 justify-center items-center text-xs">
                       {(["wall","empty","goal","lava","start"] as CellType[]).map(c => (
