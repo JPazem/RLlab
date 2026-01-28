@@ -562,7 +562,8 @@ const StaticGrid = React.memo(function StaticGrid({
     <Card className="border-slate-100 p-1 m-1" style={{ background: "#cbf0e8ff" }}>
     <CardHeader className="flex items-center justify-center">
     <div>
-    <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
+    <CardTitle className="text-3xl items-center flex justify-center gap-2 text-slate-700"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
+      {/* <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle> */}
     <p className="text-xl text-slate-500 mt-1"> Come and train your reinforcement learning agent in real life!</p>
     </div>
     <div className="flex items-center gap-2">
@@ -607,10 +608,12 @@ const StaticGrid = React.memo(function StaticGrid({
       <div className="max-w-20xl mx-auto grid grid-cols-3 gap-2">
          <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 p-1" style={{ background: "#f5f5f5ff"}}>
           <CardHeader className="flex items-center justify-center">
-            <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle>
+            <CardTitle className="text-2xl text-slate-700 flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle>
+            {/* <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle> */}
           </CardHeader>
           <CardContent className="space-y-1">
-              <Label className="text-sm mb-1">Preset</Label>
+              <Label className="text-sm mb-1 text-s">Preset</Label>
+            {/* <Label className="text-sm mb-1">Preset</Label> */}
                   <Select value={preset} onValueChange={setPreset}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
