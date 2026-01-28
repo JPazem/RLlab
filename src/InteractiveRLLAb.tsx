@@ -612,7 +612,7 @@ const StaticGrid = React.memo(function StaticGrid({
             {/* <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle> */}
           </CardHeader>
           <CardContent className="space-y-1">
-              <Label className="text-sm !text-slate-500 mb-1">Preset</Label>
+              <Label className="text-sm !text-slate-700 mb-1">Preset</Label>
             {/* <Label className="text-sm mb-1">Preset</Label> */}
                   <Select value={preset} onValueChange={setPreset}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
