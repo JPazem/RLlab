@@ -612,7 +612,7 @@ const StaticGrid = React.memo(function StaticGrid({
             {/* <CardTitle className="text-2xl flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> Build your Environment!</CardTitle> */}
           </CardHeader>
           <CardContent className="space-y-1">
-              <Label className="text-sm mb-1 text-s">Preset</Label>
+              <Label className="text-sm text-slate-500 mb-1 text-s">Preset</Label>
             {/* <Label className="text-sm mb-1">Preset</Label> */}
                   <Select value={preset} onValueChange={setPreset}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -661,17 +661,19 @@ const StaticGrid = React.memo(function StaticGrid({
 
                     <div className=" grid grid-cols-2 gap-2 justify-center items-center">
                       <div>
-                        <Label className="mb-1">Width</Label>
+                        <Label className="mb-1 text-slate-700">Width</Label>
                         <Input type="number" min={4} max={30} value={gridW} 
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setGridW(clamp(parseInt(e.target.value || "6"), 4, 30))}/>
+                          setGridW(clamp(parseInt(e.target.value || "6"), 4, 30))}
+                          className= "border-slate-700 text-slate-700"/>
                         {/* onChange={e=>setGridW(clamp(parseInt(e.target.value||"6"),4,30))}/> */}
                       </div>
                       <div>
-                        <Label className="mb-1">Height</Label>
+                        <Label className="mb-1 text-slate-700">Height</Label>
                         <Input type="number" min={4} max={22} value={gridH} 
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setGridH(clamp(parseInt(e.target.value || "6"), 4, 22))}/>
+                            setGridH(clamp(parseInt(e.target.value || "6"), 4, 22))}
+                            className= "border-slate-700 text-slate-700"/>
                             {/* onChange={e=>setGridH(clamp(parseInt(e.target.value||"6"),4,22))}/> */}
                       </div>
                     </div>
@@ -684,7 +686,7 @@ const StaticGrid = React.memo(function StaticGrid({
 
                     <div className="flex-col grid grid-cols-5 gap-1 py-2 space-y-2 justify-center items-center text-xs">
                       {(["wall","empty","goal","lava","start"] as CellType[]).map(c => (
-                        <button key={c} onClick={()=>{ setBrush(c); setTool("draw"); }} className={`rounded-md border p-1 m-1 ring-black`} style={{ background: cellBG(c) }}>{c}</button>
+                        <button key={c} onClick={()=>{ setBrush(c); setTool("draw"); }} className={`rounded-md border p-1 m-1 ring-black text-slate-900`} style={{ background: cellBG(c) }}>{c}</button>
                       ))}
                     </div>
 
@@ -694,10 +696,10 @@ const StaticGrid = React.memo(function StaticGrid({
                     </div> */}
 
                   <div className="flex-row items-center justify-between space-y-4 w-full">
-                    <SliderWithVal label="Steps/sec" min={1} max={40} step={1} value={speed} onChange={setSpeed} />
-                    <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} />
-                    <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} />
-                    <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty} />
+                    <SliderWithVal label="Steps/sec" min={1} max={40} step={1} value={speed} onChange={setSpeed} classname="text-slate-700 border-slate-700"/>
+                    <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost}  classname="text-slate-700 border-slate-700"/>
+                    <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward}  classname="text-slate-700 border-slate-700"/>
+                    <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty}  classname="text-slate-700 border-slate-700"/>
                   </div>
                   {/* </CardContent> */}
                 {/* </Card> */}
