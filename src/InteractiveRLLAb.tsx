@@ -696,10 +696,10 @@ const StaticGrid = React.memo(function StaticGrid({
                     </div> */}
 
                   <div className="flex-row items-center justify-between space-y-4 w-full">
-                    <SliderWithVal label="Steps/sec" min={1} max={40} step={1} value={speed} onChange={setSpeed} classname="text-slate-700 border-slate-700"/>
-                    <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost}  classname="text-slate-700 border-slate-700"/>
-                    <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward}  classname="text-slate-700 border-slate-700"/>
-                    <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty}  classname="text-slate-700 border-slate-700"/>
+                    <SliderWithVal label="Steps/sec" min={1} max={40} step={1} value={speed} onChange={setSpeed}/>
+                    <SliderWithVal label="Step cost" min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost}/>
+                    <SliderWithVal label="Goal reward" min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward}/>
+                    <SliderWithVal label="Lava penalty" min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty}/>
                   </div>
                   {/* </CardContent> */}
                 {/* </Card> */}
