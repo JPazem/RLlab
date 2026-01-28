@@ -88,7 +88,7 @@ function stepXY(x:number,y:number,a:Action){
 function SliderWithVal({ label, min, max, step=1, value, onChange }: { label: string, min: number, max: number, step?: number, value: number, onChange: (v:number)=>void }){
   return (
     <div>
-      <div className="flex items-center justify-between mb-1"><Label>{label}</Label><span className="text-xs text-neutral-600">{typeof value==="number"? value.toFixed(2): value}</span></div>
+      <div className="flex items-center justify-between mb-1"><Label className="!text-slate-700">{label}</Label><span className="text-xs !text-slate-700">{typeof value==="number"? value.toFixed(2): value}</span></div>
       <Slider min={min} max={max} step={step} value={[value as number]} onValueChange={(v :number[])=>onChange(v[0])} />
     </div>
   );
