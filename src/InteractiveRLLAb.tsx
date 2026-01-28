@@ -617,10 +617,13 @@ const StaticGrid = React.memo(function StaticGrid({
                   <Select value={preset} onValueChange={setPreset}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open">Open Field</SelectItem>
-                      <SelectItem value="corridor">Corridor</SelectItem>
-                      <SelectItem value="two-rooms">Two Rooms</SelectItem>
-                      <SelectItem value="maze">Maze</SelectItem>
+                      <SelectItem className="!text-slate-700" value="open">Open Field</SelectItem>
+                      <SelectSeparator className="bg-slate-300" />
+                      <SelectItem className="!text-slate-700" value="corridor">Corridor</SelectItem>
+                      <SelectSeparator className="bg-slate-300" />
+                      <SelectItem className="!text-slate-700" value="two-rooms">Two Rooms</SelectItem>
+                      <SelectSeparator className="bg-slate-300" />
+                      <SelectItem className="!text-slate-700" value="maze">Maze</SelectItem>
                     </SelectContent>
                   </Select>
             <div className="grid grid-cols-[auto,300px] gap-4 justify-center items-center">
