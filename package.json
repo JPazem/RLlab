@@ -1,5 +1,6 @@
 {
   "name": "rl-lab",
+  "homepage": "https://jpazem.github.io/InteractiveRLlab",
   "private": true,
   "version": "0.0.0",
   "type": "module",
