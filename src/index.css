@@ -3,7 +3,8 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  /* color-scheme: light dark; */
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #f1b4b4;
 
@@ -54,7 +55,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     color: #213547;
     background-color: #ffffff;
@@ -66,11 +67,12 @@ button:focus-visible {
     background-color: #f9f9f9; 
     /* #f9f9f9 */
   }
-}
+} */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* @custom-variant dark (&:is(.dark *)); */
 
 @tailwind base;
 @tailwind components;
