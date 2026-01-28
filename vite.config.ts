@@ -6,6 +6,7 @@ import path from "path"
  
 // https://vite.dev/config/
 export default defineConfig({
+ base: "/InteractiveRLlab/"
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
