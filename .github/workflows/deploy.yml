@@ -1,0 +1,49 @@
+name: Deploy RLlab to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout RLlab
+      - name: Checkout RLlab
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3️⃣ Install deps
+      - name: Install dependencies
+        run: npm ci
+
+      # 4️⃣ Build with Vite
+      - name: Build
+        run: npm run build
+
+      # 5️⃣ Checkout InteractiveRLlab
+      - name: Checkout website repo
+        uses: actions/checkout@v4
+        with:
+          repository: JPazem/InteractiveRLlab
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          path: website
+
+      # 6️⃣ Replace site contents
+      - name: Deploy site
+        run: |
+          rm -rf website/assets website/index.html
+          cp -r dist/* website/
+          cd website
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Auto-deploy from RLlab" || echo "No changes"
+          git push
