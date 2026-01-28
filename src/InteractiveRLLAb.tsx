@@ -618,11 +618,8 @@ const StaticGrid = React.memo(function StaticGrid({
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem className="!text-slate-700" value="open">Open Field</SelectItem>
-                      <SelectSeparator className="bg-slate-300" />
                       <SelectItem className="!text-slate-700" value="corridor">Corridor</SelectItem>
-                      <SelectSeparator className="bg-slate-300" />
                       <SelectItem className="!text-slate-700" value="two-rooms">Two Rooms</SelectItem>
-                      <SelectSeparator className="bg-slate-300" />
                       <SelectItem className="!text-slate-700" value="maze">Maze</SelectItem>
                     </SelectContent>
                   </Select>
@@ -730,7 +727,7 @@ const StaticGrid = React.memo(function StaticGrid({
 
         <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 p-1" style={{ background: "#f5f5f5ff"}}>
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center justify-center gap-2"><Brain className="w-10 h-10"/> Memory of the PS Agent</CardTitle>
+            <CardTitle className="text-2xl text-slate-700 flex items-center justify-center gap-2"><Brain className="w-10 h-10"/> Memory of the PS Agent</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -753,7 +750,7 @@ const StaticGrid = React.memo(function StaticGrid({
         </Card>
         <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 p-1 flex flex-col" style={{ background: "#f5f5f5ff"  }}>
           <CardHeader className="flex items-center justify-center">
-            <CardTitle className="text-2xl flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning Curves</CardTitle>
+            <CardTitle className="text-2xl text-slate-700 flex items-center justify-center gap-2"><Trophy className="w-10 h-10"/>  Learning Curves</CardTitle>
           </CardHeader>   
           <CardContent className="space-y-0">
               <p className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)} · Total return: {fmt(totalReturnRef.current)}</p>
