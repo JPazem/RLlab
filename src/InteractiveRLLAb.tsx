@@ -536,6 +536,8 @@ export default function InteractiveRLLab(){
   const tRef=useRef(0);
   const totalReturnRef=useRef(0);
   const currentEpReturnRef=useRef(0);
+  const gameWonRef=useRef(false); // Track game won state in ref to avoid race conditions
+  const levelTransitionRef=useRef<ReturnType<typeof setTimeout> | null>(null); // Track timeout to clean up on unmount
   const psRef=useRef<PSLayer>(new PSLayer(gridW,gridH));
   const gridRef=useRef(grid); useEffect(()=>{gridRef.current=grid},[grid]);
   const agentRef=useRef(agent); useEffect(()=>{agentRef.current=agent},[agent]);
@@ -621,15 +623,31 @@ export default function InteractiveRLLab(){
     setEpisodeReturns([]);
     setCurrentEpReturn(0);
     setGameWon(false);
+    gameWonRef.current = false; // Also reset the ref
     tRef.current = 0;
     totalReturnRef.current = 0;
     currentEpReturnRef.current = 0;
     psRef.current = new PSLayer(level.gridW, level.gridH);
+    startPosRef.current = newStartPos; // Ensure ref is in sync
   };
 
   // Load initial level
   useEffect(() => {
     loadLevel(currentLevel);
+  }, []);
+
+  // Sync gameWonRef with gameWon state
+  useEffect(() => {
+    gameWonRef.current = gameWon;
+  }, [gameWon]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (levelTransitionRef.current) {
+        clearTimeout(levelTransitionRef.current);
+      }
+    };
   }, []);
 
   useEffect(()=>{psRef.current=new PSLayer(gridW,gridH);},[gridW,gridH]);
@@ -724,7 +742,10 @@ export default function InteractiveRLLab(){
   }
 
   function attemptMove(x:number,y:number,a:number){
-    const next=stepXY(x,y,ACTIONS[windJitter(a)]);
+    const actionIdx = windJitter(a);
+    if (actionIdx < 0 || actionIdx >= ACTIONS.length) return {x, y};
+    
+    const next=stepXY(x,y,ACTIONS[actionIdx]);
     if(!legal(next.x,next.y))return{x,y};
     return next;
   }
@@ -741,23 +762,37 @@ export default function InteractiveRLLab(){
       if (newReturns.length >= 5) {
         const last5 = newReturns.slice(-5);
         const allGood = last5.every(ep => ep.G > winThreshold);
-        if (allGood && !gameWon) {
+        if (allGood && !gameWonRef.current) {
+          // Mark game as won immediately to stop further ticks
+          gameWonRef.current = true;
+          setGameWon(true);
+          setRunning(false);
+          
           if (currentLevel < LEVELS.length) {
-            // Advance to next level
-            const nextLevel = currentLevel + 1;
-            setTimeout(() => {
+            // Clear any existing timeout
+            if (levelTransitionRef.current) {
+              clearTimeout(levelTransitionRef.current);
+            }
+            
+            // Schedule level transition after brief delay
+            levelTransitionRef.current = setTimeout(() => {
+              const nextLevel = currentLevel + 1;
               setCurrentLevel(nextLevel);
               loadLevel(nextLevel);
-              setRunning(true); // Auto-start next level
-            }, 2000); // Brief pause to show win message
+              // Reset game won for next level
+              gameWonRef.current = false;
+              setGameWon(false);
+              setRunning(true);
+              levelTransitionRef.current = null;
+            }, 2000);
           }
-          setGameWon(true);
-          setRunning(false); // Stop the simulation
         }
       }
       
       return newReturns;
     });
+    
+    // Reset for next episode (but don't reset game won state here)
     setEpisode(e=>e+1);
     setCurrentEpReturn(0);
     currentEpReturnRef.current=0;
@@ -767,24 +802,47 @@ export default function InteractiveRLLab(){
   }
 
   function tick(){
-    if (gameWon) return; // Don't continue if game is won
+    // Check game won using ref to avoid stale state issues
+    if (gameWonRef.current) return;
     
-    const {x,y}=agentRef.current;
-    const a=pickAction(x,y);
-    psRef.current.decayGlow(psGlowEtaRef.current);
-    psRef.current.addGlow(x,y,a,1);
-    const s1=attemptMove(x,y,a);
-    const r=envReward(s1.x,s1.y);
-    psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
-    psRef.current.normalize();
-    tRef.current+=1;
-    totalReturnRef.current+=r;
-    setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>50?nxt.slice(-50):nxt;}); // Limit to 50 points
-    setCumTrace(ct=>{const nxt=[...ct,{t:tRef.current,C:totalReturnRef.current}]; return nxt.length>500?nxt.slice(-500):nxt;}); // Limit to 500 points
-    setCurrentEpReturn(v=>v+r);
-    setAgent(s1);
-    agentRef.current=s1;
-    if(isTerminal(s1.x,s1.y)) restartEpisode(r);
+    try {
+      const {x,y}=agentRef.current;
+      
+      // Validate agent position
+      if (x < 0 || y < 0 || x >= gridW || y >= gridH) {
+        console.warn("Agent out of bounds, resetting to start position");
+        setAgent(startPosRef.current);
+        agentRef.current = startPosRef.current;
+        return;
+      }
+      
+      const a=pickAction(x,y);
+      psRef.current.decayGlow(psGlowEtaRef.current);
+      psRef.current.addGlow(x,y,a,1);
+      const s1=attemptMove(x,y,a);
+      
+      // Validate new position
+      if (s1.x < 0 || s1.y < 0 || s1.x >= gridW || s1.y >= gridH) {
+        console.warn("Move resulted in out of bounds position");
+        return;
+      }
+      
+      const r=envReward(s1.x,s1.y);
+      psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
+      psRef.current.normalize();
+      tRef.current+=1;
+      totalReturnRef.current+=r;
+      setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>50?nxt.slice(-50):nxt;}); // Limit to 50 points
+      setCumTrace(ct=>{const nxt=[...ct,{t:tRef.current,C:totalReturnRef.current}]; return nxt.length>500?nxt.slice(-500):nxt;}); // Limit to 500 points
+      setCurrentEpReturn(v=>v+r);
+      setAgent(s1);
+      agentRef.current=s1;
+      if(isTerminal(s1.x,s1.y)) restartEpisode(r);
+    } catch (error) {
+      console.error("Error during tick:", error);
+      setRunning(false);
+      gameWonRef.current = true;
+    }
   }
 
   const cellSize=50;
