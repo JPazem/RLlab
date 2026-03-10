@@ -249,152 +249,181 @@ function PSInspector({
 }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
 
-  // Memoize expensive calculations
+  // Validate grid and ps layer
+  if (!grid || grid.length === 0 || !ps || !ps.hvals || !ps.gvals) {
+    return <div className="p-2 text-xs text-slate-500">No grid data available</div>;
+  }
+
+  // Memoize expensive calculations with boundary checks
   const gridData = useMemo(() => {
-    return Array.from({ length: grid.length }).map((_, y) => 
-      Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
-        const c = grid[y][x];
-        const isWall = c === "wall";
+    try {
+      return Array.from({ length: grid.length }).map((_, y) => 
+        Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
+          const c = grid[y]?.[x];
+          const isWall = c === "wall";
 
-        if (isWall) return { type: 'wall' };
+          if (isWall) return { type: 'wall' };
 
-        const hVals = [0, 1, 2, 3].map((a) => ps.getH(x, y, a));
-        const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
-        const probs = hVals.map((h) => h / sumH);
-        const bg = "#fbfaf3ff";
+          const hVals = [0, 1, 2, 3].map((a) => {
+            try {
+              const h = ps.getH(x, y, a) || 0;
+              return Number.isFinite(h) ? h : 0;
+            } catch {
+              return 0;
+            }
+          });
+          
+          const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
+          const probs = hVals.map((h) => Math.max(0, Math.min(1, h / sumH)));
+          const bg = "#fbfaf3ff";
 
-        let glow = 0;
-        for (let a = 0; a < 4; a++) glow = Math.max(glow, ps.getG(x, y, a));
-        const ringOpacity = Math.min(glow / 2, 0.7);
+          let glow = 0;
+          for (let a = 0; a < 4; a++) {
+            try {
+              const g = ps.getG(x, y, a) || 0;
+              glow = Math.max(glow, Number.isFinite(g) ? g : 0);
+            } catch {
+              // silently handle errors
+            }
+          }
+          const ringOpacity = Math.min(glow / 2, 0.7);
 
-        return { type: 'cell', probs, bg, ringOpacity, cell: c };
-      })
-    );
+          return { type: 'cell', probs, bg, ringOpacity, cell: c };
+        })
+      );
+    } catch (error) {
+      console.error("Error in gridData calculation:", error);
+      return [];
+    }
   }, [grid, ps]);
 
   return (
     <div className="overflow-auto">
       <div className="inline-block border">
-        {gridData.map((row, y) => (
-          <div key={`pi-${y}`} className="flex">
-            {row.map((cellData, x) => {
-              if (cellData.type === 'wall') {
+        {gridData.length === 0 ? (
+          <div className="p-2 text-xs text-slate-500">Unable to load grid data</div>
+        ) : (
+          gridData.map((row, y) => (
+            <div key={`pi-${y}`} className="flex">
+              {row.map((cellData, x) => {
+                if (cellData.type === 'wall') {
+                  return (
+                    <div
+                      key={`pi-${x}-${y}`}
+                      className="border border-neutral-300"
+                      style={{
+                        width: cellSize,
+                        height: cellSize,
+                        background: "#3b434bff",
+                      }}
+                    />
+                  );
+                }
+
+                const { probs, bg, ringOpacity, cell } = cellData as { type: 'cell'; probs: number[]; bg: string; ringOpacity: number; cell: CellType };
+
                 return (
                   <div
                     key={`pi-${x}-${y}`}
-                    className="border border-neutral-300"
+                    onMouseEnter={() => setHover({ x, y })}
+                    onMouseLeave={() => setHover(null)}
+                    className="relative border border-neutral-300 flex items-center justify-center"
                     style={{
                       width: cellSize,
                       height: cellSize,
-                      background: "#3b434bff",
+                      background: bg,
+                      position: "relative",
                     }}
-                  />
-                );
-              }
-
-              const { probs, bg, ringOpacity, cell } = cellData as { type: 'cell'; probs: number[]; bg: string; ringOpacity: number; cell: CellType };
-
-              return (
-                <div
-                  key={`pi-${x}-${y}`}
-                  onMouseEnter={() => setHover({ x, y })}
-                  onMouseLeave={() => setHover(null)}
-                  className="relative border border-neutral-300 flex items-center justify-center"
-                  style={{
-                    width: cellSize,
-                    height: cellSize,
-                    background: bg,
-                    position: "relative",
-                  }}
-                >
-                  {/* SVG Policy Arrows */}
-                  <svg
-                    className="absolute inset-0"
-                    viewBox="0 0 100 100"
-                    xmlns="http://www.w3.org/2000/svg"
                   >
-                    <defs>
-                      <marker
-                        id="arrowhead"
-                        markerWidth="6"
-                        markerHeight="6"
-                        refX="2"
-                        refY="2"
-                        orient="auto"
-                        markerUnits="strokeWidth"
-                      >
-                        <path d="M0,0 L0,4 L4,2 Z" fill="indigo" />
-                      </marker>
-                    </defs>
+                    {/* SVG Policy Arrows */}
+                    <svg
+                      className="absolute inset-0"
+                      viewBox="0 0 100 100"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <defs>
+                        <marker
+                          id="arrowhead"
+                          markerWidth="6"
+                          markerHeight="6"
+                          refX="2"
+                          refY="2"
+                          orient="auto"
+                          markerUnits="strokeWidth"
+                        >
+                          <path d="M0,0 L0,4 L4,2 Z" fill="indigo" />
+                        </marker>
+                      </defs>
 
-                    {(() => {
-                      const drawArrow = (dx: number, dy: number, prob: number) => {
-                        const center = 50;
-                        const len = 25;
-                        const x1 = center;
-                        const y1 = center;
-                        const x2 = center + dx * len;
-                        const y2 = center + dy * len;
-                        const strokeW = Math.max(1, prob * 8);
+                      {(() => {
+                        const drawArrow = (dx: number, dy: number, prob: number) => {
+                          const center = 50;
+                          const len = 25;
+                          const x1 = center;
+                          const y1 = center;
+                          const x2 = center + dx * len;
+                          const y2 = center + dy * len;
+                          const strokeW = Math.max(1, prob * 8);
+
+                          return (
+                            <line
+                              x1={x1}
+                              y1={y1}
+                              x2={x2}
+                              y2={y2}
+                              stroke="indigo"
+                              strokeWidth={strokeW}
+                              markerEnd="url(#arrowhead)"
+                              strokeLinecap="round"
+                              opacity={prob}
+                            />
+                          );
+                        };
 
                         return (
-                          <line
-                            x1={x1}
-                            y1={y1}
-                            x2={x2}
-                            y2={y2}
-                            stroke="indigo"
-                            strokeWidth={strokeW}
-                            markerEnd="url(#arrowhead)"
-                            strokeLinecap="round"
-                            opacity={prob}
-                          />
+                          <>
+                            {drawArrow(0, -1, probs[0])} {/* up */}
+                            {drawArrow(1, 0, probs[1])} {/* right */}
+                            {drawArrow(0, 1, probs[2])} {/* down */}
+                            {drawArrow(-1, 0, probs[3])} {/* left */}
+                          </>
                         );
-                      };
+                      })()}
+                    </svg>
 
-                      return (
-                        <>
-                          {drawArrow(0, -1, probs[0])} {/* up */}
-                          {drawArrow(1, 0, probs[1])} {/* right */}
-                          {drawArrow(0, 1, probs[2])} {/* down */}
-                          {drawArrow(-1, 0, probs[3])} {/* left */}
-                        </>
-                      );
-                    })()}
-                  </svg>
+                    {/* Glow halo */}
+                    <div
+                      className="absolute inset-0 rounded-md pointer-events-none"
+                      style={{
+                        boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset`,
+                      }}
+                    />
 
-                  {/* Glow halo */}
-                  <div
-                    className="absolute inset-0 rounded-md pointer-events-none"
-                    style={{
-                      boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset`,
-                    }}
-                  />
-
-                  {/* Special symbols */}
-                  {cell === "goal" && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <Trophy className="absolute inset-0 m-auto w-7 h-7 text-green-700" />
-                    </span>
-                  )}
-                  {cell === "lava" && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <Skull className="absolute inset-0 m-auto w-7 h-7 text-red-700" />
-                    </span>
-                  )}
-                  {cell === "start" && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                    {/* Special symbols */}
+                    {cell === "goal" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                        <Trophy className="absolute inset-0 m-auto w-7 h-7 text-green-700" />
+                      </span>
+                    )}
+                    {cell === "lava" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                        <Skull className="absolute inset-0 m-auto w-7 h-7 text-red-700" />
+                      </span>
+                    )}
+                    {cell === "start" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                        <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))
+        )}
       </div>
 
-      {hover && (
+      {hover && gridData.length > 0 && (
         <div className="mt-2 text-xs text-neutral-700">
           <div> PS cell ({hover.x},{hover.y}) — h: [↑ {fmt(ps.getH(hover.x,hover.y,0))}, → {fmt(ps.getH(hover.x,hover.y,1))}, ↓ {fmt(ps.getH(hover.x,hover.y,2))}, ← {fmt(ps.getH(hover.x,hover.y,3))}] </div>
           <div> glow max={fmt(Math.max(ps.getG(hover.x,hover.y,0), ps.getG(hover.x,hover.y,1), ps.getG(hover.x,hover.y,2), ps.getG(hover.x,hover.y,3)))} </div>
@@ -633,6 +662,11 @@ export default function InteractiveRLLab(){
   },[running,speed]);
 
   function envReward(x:number,y:number){
+    // Guard against out-of-bounds
+    if (x < 0 || y < 0 || !gridRef.current[y] || gridRef.current[y].length === 0) {
+      return stepCostRef.current;
+    }
+    
     const c=gridRef.current[y]?.[x];
     if(c==="goal")return goalRewardRef.current;
     if(c==="lava")return lavaPenaltyRef.current;
@@ -641,6 +675,9 @@ export default function InteractiveRLLab(){
   }
 
   function isTerminal(x:number,y:number){
+    if (x < 0 || y < 0 || !gridRef.current[y] || gridRef.current[y].length === 0) {
+      return false;
+    }
     const c=gridRef.current[y]?.[x];
     return c==="goal"||c==="lava";
   }
@@ -658,15 +695,31 @@ export default function InteractiveRLLab(){
   }
 
   function pickAction(x:number,y:number){
+    // Guard against invalid inputs
+    if (x < 0 || y < 0 || x >= gridW || y >= gridH) {
+      return Math.floor(Math.random() * 4);
+    }
+    
     if (Math.random() < epsilonRef.current) return Math.floor(Math.random()*4);
+    
     let hs:number[] = new Array(4).fill(0);
-    for (let a=0;a<4;a++) hs[a]=psRef.current.getH(x,y,a);
+    for (let a=0;a<4;a++) {
+      const h = psRef.current.getH(x,y,a) || 0;
+      hs[a] = Number.isFinite(h) ? h : 0;
+    }
+    
     const t=Math.max(0.01, tauRef.current);
-    const maxH=Math.max(...hs);
+    const maxH=Math.max(...hs, 0.01); // Ensure maxH is never 0
     const exps=hs.map(h=>Math.exp((h-maxH)/t));
     const sum=exps.reduce((a,b)=>a+b,0);
+    
+    if (!Number.isFinite(sum) || sum === 0) return Math.floor(Math.random()*4);
+    
     let r=Math.random(); let acc=0;
-    for(let a=0;a<4;a++){acc+=exps[a]/sum; if(r<=acc)return a;}
+    for(let a=0;a<4;a++){
+      acc+=exps[a]/sum; 
+      if(r<=acc)return a;
+    }
     return 0;
   }
 
@@ -1066,9 +1119,9 @@ const StaticGrid = React.memo(function StaticGrid({
                       <SelectItem className="!text-slate-700" value="maze">Maze</SelectItem>
                     </SelectContent>
                   </Select>
-            <div className="grid grid-cols-[auto,300px] gap-4 justify-center items-center">
-              <div className="overflow-auto">
-                <div className="relative select-none" style={{ width: canvasW, height: canvasH }}>
+            <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-2 sm:gap-4">
+              <div className="overflow-x-auto lg:overflow-auto">
+                <div className="relative select-none inline-block lg:inline-block" style={{ width: canvasW, height: canvasH, minWidth: `min(100vw - 32px, ${canvasW}px)` }}>
                 {/* Static grid layer */}
                 <StaticGrid
                   grid={gridRef.current}
@@ -1096,7 +1149,7 @@ const StaticGrid = React.memo(function StaticGrid({
                   </div>
               </div>
 
-              <div className="w-100 flex-col rounded-2xl xl:col-span-1 m-2 p-0 items-center justify-center">
+              <div className="flex flex-col rounded-2xl m-2 p-0 items-stretch justify-start">
                 {/* <Card className="rounded-xl"> */}
                   <CardHeader>
                     <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Add new challenges!</CardTitle>
