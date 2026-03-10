@@ -200,6 +200,44 @@ function SliderWithVal({ label, min, max, step=1, value, onChange, help, disable
   );
 }
 
+// Error Boundary Component
+class PSInspectorErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("PSInspector Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+          <div className="font-semibold mb-2">⚠️ Memory Grid Error</div>
+          <div className="text-xs">The memory visualization encountered an error.</div>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-2 px-2 py-1 bg-red-200 hover:bg-red-300 rounded text-xs"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function PSInspector({
   grid,
   ps,
@@ -212,155 +250,134 @@ function PSInspector({
 }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
 
-  // Memoize expensive calculations
+  // Memoize expensive calculations with error handling
   const gridData = useMemo(() => {
-    return Array.from({ length: grid.length }).map((_, y) => 
-      Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
-        const c = grid[y][x];
-        const isWall = c === "wall";
+    try {
+      return Array.from({ length: grid.length }).map((_, y) => 
+        Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
+          try {
+            const c = grid[y][x];
+            const isWall = c === "wall";
 
-        if (isWall) return { type: 'wall' };
+            if (isWall) return { type: 'wall' };
 
-        const hVals = [0, 1, 2, 3].map((a) => ps.getH(x, y, a));
-        const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
-        const probs = hVals.map((h) => h / sumH);
-        const bg = "#fbfaf3ff";
+            const hVals = [0, 1, 2, 3].map((a) => {
+              try {
+                return ps.getH(x, y, a) ?? 0;
+              } catch {
+                return 0;
+              }
+            });
+            const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
+            const probs = hVals.map((h) => Math.max(0, Math.min(1, h / sumH)));
+            const bg = "#fbfaf3ff";
 
-        let glow = 0;
-        for (let a = 0; a < 4; a++) glow = Math.max(glow, ps.getG(x, y, a));
-        const ringOpacity = Math.min(glow / 2, 0.7);
+            let glow = 0;
+            for (let a = 0; a < 4; a++) {
+              try {
+                glow = Math.max(glow, ps.getG(x, y, a) ?? 0);
+              } catch {
+                // Continue if getG fails
+              }
+            }
+            const ringOpacity = Math.min(glow / 2, 0.7);
 
-        return { type: 'cell', probs, bg, ringOpacity, cell: c };
-      })
-    );
+            return { type: 'cell', probs, bg, ringOpacity, cell: c };
+          } catch (cellError) {
+            console.warn(`Error processing cell (${x},${y}):`, cellError);
+            return { type: 'cell', probs: [0.25, 0.25, 0.25, 0.25], bg: "#fbfaf3ff", ringOpacity: 0, cell: 'empty' };
+          }
+        })
+      );
+    } catch (error) {
+      console.error("Error in gridData calculation:", error);
+      return [];
+    }
   }, [grid, ps]);
 
   return (
     <div className="overflow-auto">
       <div className="inline-block border">
-        {gridData.map((row, y) => (
+        {gridData.length > 0 ? gridData.map((row, y) => (
           <div key={`pi-${y}`} className="flex">
             {row.map((cellData, x) => {
-              if (cellData.type === 'wall') {
+              try {
+                if (cellData.type === 'wall') {
+                  return (
+                    <div
+                      key={`pi-${x}-${y}`}
+                      className="border border-neutral-300"
+                      style={{
+                        width: cellSize,
+                        height: cellSize,
+                        background: "#3b434bff",
+                      }}
+                    />
+                  );
+                }
+
+                const data = cellData as { type: 'cell'; probs: number[]; bg: string; ringOpacity: number; cell: CellType };
+                const { probs, bg, ringOpacity, cell } = data;
+                const safeProbs = probs && probs.length === 4 ? probs : [0.25, 0.25, 0.25, 0.25];
+
                 return (
                   <div
                     key={`pi-${x}-${y}`}
-                    className="border border-neutral-300"
+                    onMouseEnter={() => setHover({ x, y })}
+                    onMouseLeave={() => setHover(null)}
+                    className="relative border border-neutral-300 flex items-center justify-center"
                     style={{
                       width: cellSize,
                       height: cellSize,
-                      background: "#3b434bff",
+                      background: bg,
+                      position: "relative",
                     }}
-                  />
-                );
-              }
-
-              const { probs, bg, ringOpacity, cell } = cellData as { type: 'cell'; probs: number[]; bg: string; ringOpacity: number; cell: CellType };
-
-              return (
-                <div
-                  key={`pi-${x}-${y}`}
-                  onMouseEnter={() => setHover({ x, y })}
-                  onMouseLeave={() => setHover(null)}
-                  className="relative border border-neutral-300 flex items-center justify-center"
-                  style={{
-                    width: cellSize,
-                    height: cellSize,
-                    background: bg,
-                    position: "relative",
-                  }}
-                >
-                  {/* SVG Policy Arrows */}
-                  <svg
-                    className="absolute inset-0"
-                    viewBox="0 0 100 100"
-                    xmlns="http://www.w3.org/2000/svg"
                   >
-                    <defs>
-                      <marker
-                        id="arrowhead"
-                        markerWidth="6"
-                        markerHeight="6"
-                        refX="2"
-                        refY="2"
-                        orient="auto"
-                        markerUnits="strokeWidth"
-                      >
-                        <path d="M0,0 L0,4 L4,2 Z" fill="indigo" />
-                      </marker>
-                    </defs>
-
-                    {(() => {
-                      const drawArrow = (dx: number, dy: number, prob: number) => {
-                        const center = 50;
-                        const len = 25;
-                        const x1 = center;
-                        const y1 = center;
-                        const x2 = center + dx * len;
-                        const y2 = center + dy * len;
-                        const strokeW = Math.max(1, prob * 8);
-
-                        return (
-                          <line
-                            x1={x1}
-                            y1={y1}
-                            x2={x2}
-                            y2={y2}
-                            stroke="indigo"
-                            strokeWidth={strokeW}
-                            markerEnd="url(#arrowhead)"
-                            strokeLinecap="round"
-                            opacity={prob}
-                          />
-                        );
-                      };
-
-                      return (
-                        <>
-                          {drawArrow(0, -1, probs[0])} {/* up */}
-                          {drawArrow(1, 0, probs[1])} {/* right */}
-                          {drawArrow(0, 1, probs[2])} {/* down */}
-                          {drawArrow(-1, 0, probs[3])} {/* left */}
-                        </>
-                      );
-                    })()}
-                  </svg>
-
-                  {/* Glow halo */}
-                  <div
-                    className="absolute inset-0 rounded-md pointer-events-none"
-                    style={{
-                      boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset`,
-                    }}
-                  />
-
-                  {/* Special symbols */}
-                  {cell === "goal" && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <Trophy className="absolute inset-0 m-auto w-7 h-7 text-green-700" />
-                    </span>
-                  )}
-                  {cell === "lava" && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <Skull className="absolute inset-0 m-auto w-7 h-7 text-red-700" />
-                    </span>
-                  )}
-                  {cell === "start" && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
-                    </span>
-                  )}
-                </div>
-              );
+                    <svg className="absolute inset-0" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="2" refY="2" orient="auto" markerUnits="strokeWidth">
+                          <path d="M0,0 L0,4 L4,2 Z" fill="indigo" />
+                        </marker>
+                      </defs>
+                      {(() => {
+                        try {
+                          const drawArrow = (dx: number, dy: number, prob: number) => {
+                            const safProb = Math.max(0, Math.min(1, prob ?? 0.25));
+                            const center = 50, len = 25, strokeW = Math.max(1, safProb * 8);
+                            return (
+                              <line key={`arrow-${dx}-${dy}`} x1={center} y1={center} x2={center + dx * len} y2={center + dy * len}
+                                stroke="indigo" strokeWidth={strokeW} markerEnd="url(#arrowhead)" strokeLinecap="round" opacity={safProb} />
+                            );
+                          };
+                          return (
+                            <>
+                              {drawArrow(0, -1, safeProbs[0])}{drawArrow(1, 0, safeProbs[1])}
+                              {drawArrow(0, 1, safeProbs[2])}{drawArrow(-1, 0, safeProbs[3])}
+                            </>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
+                    </svg>
+                    <div className="absolute inset-0 rounded-md pointer-events-none" style={{ boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset` }} />
+                    {cell === "goal" && <span className="absolute inset-0 flex items-center justify-center"><Trophy className="w-7 h-7 text-green-700" /></span>}
+                    {cell === "lava" && <span className="absolute inset-0 flex items-center justify-center"><Skull className="w-7 h-7 text-red-700" /></span>}
+                    {cell === "start" && <span className="absolute inset-0 flex items-center justify-center"><CirclePlay className="w-7 h-7 text-yellow-400" /></span>}
+                  </div>
+                );
+              } catch (e) {
+                console.warn(`Cell error at (${x},${y}):`, e);
+                return <div key={`pi-${x}-${y}`} className="border border-red-300" style={{ width: cellSize, height: cellSize, background: "#ffcccc" }} />;
+              }
             })}
           </div>
-        ))}
+        )) : <div className="p-4 text-sm text-slate-600">No grid data</div>}
       </div>
-
       {hover && (
         <div className="mt-2 text-xs text-neutral-700">
-          <div> PS cell ({hover.x},{hover.y}) — h: [↑ {fmt(ps.getH(hover.x,hover.y,0))}, → {fmt(ps.getH(hover.x,hover.y,1))}, ↓ {fmt(ps.getH(hover.x,hover.y,2))}, ← {fmt(ps.getH(hover.x,hover.y,3))}] </div>
-          <div> glow max={fmt(Math.max(ps.getG(hover.x,hover.y,0), ps.getG(hover.x,hover.y,1), ps.getG(hover.x,hover.y,2), ps.getG(hover.x,hover.y,3)))} </div>
+          <div>PS cell ({hover.x},{hover.y}) — h: [↑ {fmt(ps.getH(hover.x,hover.y,0))}, → {fmt(ps.getH(hover.x,hover.y,1))}, ↓ {fmt(ps.getH(hover.x,hover.y,2))}, ← {fmt(ps.getH(hover.x,hover.y,3))}]</div>
+          <div>glow max={fmt(Math.max(ps.getG(hover.x,hover.y,0), ps.getG(hover.x,hover.y,1), ps.getG(hover.x,hover.y,2), ps.getG(hover.x,hover.y,3)))}</div>
         </div>
       )}
     </div>
@@ -584,14 +601,28 @@ export default function InteractiveRLLab(){
 
   useEffect(()=>{
     if(!running) return;
-    const interval=setInterval(()=>{tick();},Math.max(20,1000/Math.max(1,speed)));
+    const interval=setInterval(()=>{
+      try {
+        tick();
+      } catch (error) {
+        console.error("Error in simulation tick:", error);
+        setRunning(false); // Stop the simulation on error
+      }
+    },Math.max(20,1000/Math.max(1,speed)));
     return()=>clearInterval(interval);
   },[running,speed]);
 
   function envReward(x:number,y:number){
-    const c=gridRef.current[y]?.[x];
-    if(c==="goal")return goalRewardRef.current;
-    if(c==="lava")return lavaPenaltyRef.current;
+    try {
+      const c=gridRef.current[y]?.[x];
+      if(c==="goal")return goalRewardRef.current;
+      if(c==="lava")return lavaPenaltyRef.current;
+      return 0;
+    } catch (error) {
+      console.warn("Error calculating reward:", error);
+      return 0;
+    }
+  }
     if(c==="wall")return -0.2;
     return stepCostRef.current;
   }
@@ -670,24 +701,68 @@ export default function InteractiveRLLab(){
   }
 
   function tick(){
-    if (gameWon) return; // Don't continue if game is won
-    
-    const {x,y}=agentRef.current;
-    const a=pickAction(x,y);
-    psRef.current.decayGlow(psGlowEtaRef.current);
-    psRef.current.addGlow(x,y,a,1);
-    const s1=attemptMove(x,y,a);
-    const r=envReward(s1.x,s1.y);
-    psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
-    psRef.current.normalize();
-    tRef.current+=1;
-    totalReturnRef.current+=r;
-    setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>50?nxt.slice(-50):nxt;}); // Limit to 50 points
-    setCumTrace(ct=>{const nxt=[...ct,{t:tRef.current,C:totalReturnRef.current}]; return nxt.length>500?nxt.slice(-500):nxt;}); // Limit to 500 points
-    setCurrentEpReturn(v=>v+r);
-    setAgent(s1);
-    agentRef.current=s1;
-    if(isTerminal(s1.x,s1.y)) restartEpisode(r);
+    try {
+      if (gameWon) return; // Don't continue if game is won
+      
+      const {x,y}=agentRef.current;
+      const a=pickAction(x,y);
+      
+      try {
+        psRef.current.decayGlow(psGlowEtaRef.current);
+        psRef.current.addGlow(x,y,a,1);
+      } catch (psError) {
+        console.warn("Error updating PS glow:", psError);
+      }
+      
+      const s1=attemptMove(x,y,a);
+      const r=envReward(s1.x,s1.y);
+      
+      try {
+        psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
+        psRef.current.normalize();
+      } catch (rewardError) {
+        console.warn("Error in reward update:", rewardError);
+      }
+      
+      tRef.current+=1;
+      totalReturnRef.current+=r;
+      
+      try {
+        setRewardTrace(tr=>{
+          try {
+            const nxt=[...tr,{t:tRef.current,R:r}]; 
+            return nxt.length>50?nxt.slice(-50):nxt;
+          } catch {
+            return tr;
+          }
+        }); // Limit to 50 points
+        setCumTrace(ct=>{
+          try {
+            const nxt=[...ct,{t:tRef.current,C:totalReturnRef.current}]; 
+            return nxt.length>500?nxt.slice(-500):nxt;
+          } catch {
+            return ct;
+          }
+        }); // Limit to 500 points
+      } catch (traceError) {
+        console.warn("Error updating traces:", traceError);
+      }
+      
+      setCurrentEpReturn(v=>v+r);
+      setAgent(s1);
+      agentRef.current=s1;
+      
+      if(isTerminal(s1.x,s1.y)) {
+        try {
+          restartEpisode(r);
+        } catch (episodeError) {
+          console.warn("Error restarting episode:", episodeError);
+        }
+      }
+    } catch (error) {
+      console.error("Fatal error in tick:", error);
+      setRunning(false); // Stop the simulation on critical error
+    }
   }
 
   const cellSize=50;
@@ -1132,21 +1207,24 @@ const StaticGrid = React.memo(function StaticGrid({
           <CardContent>
             <div className="space-y-4">
               <div className="w-84"><SliderWithVal label="Size of the grid" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} help="Controls the visualization size of the memory/policy inspector grid. Larger = more detailed view of the learned policy."/></div>
-              <PSInspector grid={grid} ps={psRef.current} cellSize={inspectorSize} />
+              <PSInspectorErrorBoundary>
+                <PSInspector grid={grid} ps={psRef.current} cellSize={inspectorSize} />
+              </PSInspectorErrorBoundary>
             </div>
           </CardContent>
-          {/* <Card className="rounded-xl"> */}
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Tune the agent to make it learn!</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <SliderWithVal label="Memory damping (γ)" min={0} max={1} step={0.01} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/>
-                    <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/>
-                    <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/>
-                    <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon} help="Probability of taking a random action instead of using learned policy. Higher values = more exploration and randomness." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/>
-                    <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('tau')}/>
-                  </CardContent>
-                {/* </Card> */}
+        </Card>
+        
+        <Card className="rounded-xl shadow-xl rounded-2xl xl:col-span-1 m-1 sm:m-2 p-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Tune the agent to make it learn!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <SliderWithVal label="Memory damping (γ)" min={0} max={1} step={0.01} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/>
+            <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/>
+            <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/>
+            <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon} help="Probability of taking a random action instead of using learned policy. Higher values = more exploration and randomness." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/>
+            <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('tau')}/>
+          </CardContent>
         </Card>
         <Card className="xl:col-span-1 shadow-xl rounded-2xl m-1 sm:m-2 p-2 flex flex-col order-3 lg:order-3" style={{ background: "#f5f5f5ff"  }}>
           <CardHeader className="pb-2">
