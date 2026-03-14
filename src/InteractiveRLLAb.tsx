@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Slider } from "./components/ui/slider";
@@ -9,6 +9,7 @@ import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
 import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X} from "lucide-react";
 import { motion } from "framer-motion";
+import qrCode from "./assets/QR_Code_RLGame_Outreach.png";
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
 type Action = typeof ACTIONS[number];
@@ -254,10 +255,10 @@ function PSInspector({
     return <div className="p-2 text-xs text-slate-500">No grid data available</div>;
   }
 
-  // Memoize expensive calculations with boundary checks
-  const gridData = useMemo(() => {
+  // Compute grid data (removed memoization to ensure real-time glow updates)
+  const gridData = (() => {
     try {
-      return Array.from({ length: grid.length }).map((_, y) => 
+      return Array.from({ length: grid.length }).map((_, y) =>
         Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
           const c = grid[y]?.[x];
           const isWall = c === "wall";
@@ -272,7 +273,7 @@ function PSInspector({
               return 0;
             }
           });
-          
+
           const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
           const probs = hVals.map((h) => Math.max(0, Math.min(1, h / sumH)));
           const bg = "#fbfaf3ff";
@@ -286,7 +287,8 @@ function PSInspector({
               // silently handle errors
             }
           }
-          const ringOpacity = Math.min(glow / 2, 0.7);
+          const ringOpacity = glow/2;
+          // const ringOpacity = Math.min(glow / 2, 0.7);
 
           return { type: 'cell', probs, bg, ringOpacity, cell: c };
         })
@@ -295,7 +297,7 @@ function PSInspector({
       console.error("Error in gridData calculation:", error);
       return [];
     }
-  }, [grid, ps]);
+  })();
 
   return (
     <div className="overflow-auto">
@@ -351,7 +353,7 @@ function PSInspector({
                           orient="auto"
                           markerUnits="strokeWidth"
                         >
-                          <path d="M0,0 L0,4 L4,2 Z" fill="indigo" />
+                          <path d="M0,0 L0,4 L4,2 Z" fill="rgba(79,70,229,0.9)" />
                         </marker>
                       </defs>
 
@@ -363,7 +365,10 @@ function PSInspector({
                           const y1 = center;
                           const x2 = center + dx * len;
                           const y2 = center + dy * len;
-                          const strokeW = Math.max(1, prob * 8);
+
+                          const scaledProb = Math.max(0, Math.min(1, prob));
+                          const strokeW = 1 + scaledProb * 10;
+                          const opacity = 0.25 + scaledProb * 0.75;
 
                           return (
                             <line
@@ -371,11 +376,11 @@ function PSInspector({
                               y1={y1}
                               x2={x2}
                               y2={y2}
-                              stroke="indigo"
+                              stroke="rgba(79,70,229,0.9)"
                               strokeWidth={strokeW}
                               markerEnd="url(#arrowhead)"
                               strokeLinecap="round"
-                              opacity={prob}
+                              opacity={opacity}
                             />
                           );
                         };
@@ -1072,12 +1077,13 @@ const StaticGrid = React.memo(function StaticGrid({
       </div>
     )}
     
-    <Card className="border-slate-100 p-1 m-1" style={{ background: "#cbf0e8ff" }}>
-    <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
-    <div className="text-center sm:text-left">
-    <CardTitle className="text-2xl sm:text-3xl items-center flex justify-center gap-2 text-slate-700"><Bot className="w-8 h-8 sm:w-10 sm:h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
-      {/* <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle> */}
-    <p className="text-lg sm:text-xl text-slate-500 mt-1"> Come and train your reinforcement learning agent in real life!</p>
+    <Card className="border-slate-100 p-1 m-1" style={{ background: "rgb(146, 226, 219)" }}>
+    <CardHeader className="relative flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
+      <img src={qrCode} alt="QR code" className="absolute top-0 left-1 w-18 h-18 rounded border border-slate-200 shadow-sm" />
+      <div className="text-center sm:text-left pl-16 sm:pl-20">
+        <CardTitle className="text-2xl sm:text-3xl items-center flex justify-center gap-2 text-slate-700"><Bot className="w-8 h-8 sm:w-10 sm:h-10"/> Interactive Reinforcement Learning Lab </CardTitle>
+        {/* <CardTitle className="text-3xl items-center flex justify-center gap-2"><Bot className="w-10 h-10"/> Interactive Reinforcement Learning Lab </CardTitle> */}
+        <p className="text-lg sm:text-xl text-slate-500 mt-1"> Come and train your reinforcement learning agent in real life!</p>
     {gameWon && currentLevel < LEVELS.length && (
       <div className="mt-2 p-3 bg-green-100 border border-green-300 rounded-lg text-center">
         <h2 className="text-xl sm:text-2xl font-bold text-green-800">🎉 Level {currentLevel} Complete! 🎉</h2>
@@ -1102,6 +1108,7 @@ const StaticGrid = React.memo(function StaticGrid({
           variant={running ? "secondary" : "default"}
           size="sm"
           onClick={() => setRunning(r => !r)}
+          className="text-slate-500 hover:text-slate-700 transition-colors"
         >
           {running ? (
             <>
@@ -1118,6 +1125,7 @@ const StaticGrid = React.memo(function StaticGrid({
         variant="outline"
         size="sm"
         onClick={() => loadLevel(currentLevel)}
+        className="text-slate-500 hover:text-slate-700 transition-colors"
       >
         <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> Reset Level
     </Button>
@@ -1128,6 +1136,7 @@ const StaticGrid = React.memo(function StaticGrid({
           setCurrentLevel(1);
           loadLevel(1);
         }}
+        className="text-slate-500 hover:text-slate-700 transition-colors"
       >
         <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> Reset Game
     </Button>
@@ -1297,11 +1306,11 @@ const StaticGrid = React.memo(function StaticGrid({
                     <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Tune the agent to make it learn!</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <SliderWithVal label="Memory damping (γ)" min={0} max={1} step={0.01} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/>
+                    <SliderWithVal label="Memory damping (γ)" min={0} max={0.2} step={0.001} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/>
                     <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/>
-                    <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/>
+                    <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.001} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/>
                     <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon} help="Probability of taking a random action instead of using learned policy. Higher values = more exploration and randomness." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/>
-                    <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('tau')}/>
+                    {/* <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('tau')}/> */}
                   </CardContent>
                 {/* </Card> */}
         </Card>
