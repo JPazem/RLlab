@@ -58,7 +58,7 @@ const LEVELS: LevelConfig[] = [
     preset: "open",
     gridW: 4,
     gridH: 4,
-    lockedParams: {stepCost: -0.05},
+    lockedParams: {stepCost: -0.05, goalReward: 1},
     adjustableParams: ["psLambda", "psGamma", "psGlowEta"],
     winThreshold: 1,
     instructions: "Now you need to tune the memory parameters! The agent can only adjust λ (lambda), γ (gamma), and η (glow decay). Try different combinations to help the agent learn faster. Higher λ emphasizes recent rewards, γ controls memory decay, and η affects how quickly old experiences fade."
@@ -70,8 +70,8 @@ const LEVELS: LevelConfig[] = [
     preset: "corridor",
     gridW: 7,
     gridH: 5,
-    lockedParams: { psLambda: 5, psGamma: 0.01, psGlowEta: 0.03, stepCost: -0.05 },
-    adjustableParams: ["epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
+    lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1},
+    adjustableParams: ["psGamma", "psLambda", "psGlowEta", "epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
     winThreshold: 1,
     instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Memory parameters are now fixed - focus on adjusting exploration (ε) and decision-making (τ) parameters to help the agent find the optimal path."
   },
@@ -82,8 +82,8 @@ const LEVELS: LevelConfig[] = [
     preset: "two-rooms",
     gridW: 7,
     gridH: 5,
-    lockedParams: { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05 },
-    adjustableParams: ["tau", "stepCost", "goalReward", "lavaPenalty", "epsilon"],
+    lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1 },
+    adjustableParams: ["tau", "psGamma", "psGlowEta", "epsilon", "psLambda", "epsilon"],
     winThreshold: 1,
     instructions: "Even more challenging! The agent must navigate between two rooms connected by a doorway. Exploration is now fixed - you can only adjust decision-making speed (τ) and reward structure. Watch how the agent learns to find the optimal route through both rooms."
   },
@@ -1101,9 +1101,6 @@ const StaticGrid = React.memo(function StaticGrid({
     )}
     </div>
     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-    <button onClick={() => setShowInstructions(true)} title="View level instructions" className="text-slate-500 hover:text-slate-700 transition-colors">
-      <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-    </button>
     <button onClick={() => setShowInfo(true)} title="View general information" className="text-slate-500 hover:text-slate-700 transition-colors">
       <Info className="w-5 h-5 sm:w-6 sm:h-6" />
     </button>
@@ -1177,18 +1174,22 @@ const StaticGrid = React.memo(function StaticGrid({
                     ))}
                   </SelectContent>
                 </Select>
+                <button onClick={() => setShowInstructions(true)} title="View level instructions" className="text-slate-500 hover:text-slate-700 transition-colors">
+                  <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
               </div>
-              <Label className="text-sm !text-slate-700 mb-1">Preset</Label>
-            {/* <Label className="text-sm mb-1">Preset</Label> */}
-                  <Select value={preset} onValueChange={setPreset}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem className="!text-slate-700" value="open">Open Field</SelectItem>
-                      <SelectItem className="!text-slate-700" value="corridor">Corridor</SelectItem>
-                      <SelectItem className="!text-slate-700" value="two-rooms">Two Rooms</SelectItem>
-                      <SelectItem className="!text-slate-700" value="maze">Maze</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm !text-slate-700">Preset</Label>
+                <Select value={preset} onValueChange={setPreset}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem className="!text-slate-700" value="open">Open Field</SelectItem>
+                    <SelectItem className="!text-slate-700" value="corridor">Corridor</SelectItem>
+                    <SelectItem className="!text-slate-700" value="two-rooms">Two Rooms</SelectItem>
+                    <SelectItem className="!text-slate-700" value="maze">Maze</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-2 sm:gap-4">
               <div className="overflow-x-auto lg:overflow-auto">
                 <div className="relative select-none inline-block lg:inline-block" style={{ width: canvasW, height: canvasH, minWidth: `min(100vw - 32px, ${canvasW}px)` }}>
