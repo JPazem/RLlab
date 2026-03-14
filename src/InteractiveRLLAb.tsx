@@ -7,14 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X} from "lucide-react";
+import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen} from "lucide-react";
 import { motion } from "framer-motion";
 import qrCode from "./assets/QR_Code_RLGame_Outreach.png";
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
 type Action = typeof ACTIONS[number];
 
-type CellType = "empty" | "wall" | "goal" | "lava" | "start";
+type CellType = "empty" | "wall" | "goal" | "lava" | "start" | "key" | "door-closed" | "door-open";
 
 type LevelConfig = {
   id: number;
@@ -85,7 +85,7 @@ const LEVELS: LevelConfig[] = [
     lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1 },
     adjustableParams: ["tau", "psGamma", "psGlowEta", "epsilon", "psLambda", "epsilon"],
     winThreshold: 1,
-    instructions: "Even more challenging! The agent must navigate between two rooms connected by a doorway. Exploration is now fixed - you can only adjust decision-making speed (τ) and reward structure. Watch how the agent learns to find the optimal route through both rooms."
+    instructions: "Even more challenging! The agent must navigate between two rooms connected by a locked door. First, collect the key (🔑) in the left room to unlock the door (🚪). Reaching the goal without the key gives only 1/3 of the full reward. Exploration is fixed - adjust decision-making speed (τ) and reward structure to help the agent learn this key-door mechanic."
   },
   {
     id: 5,
@@ -119,24 +119,37 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
     grid[Math.floor(h / 2)][w - 1] = "goal";
   } else if (preset === "two-rooms") {
     const doorY = Math.floor(h / 2);
+    const mid = Math.floor(w / 2);
     for (let y = 0; y < h; y++) {
       if (y === doorY) continue;
-      const mid = Math.floor(w / 2);
       grid[y][mid] = "wall";
     }
+    grid[doorY][mid] = "door-closed";
     grid[h - 1][0] = "start";
+    grid[h - 2][1] = "key";
     grid[0][w - 2] = "goal";
-    grid[h - 2][2] = "lava";
   } else if (preset === "maze") {
-    for (let y = 1; y < h - 1; y += 2) {
-      for (let x = 1; x < w - 1; x++) grid[y][x] = "wall";
-      const gap = 1 + ((y * 3) % (w - 2));
-      grid[y][gap] = "empty";
+    // for (let y = 1; y < h - 1; y += 2) {
+    //   for (let x = 1; x < w - 1; x++) grid[y][x] = "wall";
+    //   const gap = 1 + ((y * 3) % (w - 2));
+    //   grid[y][gap] = "empty";
+    // }
+    // grid[h-1][1] = "lava";
+    // grid[0][w-2] = "lava";
+    // grid[h - 1][0] = "start";
+    // grid[0][w - 1] = "goal";
+    const doorY = Math.floor(h / 2);
+    const mid = Math.floor(w / 2);
+    for (let y = 0; y < h; y++) {
+      if (y === doorY) continue;
+      grid[y][mid] = "wall";
     }
-    grid[h-1][1] = "lava";
-    grid[0][w-2] = "lava";
+    grid[doorY][mid] = "door-closed";
     grid[h - 1][0] = "start";
-    grid[0][w - 1] = "goal";
+    grid[0][0] = "key";
+    grid[1][0] = "wall";
+    grid[doorY-1][mid+1]="lava";
+    grid[0][w - 2] = "goal";
   }
   return grid;
 }
@@ -258,48 +271,36 @@ function PSInspector({
   }
 
   // Compute grid data (removed memoization to ensure real-time glow updates)
-  const gridData = (() => {
-    try {
-      return Array.from({ length: grid.length }).map((_, y) =>
-        Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
-          const c = grid[y]?.[x];
-          const isWall = c === "wall";
+  const gridData = Array.from({ length: grid.length }).map((_, y) =>
+    Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
+      const c = grid[y]?.[x];
+      const isWall = c === "wall";
 
-          if (isWall) return { type: 'wall' };
+      if (isWall) return { type: 'wall' };
 
-          const hVals = [0, 1, 2, 3].map((a) => {
-            try {
-              const h = ps.getH(x, y, a) || 0;
-              return Number.isFinite(h) ? h : 0;
-            } catch {
-              return 0;
-            }
-          });
+      const hVals = [0, 1, 2, 3].map((a) => {
+        const h = ps.getH(x, y, a) || 0;
+        return Number.isFinite(h) ? h : 0;
+      });
+      
+      const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
+      const probs = hVals.map((h) => Math.max(0, Math.min(1, h / sumH)));
+      let bg = "#fbfaf3ff";
+      if (c === "key") bg = "#3b82f6"; // Blue for key
+      if (c === "door-closed") bg = "#a56c2a" ; // Brown for door
+      if (c === "door-open") bg = "#228b22"; // Green for open door
 
-          const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
-          const probs = hVals.map((h) => Math.max(0, Math.min(1, h / sumH)));
-          const bg = "#fbfaf3ff";
+      let glow = 0;
+      for (let a = 0; a < 4; a++) {
+        const g = ps.getG(x, y, a) || 0;
+        glow = Math.max(glow, Number.isFinite(g) ? g : 0);
+      }
+      const ringOpacity = glow/2;
+      // const ringOpacity = Math.min(glow / 2, 0.7);
 
-          let glow = 0;
-          for (let a = 0; a < 4; a++) {
-            try {
-              const g = ps.getG(x, y, a) || 0;
-              glow = Math.max(glow, Number.isFinite(g) ? g : 0);
-            } catch {
-              // silently handle errors
-            }
-          }
-          const ringOpacity = glow/2;
-          // const ringOpacity = Math.min(glow / 2, 0.7);
-
-          return { type: 'cell', probs, bg, ringOpacity, cell: c };
-        })
-      );
-    } catch (error) {
-      console.error("Error in gridData calculation:", error);
-      return [];
-    }
-  })();
+      return { type: 'cell', probs, bg, ringOpacity, cell: c };
+    })
+  );
 
   return (
     <div className="overflow-auto">
@@ -362,14 +363,15 @@ function PSInspector({
                       {(() => {
                         const drawArrow = (dx: number, dy: number, prob: number) => {
                           const center = 50;
-                          const len = 25;
+                          const len = 35;
                           const x1 = center;
                           const y1 = center;
                           const x2 = center + dx * len;
                           const y2 = center + dy * len;
 
                           const scaledProb = Math.max(0, Math.min(1, prob));
-                          const strokeW = 1 + scaledProb * 10;
+                          // const strokeW = 2  + scaledProb * 15;
+                          const strokeW = 4;
                           const opacity = 0.25 + scaledProb * 0.75;
 
                           return (
@@ -419,7 +421,22 @@ function PSInspector({
                     )}
                     {cell === "start" && (
                       <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                        <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
+                      <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
+                      </span>
+                    )}
+                    {cell === "key" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                      <KeyRound className="absolute inset-0 m-auto w-7 h-7 text-blue-400" />
+                      </span>
+                    )}
+                    {cell === "door-closed" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                      <DoorClosedLocked className="absolute inset-0 m-auto w-7 h-7 text-brown-400" />
+                      </span>
+                    )}
+                    {cell === "door-open" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                      <DoorOpen className="absolute inset-0 m-auto w-7 h-7 text-brown-400" />
                       </span>
                     )}
                   </div>
@@ -540,11 +557,14 @@ export default function InteractiveRLLab(){
   const [showInstructions, setShowInstructions] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [gameWon, setGameWon] = useState(false);
+  const [hasKey, setHasKey] = useState(false);
+  const [psVersion, setPsVersion] = useState(0);
   const tRef=useRef(0);
   const totalReturnRef=useRef(0);
   const currentEpReturnRef=useRef(0);
   const gameWonRef=useRef(false); // Track game won state in ref to avoid race conditions
   const levelTransitionRef=useRef<ReturnType<typeof setTimeout> | null>(null); // Track timeout to clean up on unmount
+  const hasKeyRef=useRef(false);
   const psRef=useRef<PSLayer>(new PSLayer(gridW,gridH));
   const gridRef=useRef(grid); useEffect(()=>{gridRef.current=grid},[grid]);
   const agentRef=useRef(agent); useEffect(()=>{agentRef.current=agent},[agent]);
@@ -630,6 +650,7 @@ export default function InteractiveRLLab(){
     setEpisodeReturns([]);
     setCurrentEpReturn(0);
     setGameWon(false);
+    setHasKey(false);
     gameWonRef.current = false; // Also reset the ref
     tRef.current = 0;
     totalReturnRef.current = 0;
@@ -647,6 +668,11 @@ export default function InteractiveRLLab(){
   useEffect(() => {
     gameWonRef.current = gameWon;
   }, [gameWon]);
+
+  // Sync hasKeyRef with hasKey state
+  useEffect(() => {
+    hasKeyRef.current = hasKey;
+  }, [hasKey]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -693,9 +719,21 @@ export default function InteractiveRLLab(){
     }
     
     const c=gridRef.current[y]?.[x];
-    if(c==="goal")return goalRewardRef.current;
+    if(c==="goal") {
+      return hasKeyRef.current ? goalRewardRef.current : goalRewardRef.current / 3;
+    }
     if(c==="lava")return lavaPenaltyRef.current;
     if(c==="wall")return -0.2;
+    if(c==="key") {
+      setHasKey(true);
+      // Change the cell to empty after collecting key
+      setGrid(g => {
+        const newG = g.map(row => [...row]);
+        newG[y][x] = "empty";
+        return newG;
+      });
+      return 0; // No extra reward for key, just collect it
+    }
     return stepCostRef.current;
   }
 
@@ -708,7 +746,10 @@ export default function InteractiveRLLab(){
   }
 
   function legal(x:number,y:number){
-    return x>=0&&y>=0&&x<gridW&&y<gridH&&gridRef.current[y]?.[x]!=="wall";
+    const cell = gridRef.current[y]?.[x];
+    if (cell === "wall") return false;
+    if (cell === "door-closed" && !hasKeyRef.current) return false;
+    return x>=0&&y>=0&&x<gridW&&y<gridH;
   }
 
   function windJitter(a:number){
@@ -754,7 +795,16 @@ export default function InteractiveRLLab(){
     
     const next=stepXY(x,y,ACTIONS[actionIdx]);
     if(!legal(next.x,next.y))return{x,y};
-    return next;
+    const c = gridRef.current[next.y][next.x];
+    if (hasKeyRef.current && c === "door-closed") {
+      setGrid(g => {
+        const newG = g.map(row => [...row]);
+        newG[next.y][next.x] = "door-open";
+        return newG;
+      });
+      return {x: next.x, y: next.y, reward: goalRewardRef.current / 2};
+    }
+    return {x: next.x, y: next.y};
   }
 
   function restartEpisode(lastReward:number){
@@ -800,6 +850,19 @@ export default function InteractiveRLLab(){
       return newReturns;
     });
     
+    // Reset key and door for next episode
+    setHasKey(false);
+    if (preset === "two-rooms") {
+      setGrid(g => {
+        const newG = g.map(row => [...row]);
+        const doorY = Math.floor(gridH / 2);
+        const mid = Math.floor(gridW / 2);
+        newG[doorY][mid] = "door-closed";
+        newG[gridH - 2][1] = "key";
+        return newG;
+      });
+    }
+    
     // Reset for next episode (but don't reset game won state here)
     setEpisode(e=>e+1);
     setCurrentEpReturn(0);
@@ -835,9 +898,10 @@ export default function InteractiveRLLab(){
         return;
       }
       
-      const r=envReward(s1.x,s1.y);
+      const r = (s1.reward || 0) + envReward(s1.x,s1.y);
       psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
       psRef.current.normalize();
+      setPsVersion(v => v + 1);
       tRef.current+=1;
       totalReturnRef.current+=r;
       setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>50?nxt.slice(-50):nxt;}); // Limit to 50 points
@@ -953,6 +1017,17 @@ const StaticGrid = React.memo(function StaticGrid({
                 {cell === "wall" && (
                   <Ban className="w-5 h-5 text-gray-500 opacity-60" strokeWidth={2.5} />
                 )}
+                {cell === "key" && (
+                  <KeyRound className="w-5 h-5 text-blue-500 opacity-60" strokeWidth={2.5} />
+                )}
+                {cell === "door-closed" && (
+                  <DoorClosedLocked className="w-5 h-5 text-brown-500 opacity-60" strokeWidth={2.5} />
+                )}
+                {cell === "door-open" && (
+                  <DoorOpen className="w-5 h-5 text-brown-500 opacity-60" strokeWidth={2.5} />
+                )}
+
+
               </div>
             );
           })}
@@ -1190,6 +1265,10 @@ const StaticGrid = React.memo(function StaticGrid({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm !text-slate-700">Key Collected:</Label>
+                <span className="text-sm text-slate-700">{hasKey ? 'Yes' : 'No'}</span>
+              </div>
             <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-2 sm:gap-4">
               <div className="overflow-x-auto lg:overflow-auto">
                 <div className="relative select-none inline-block lg:inline-block" style={{ width: canvasW, height: canvasH, minWidth: `min(100vw - 32px, ${canvasW}px)` }}>
@@ -1301,7 +1380,7 @@ const StaticGrid = React.memo(function StaticGrid({
             <div className="space-y-4">
               <div className="w-84"><SliderWithVal label="Size of the grid" min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} help="Controls the visualization size of the memory/policy inspector grid. Larger = more detailed view of the learned policy."/></div>
               <PSInspectorErrorBoundary>
-                <PSInspector grid={grid} ps={psRef.current} cellSize={inspectorSize} />
+                <PSInspector key={psVersion} grid={grid} ps={psRef.current} cellSize={inspectorSize} />
               </PSInspectorErrorBoundary>
             </div>
           </CardContent>
@@ -1344,6 +1423,9 @@ function cellBG(c: CellType){
     case "goal": return "#a7f3d0";
     case "lava": return "#fecaca";
     case "start": return "#fde68a";
+    case "key": return "#acd2fe";
+    case "door-closed": return "#a26323";
+    case "door-open": return "#ffe7d6";
     default: return "#ffffff";
   }
 }
