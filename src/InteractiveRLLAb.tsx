@@ -44,11 +44,11 @@ const LEVELS: LevelConfig[] = [
     name: "Demo",
     description: "Learn the basics with an open field",
     preset: "open",
-    gridW: 5,
-    gridH: 5,
+    gridW: 4,
+    gridH: 4,
     lockedParams: {},
     adjustableParams: ["psLambda", "psGamma", "psGlowEta", "epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
-    winThreshold: 5,
+    winThreshold: 1,
     instructions: "Welcome to the RL Lab! This is a simple open field where the agent needs to learn to reach the goal (🏁). Try running the simulation and watch how the agent learns through trial and error. The agent starts at the bottom-left and the goal is at the top-right."
   },
   {
@@ -56,11 +56,11 @@ const LEVELS: LevelConfig[] = [
     name: "Memory Tuning",
     description: "Tune memory parameters to improve learning",
     preset: "open",
-    gridW: 5,
-    gridH: 5,
-    lockedParams: {},
+    gridW: 4,
+    gridH: 4,
+    lockedParams: {stepCost: -0.05},
     adjustableParams: ["psLambda", "psGamma", "psGlowEta"],
-    winThreshold: 6,
+    winThreshold: 1,
     instructions: "Now you need to tune the memory parameters! The agent can only adjust λ (lambda), γ (gamma), and η (glow decay). Try different combinations to help the agent learn faster. Higher λ emphasizes recent rewards, γ controls memory decay, and η affects how quickly old experiences fade."
   },
   {
@@ -70,9 +70,9 @@ const LEVELS: LevelConfig[] = [
     preset: "corridor",
     gridW: 7,
     gridH: 5,
-    lockedParams: { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05 },
+    lockedParams: { psLambda: 5, psGamma: 0.01, psGlowEta: 0.03, stepCost: -0.05 },
     adjustableParams: ["epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
-    winThreshold: 7,
+    winThreshold: 1,
     instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Memory parameters are now fixed - focus on adjusting exploration (ε) and decision-making (τ) parameters to help the agent find the optimal path."
   },
   {
@@ -82,9 +82,9 @@ const LEVELS: LevelConfig[] = [
     preset: "two-rooms",
     gridW: 7,
     gridH: 5,
-    lockedParams: { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, epsilon: 0.1 },
-    adjustableParams: ["tau", "stepCost", "goalReward", "lavaPenalty"],
-    winThreshold: 8,
+    lockedParams: { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05 },
+    adjustableParams: ["tau", "stepCost", "goalReward", "lavaPenalty", "epsilon"],
+    winThreshold: 1,
     instructions: "Even more challenging! The agent must navigate between two rooms connected by a doorway. Exploration is now fixed - you can only adjust decision-making speed (τ) and reward structure. Watch how the agent learns to find the optimal route through both rooms."
   },
   {
@@ -92,11 +92,11 @@ const LEVELS: LevelConfig[] = [
     name: "Maze Master",
     description: "Conquer the complex maze",
     preset: "maze",
-    gridW: 9,
-    gridH: 7,
-    lockedParams: { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, epsilon: 0.1, tau: 1 },
-    adjustableParams: ["stepCost", "goalReward", "lavaPenalty"],
-    winThreshold: 9,
+    gridW: 7,
+    gridH: 5,
+    lockedParams: {tau: 1 },
+    adjustableParams: ["stepCost", "goalReward", "lavaPenalty", "psLambda", "psGamma", "psGlowEta", "epsilon"],
+    winThreshold: 1,
     instructions: "The ultimate challenge! Navigate through a complex maze with many walls and dead ends. Only reward parameters are adjustable now. Can you find the perfect reward structure to guide the agent through this maze?"
   }
 ];
@@ -124,7 +124,7 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
       const mid = Math.floor(w / 2);
       grid[y][mid] = "wall";
     }
-    grid[h - 1][1] = "start";
+    grid[h - 1][0] = "start";
     grid[0][w - 2] = "goal";
     grid[h - 2][2] = "lava";
   } else if (preset === "maze") {
@@ -133,6 +133,8 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
       const gap = 1 + ((y * 3) % (w - 2));
       grid[y][gap] = "empty";
     }
+    grid[h-1][1] = "lava";
+    grid[0][w-2] = "lava";
     grid[h - 1][0] = "start";
     grid[0][w - 1] = "goal";
   }
@@ -763,10 +765,11 @@ export default function InteractiveRLLab(){
       // Check win condition: last 5 episodes must exceed level's win threshold
       const currentLevelConfig = LEVELS.find(l => l.id === currentLevel);
       const winThreshold = currentLevelConfig?.winThreshold || 5;
+
       
       if (newReturns.length >= 5) {
         const last5 = newReturns.slice(-5);
-        const allGood = last5.every(ep => ep.G > winThreshold);
+        const allGood = last5.every(ep => ep.G >= winThreshold * goalRewardRef.current * 0.75);
         if (allGood && !gameWonRef.current) {
           // Mark game as won immediately to stop further ticks
           gameWonRef.current = true;
