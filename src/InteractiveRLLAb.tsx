@@ -743,7 +743,7 @@ export default function InteractiveRLLab(){
     
     const c=gridRef.current[y]?.[x];
     if(c==="goal") {
-      return hasKeyRef.current ? goalRewardRef.current : goalRewardRef.current / 3;
+      return hasKeyRef.current ? goalRewardRef.current : goalRewardRef.current;
     }
     if(c==="lava")return lavaPenaltyRef.current;
     if(c==="wall")return -0.2;
