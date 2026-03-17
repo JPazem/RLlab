@@ -42,7 +42,7 @@ const LEVELS: LevelConfig[] = [
   {
     id: 1,
     name: "Demo",
-    description: "Learn the basics with an open field",
+    description: "Learn the basics with an small grid",
     preset: "open",
     gridW: 4,
     gridH: 4,
@@ -54,14 +54,14 @@ const LEVELS: LevelConfig[] = [
   {
     id: 2,
     name: "Memory Tuning",
-    description: "Tune memory parameters to improve learning",
+    description: "It's your turn! Tune memory parameters yourself to help the agent reach the goal!",
     preset: "open",
     gridW: 4,
     gridH: 4,
     lockedParams: {stepCost: -0.05, goalReward: 1},
     adjustableParams: ["psLambda", "psGamma", "psGlowEta"],
     winThreshold: 1,
-    instructions: "Now you need to tune the memory parameters! The agent can only adjust λ (lambda), γ (gamma), and η (glow decay). Try different combinations to help the agent learn faster. Higher λ emphasizes recent rewards, γ controls memory decay, and η affects how quickly old experiences fade."
+    instructions: "Now you need to tune the memory parameters! Try different combinations to help the agent learn faster."
   },
   {
     id: 3,
@@ -73,31 +73,31 @@ const LEVELS: LevelConfig[] = [
     lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1},
     adjustableParams: ["psGamma", "psLambda", "psGlowEta", "epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
     winThreshold: 1,
-    instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Memory parameters are now fixed - focus on adjusting exploration (ε) and decision-making (τ) parameters to help the agent find the optimal path."
+    instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Focus on adjusting the available parameters to help the agent find the optimal path."
   },
   {
     id: 4,
     name: "Two Rooms Challenge",
-    description: "Solve the two-room navigation problem",
+    description: "Learn to navigate between two rooms, but beware of the locked door!",
     preset: "two-rooms",
     gridW: 7,
     gridH: 5,
     lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1 },
     adjustableParams: ["tau", "psGamma", "psGlowEta", "epsilon", "psLambda", "epsilon"],
     winThreshold: 1,
-    instructions: "Even more challenging! The agent must navigate between two rooms connected by a locked door. First, collect the key (🔑) in the left room to unlock the door (🚪). Reaching the goal without the key gives only 1/3 of the full reward. Exploration is fixed - adjust decision-making speed (τ) and reward structure to help the agent learn this key-door mechanic."
+    instructions: "Even more challenging! The agent must navigate between two rooms connected by a locked door. First, collect the key (🔑) in the left room to unlock the door (🚪). Reaching the goal without the key gives only 1/3 of the full reward. Adjust the available parameters to help the agent learn this key-door mechanic."
   },
   {
     id: 5,
     name: "Maze Master",
-    description: "Conquer the complex maze",
+    description: "Unlock the door and get to the trophy without falling in the lava!",
     preset: "maze",
     gridW: 7,
     gridH: 5,
     lockedParams: {tau: 1 },
     adjustableParams: ["stepCost", "goalReward", "lavaPenalty", "psLambda", "psGamma", "psGlowEta", "epsilon"],
     winThreshold: 1,
-    instructions: "The ultimate challenge! Navigate through a complex maze with many walls and dead ends. Only reward parameters are adjustable now. Can you find the perfect reward structure to guide the agent through this maze?"
+    instructions: "The ultimate challenge! Navigate through a complex maze with many walls and dead ends. Can you find the perfect reward structure to guide the agent through this maze?"
   }
 ];
 
@@ -186,32 +186,39 @@ function stepXY(x:number,y:number,a:Action){
   return{x:x+1,y};
 }
 
-function SliderWithVal({ label, min, max, step=1, value, onChange, help, disabled }: { label: string, min: number, max: number, step?: number, value: number, onChange: (v:number)=>void, help?: string, disabled?: boolean }){
-  const [showHelp, setShowHelp] = useState(false);
+function SliderWithVal({ label, min, max, step=1, value, onChange, help, disabled }: { label: string, min: number, max: number, step?: number, value: number, onChange: (v:number)=>void, help?: React.ReactNode, disabled?: boolean }){
   return (
     <div className={disabled ? "opacity-50" : ""}>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1">
           <Label className={!disabled ? "!text-slate-700" : "!text-slate-400"}>{label}</Label>
           {help && (
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="text-slate-500 hover:text-slate-700 transition-colors"
+            <Button
+              style={{backgroundColor: "transparent", borderColor: "transparent"}}
+              className="border-0 outline-none ring-0 focus-visible:ring-0 focus-visible:outline-none focus-visible:ring-offset-0 p-0 h-auto w-auto group relative"
+              variant="ghost"
               disabled={disabled}
-              title={help}
-            > 
-              <HelpCircle className="w-4 h-4" />
-            </button>
+              title={typeof help === "string" ? help : undefined}
+            >
+              <HelpCircle className="size-[30px] text-indigo-900" />
+              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 whitespace-normal text-left bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">{help}</span>
+            </Button>
           )}
         </div>
         <span className={`text-xs ${!disabled ? "!text-slate-700" : "!text-slate-400"}`}>{typeof value==="number"? value.toFixed(2): value}</span>
       </div>
-      {showHelp && help && (
-        <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-slate-700">
-          {help}
-        </div>
-      )}
-      <Slider min={min} max={max} step={step} value={[value as number]} onValueChange={(v :number[])=>onChange(v[0])} disabled={disabled} />
+      <Slider
+        min={min}
+        max={max}
+        step={step}
+        value={[value as number]}
+        onValueChange={(v: number[]) => {
+          const raw = v[0];
+          const next = Number.isFinite(raw) ? clamp(raw, min, max) : min;
+          onChange(next);
+        }}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -464,10 +471,15 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
         <div className="mb-2 sm:mb-4">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">Instantaneous Reward (R)</h3>
-            <button className="text-slate-500 hover:text-slate-700 transition-colors group relative bg-transparent border-none" title="Shows the immediate reward received at each time step">
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-48 bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">Shows rewards received at each time step during learning</span>
-            </button>
+            <Button
+              style={{backgroundColor: "transparent", borderColor: "transparent"}}
+              className="border-0 outline-none ring-0 focus-visible:ring-0 focus-visible:outline-none focus-visible:ring-offset-0 p-0 h-auto w-auto group relative"
+              variant="ghost"
+              title="Shows the immediate reward received at each time step"
+            >
+              <HelpCircle className="size-[30px] text-indigo-900" />
+              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 whitespace-normal text-left bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">Shows rewards received at each time step during learning</span>
+            </Button>
           </div>
           <div className="w-full h-32 sm:h-54 overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
@@ -485,10 +497,15 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
         <div className="mb-2 sm:mb-4">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">Cumulative Reward (C)</h3>
-            <button className="text-slate-500 hover:text-slate-700 transition-colors group relative bg-transparent border-none" title="Shows cumulative reward over time">
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-48 bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">Total reward accumulated over all time steps - measures overall learning progress</span>
-            </button>
+            <Button
+              style={{backgroundColor: "transparent", borderColor: "transparent"}}
+              className="border-0 outline-none ring-0 focus-visible:ring-0 focus-visible:outline-none focus-visible:ring-offset-0 p-0 h-auto w-auto group relative"
+              variant="ghost"
+              title="Shows cumulative reward over time"
+            >
+              <HelpCircle className="size-[30px] text-indigo-900" />
+              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 whitespace-normal text-left bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">Total reward accumulated over all time steps - measures overall learning progress</span>
+            </Button>
           </div>
           <div className="w-full h-32 sm:h-54 overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
@@ -505,10 +522,15 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns }: { rewardTrace: 
         <div>
           <div className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">Episode Return (G)</h3>
-            <button className="text-slate-500 hover:text-slate-700 transition-colors group relative bg-transparent border-none" title="Shows total reward per episode">
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-48 bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">Total reward accumulated in each episode - increasing trends show the agent is learning better policies</span>
-            </button>
+            <Button
+              style={{backgroundColor: "transparent", borderColor: "transparent"}}
+              className="border-0 outline-none ring-0 focus-visible:ring-0 focus-visible:outline-none focus-visible:ring-offset-0 p-0 h-auto w-auto group relative"
+              variant="ghost"
+              title="Shows total reward per episode"
+            >
+              <HelpCircle className="size-[30px] text-indigo-900" />
+              <span className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 whitespace-normal text-left bg-blue-50 border border-blue-200 rounded p-2 text-xs text-slate-700 z-10">Total reward accumulated in each episode - increasing trends show the agent is learning better policies</span>
+            </Button>
           </div>
           <div className="w-full h-32 sm:h-54 overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
@@ -556,6 +578,7 @@ export default function InteractiveRLLab(){
   const [currentEpReturn,setCurrentEpReturn]=useState(0);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showPsInfo, setShowPsInfo] = useState(false);
   const [gameWon, setGameWon] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [psVersion, setPsVersion] = useState(0);
@@ -1062,26 +1085,6 @@ const StaticGrid = React.memo(function StaticGrid({
               <h4 className="font-semibold mb-2">Win Condition:</h4>
               <p>Achieve episode returns &gt; {LEVELS.find(l => l.id === currentLevel)?.winThreshold} for the last 5 consecutive episodes.</p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-2">Adjustable Parameters:</h4>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                {LEVELS.find(l => l.id === currentLevel)?.adjustableParams.map(param => (
-                  <li key={param}>
-                    <strong>{param}:</strong> {
-                      param === 'psLambda' ? 'Controls emphasis on recent vs old rewards (0-1)' :
-                      param === 'psGamma' ? 'Memory decay rate (0-1)' :
-                      param === 'psGlowEta' ? 'How quickly old experiences fade (0-1)' :
-                      param === 'epsilon' ? 'Exploration rate - probability of random actions (0-1)' :
-                      param === 'tau' ? 'Decision temperature - higher = more random choices (0-∞)' :
-                      param === 'stepCost' ? 'Penalty for each step taken (negative values)' :
-                      param === 'goalReward' ? 'Reward for reaching the goal (positive values)' :
-                      param === 'lavaPenalty' ? 'Penalty for stepping on lava (negative values)' :
-                      param
-                    }
-                  </li>
-                ))}
-              </ul>
-            </div>
             {LEVELS.find(l => l.id === currentLevel)?.lockedParams && Object.keys(LEVELS.find(l => l.id === currentLevel)?.lockedParams || {}).length > 0 && (
               <div>
                 <h4 className="font-semibold mb-2">Locked Parameters:</h4>
@@ -1125,17 +1128,25 @@ const StaticGrid = React.memo(function StaticGrid({
             <div>
               <h3 className="font-bold mb-2">Reinforcement Learning (RL)</h3>
               <p>
-                A machine learning paradigm where an agent learns by interacting with an environment, receiving rewards for actions, and learning to maximize cumulative reward over time.
+                A machine learning paradigm where an agent learns by interacting with an environment, receiving rewards for actions, and learning to maximize cumulative reward over time. 
+                It is used in many fields, ranging from robotics to game playing, and is inspired by how animals learn from their environment.
               </p>
             </div>
             <div>
               <h3 className="font-bold mb-2">Projective Simulation (PS)</h3>
               <p>
-                A quantum-inspired learning algorithm that models decision-making as a random walk on a graph. It automatically explores the state-action space and learns which actions lead to high rewards.
+                A learning algorithm that models decision-making as a random walk on a graph. 
+                The memory of the agent is represented as a network of memories, called "clips", that represent experiences the agent had in its environment. 
+                These clips are connected in a network, and the more an agent reexperiences a particular transition between clips and gets a positive reward for it, 
+                the stronger the connection between these events becomes. To decide which action to take, the agent revisits memories randomly, where a memory is more 
+                likely to be revisited if it has a strong connection to the clip the agent is currently in. This allows the agent to learn which sequences of actions lead to rewards and to make decisions based on past experiences.
               </p>
             </div>
             <div>
-              <h3 className="font-bold mb-2">Key Components</h3>
+              <h3 className="font-bold mb-2">Environment</h3>
+              <p>
+                We propose to train a PS agent in a simple grid environment, where the agent has to learn to navigate to a goal efficiently while avoiding hazards. The environment consists of a grid with different types of cells, each providing different rewards or penalties.
+              </p>
               <ul className="space-y-2 ml-4">
                 <li><strong>Agent (🤠):</strong> The learner that navigates the environment</li>
                 <li><strong>Goal (🏁):</strong> The target location where the agent receives positive reward</li>
@@ -1149,6 +1160,91 @@ const StaticGrid = React.memo(function StaticGrid({
               <p>
                 The middle panel (Memory Inspector) shows the learned policy as arrows. Brighter arrows represent actions the agent is more likely to take, learned through experience with rewards.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )}
+
+    {/* Projective Simulation Modal */}
+    {showPsInfo && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <Card className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg">
+          <CardHeader className="flex items-center justify-between sticky top-0 bg-white border-b">
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <Brain className="w-6 h-6" /> Projective Simulation (PS)
+            </CardTitle>
+            <button onClick={() => setShowPsInfo(false)} className="text-slate-500 hover:text-slate-700">
+              <X className="w-6 h-6" />
+            </button>
+          </CardHeader>
+          <CardContent className="space-y-4 text-slate-700 text-sm p-6">
+            <div>
+              <h3 className="font-bold mb-2">Overview</h3>
+              <p>
+                Projective Simulation models decision-making as a random walk over a network of
+                “clips” (memories of percepts and actions). Learning strengthens connections that
+                lead to rewards, shaping the agent’s policy over time.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">How It Learns</h3>
+              <p>
+                Each experience updates the clip network. Rewards increase the likelihood of
+                choosing actions that previously led to success, while decay parameters control how
+                quickly old experiences fade.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">Memory Parameters</h3>
+              <ul className="space-y-2 ml-4">
+                <li><strong>Memory damping (γ):</strong> How quickly the agent forgets past experiences.</li>
+                <li><strong>Reward coupling (λ):</strong> How strongly rewards reinforce connections between memories.</li>
+                <li><strong>Glow decay (η):</strong> How fast the memory of recent transition fades. It enables the agent to learn in environments with sparse rewards.</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">Why It Matters</h3>
+              <p>
+                These parameters shape how the agent balances short-term rewards with long-term
+                learning, influencing how quickly it discovers better strategies.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">How does the agent learn?</h3>
+              <p>
+                The agent learns by updating its memory network based on experiences. When it takes an action and receives a reward, the connections between the corresponding memories are strengthened, guiding future decisions.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">Memory Update Equations</h3>
+              <p>
+                The <strong>strength of the connections between memories (clips)</strong> is stored in an <strong>h-value</strong>.
+                For a transition from clip i to clip j, the strength is updated as follows upon
+                receiving a reward R:
+              </p>
+                <div className="ps-equations rounded border border-slate-200 bg-slate-50 p-3 text-slate-800">
+                <div className="font-mono">
+                  h<sub>ij</sub><sup>(next)</sup> = (1 − γ) × h<sub>ij</sub><sup>(now)</sup> + γ × h<sub>ij</sub><sup>(init)</sup> + R<sup>(t)</sup> × λ × g<sub>ij</sub><sup>(t)</sup>
+                </div></div>
+              <p>
+                <strong>Glow values (g)</strong> represents the memory of the past transitions: the more recent a transition was experienced,
+                the higher the glow value. Intuitively, glow is illuminating the path the agent took, and this "light" fades over time
+                at a rate the depends on η. In Reinforcement Learning, glow can also be related to a so-called eligibility trace: 
+                it <strong>flags transitions that might have contributed to a certain reward value</strong>, allowing the agent to assign credit 
+                to not only the most recent action, but also to a sequence of past actions that led to the reward. 
+                The glow values are updated as follows:
+              </p>
+              <div className="ps-equations rounded border border-slate-200 bg-slate-50 p-3 text-slate-800 space-y-2">
+                <div className="font-mono">g<sub>ij</sub><sup>(next)</sup> = g<sub>ij</sub><sup>(now)</sup> × (1 − η)</div>
+              </div>
+              <p> 
+                and if the transition from clip i to clip j was <strong>just experienced</strong>, then glow is set to 1:
+              </p>
+               <div className="ps-equations rounded border border-slate-200 bg-slate-50 p-3 text-slate-800 space-y-2">
+                <div className="font-mono">g<sub>ij</sub><sup>(next)</sup> = 1 </div>
+              </div>
+
             </div>
           </CardContent>
         </Card>
@@ -1375,6 +1471,16 @@ const StaticGrid = React.memo(function StaticGrid({
         <Card className="shadow-xl rounded-2xl xl:col-span-1 m-1 sm:m-2 p-2 order-2 lg:order-2" style={{ background: "#f5f5f5ff"}}>
           <CardHeader className="pb-2">
             <CardTitle className="text-xl sm:text-2xl text-slate-700 flex items-center justify-center gap-2"><Brain className="w-8 h-8 sm:w-10 sm:h-10"/> Memory of the PS Agent</CardTitle>
+            <div className="mt-1 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPsInfo(true)}
+                className="text-indigo-900 hover:text-indigo-950 underline underline-offset-4"
+              >
+                Learn more about projective simulation
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -1389,10 +1495,70 @@ const StaticGrid = React.memo(function StaticGrid({
                     <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">Tune the agent to make it learn!</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <SliderWithVal label="Memory damping (γ)" min={0} max={0.2} step={0.001} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/>
-                    <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/>
-                    <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.001} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/>
-                    <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon} help="Probability of taking a random action instead of using learned policy. Higher values = more exploration and randomness." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/>
+                    <SliderWithVal
+                        label="Memory damping (γ)"
+                        min={0}
+                        max={0.2}
+                        step={0.001}
+                        value={psGamma}
+                        onChange={setPsGamma}
+                        help={
+                          <ul className="pl-4 space-y-1">
+                            <p>How quickly the agent forgets connections between past experiences:</p><strong>
+                            <li>Lower values = longer memory</li>
+                            <li>Higher values = faster forgetting</li></strong>
+                          </ul>
+                        }
+                      />
+                    <SliderWithVal
+                        label="Reward coupling (λ)"
+                        min={0}
+                        max={10}
+                        step={0.5}
+                        value={psLambda}
+                        onChange={setPsLambda}
+                        help={
+                          <ul className="pl-4 space-y-1">
+                            <p>Scales how strongly rewards influence learning:</p>
+                            <li><strong> Higher values = bigger updates.</strong></li>
+                          </ul>
+                        } 
+                      />
+                    <SliderWithVal 
+                        label="Glow decay (η)" 
+                        min={0} 
+                        max={1} 
+                        step={0.001} 
+                        value={psGlowEta} 
+                        onChange={setPsGlowEta} 
+                        help={
+                          <ul className="pl-4 space-y-1">
+                            <p>Controls how quickly temporary activation patterns fade. It enables the agent to learn in environments with sparse rewards:</p>
+                            <strong>
+                            <li>Higher values = Short memory of past actions</li>
+                            <li>Smaller values = Keep track of more actions</li>      
+                            </strong>
+                          </ul>}
+                        disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/>
+
+                    <SliderWithVal
+                        label="Exploration (ε)" 
+                        min={0} 
+                        max={1} 
+                        step={0.01} 
+                        value={epsilon} 
+                        onChange={setEpsilon} 
+                        help={<ul className="pl-4 space-y-1">
+                            <p>Probability of taking a random action instead of using learned policy. 
+                              <strong>
+                              <li>Higher values = more exploration and randomness.</li></strong></p>
+                          </ul>}
+                        disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/>
+
+                    {/* <SliderWithVal label="Memory damping (γ)" min={0} max={0.2} step={0.001} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/> */}
+                    {/* <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/> */}
+                    {/* <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.001} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/> */}
+                    {/* <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon} help="Probability of taking a random action instead of using learned policy. Higher values = more exploration and randomness." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/> */}
                     {/* <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('tau')}/> */}
                   </CardContent>
                 {/* </Card> */}
