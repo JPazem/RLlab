@@ -553,6 +553,8 @@ export default function InteractiveRLLab(){
   const [currentLevel, setCurrentLevel] = useState(1);
   const [gridW,setGridW]=useState(LEVELS[0].gridW);
   const [gridH,setGridH]=useState(LEVELS[0].gridH);
+  const [gridWInput, setGridWInput] = useState(String(LEVELS[0].gridW));
+  const [gridHInput, setGridHInput] = useState(String(LEVELS[0].gridH));
   const [preset,setPreset]=useState(LEVELS[0].preset);
   const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(LEVELS[0].gridW, LEVELS[0].gridH, LEVELS[0].preset));
   //const [startPos,setStartPos]=useState<{x:number,y:number}>(()=>({x:0,y:5}));
@@ -721,6 +723,14 @@ export default function InteractiveRLLab(){
     setCurrentEpReturn(0);
     tRef.current=0; totalReturnRef.current=0; currentEpReturnRef.current=0;
   },[gridW,gridH,preset]);
+
+  useEffect(() => {
+    setGridWInput(String(gridW));
+  }, [gridW]);
+
+  useEffect(() => {
+    setGridHInput(String(gridH));
+  }, [gridH]);
 
   useEffect(()=>{
     if(!running) return;
@@ -1370,7 +1380,7 @@ const StaticGrid = React.memo(function StaticGrid({
                 <div className="relative select-none inline-block lg:inline-block" style={{ width: canvasW, height: canvasH, minWidth: `min(100vw - 32px, ${canvasW}px)` }}>
                 {/* Static grid layer */}
                 <StaticGrid
-                  grid={gridRef.current}
+                  grid={grid}
                   gridW={gridW}
                   gridH={gridH}
                   cellSize={cellSize}
@@ -1402,23 +1412,50 @@ const StaticGrid = React.memo(function StaticGrid({
                   </CardHeader>
                   {/* <CardContent className="space-y-1"> */}
 
-                    <div className=" grid grid-cols-2 gap-2 justify-center items-center">
+                    <div className="grid w-full grid-cols-[1fr_1fr_auto] items-end gap-2">
                       <div>
                         <Label className="mb-1 text-slate-700">Width</Label>
-                        <Input type="number" min={4} max={30} value={gridW} 
+                        <Input type="number" min={4} max={30} value={gridWInput}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setGridW(clamp(parseInt(e.target.value || "6"), 4, 30))}
-                          className= "border-slate-700 text-slate-700"/>
+                            setGridWInput(e.target.value)}
+                          onBlur={() => {
+                            const parsed = parseInt(gridWInput, 10);
+                            const next = Number.isFinite(parsed) ? clamp(parsed, 4, 30) : gridW;
+                            setGridWInput(String(next));
+                          }}
+                          className="border-slate-700 text-slate-700 w-full"/>
                         {/* onChange={e=>setGridW(clamp(parseInt(e.target.value||"6"),4,30))}/> */}
                       </div>
                       <div>
                         <Label className="mb-1 text-slate-700">Height</Label>
-                        <Input type="number" min={4} max={22} value={gridH} 
+                        <Input type="number" min={4} max={22} value={gridHInput}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setGridH(clamp(parseInt(e.target.value || "6"), 4, 22))}
-                            className= "border-slate-700 text-slate-700"/>
+                              setGridHInput(e.target.value)}
+                            onBlur={() => {
+                              const parsed = parseInt(gridHInput, 10);
+                              const next = Number.isFinite(parsed) ? clamp(parsed, 4, 22) : gridH;
+                              setGridHInput(String(next));
+                            }}
+                            className="border-slate-700 text-slate-700 w-full"/>
                             {/* onChange={e=>setGridH(clamp(parseInt(e.target.value||"6"),4,22))}/> */}
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const wParsed = parseInt(gridWInput, 10);
+                          const hParsed = parseInt(gridHInput, 10);
+                          const nextW = Number.isFinite(wParsed) ? clamp(wParsed, 4, 30) : gridW;
+                          const nextH = Number.isFinite(hParsed) ? clamp(hParsed, 4, 22) : gridH;
+                          setGridW(nextW);
+                          setGridH(nextH);
+                          setGridWInput(String(nextW));
+                          setGridHInput(String(nextH));
+                        }}
+                        className="w-full"
+                      >
+                        Apply
+                      </Button>
                     </div>
 
                 {/*<div className="flex-col grid grid-cols-3 gap-2 mt-3 ustify-center items-center">
