@@ -11,6 +11,8 @@ import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, 
 import { motion } from "framer-motion";
 import qrCode from "./assets/QR_Code_RLGame_Outreach.png";
 
+console.log("InteractiveRLLab render", Date.now());
+
 const ACTIONS = ["up", "right", "down", "left"] as const;
 type Action = typeof ACTIONS[number];
 
@@ -603,6 +605,19 @@ export default function InteractiveRLLab(){
   const stepCostRef=useRef(stepCost); useEffect(()=>{stepCostRef.current=stepCost},[stepCost]);
   const goalRewardRef=useRef(goalReward); useEffect(()=>{goalRewardRef.current=goalReward},[goalReward]);
   const lavaPenaltyRef=useRef(lavaPenalty); useEffect(()=>{lavaPenaltyRef.current=lavaPenalty},[lavaPenalty]);
+  const applyGridSize = (wInput: string, hInput: string) => {
+    const wParsed = parseInt(wInput, 10);
+    const hParsed = parseInt(hInput, 10);
+    const nextW = Number.isFinite(wParsed) ? clamp(wParsed, 4, 30) : gridW;
+    const nextH = Number.isFinite(hParsed) ? clamp(hParsed, 4, 22) : gridH;
+    setGridW(nextW);
+    setGridH(nextH);
+    setGridWInput(String(nextW));
+    setGridHInput(String(nextH));
+    setGameWon(false);
+    gameWonRef.current = false;
+    setRunning(true);
+  };
 
   // Function to load a specific level
   const loadLevel = (levelId: number) => {
@@ -1442,16 +1457,7 @@ const StaticGrid = React.memo(function StaticGrid({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          const wParsed = parseInt(gridWInput, 10);
-                          const hParsed = parseInt(gridHInput, 10);
-                          const nextW = Number.isFinite(wParsed) ? clamp(wParsed, 4, 30) : gridW;
-                          const nextH = Number.isFinite(hParsed) ? clamp(hParsed, 4, 22) : gridH;
-                          setGridW(nextW);
-                          setGridH(nextH);
-                          setGridWInput(String(nextW));
-                          setGridHInput(String(nextH));
-                        }}
+                        onClick={() => applyGridSize(gridWInput, gridHInput)}
                         className="w-full"
                       >
                         Apply
