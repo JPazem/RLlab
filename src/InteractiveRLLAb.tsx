@@ -143,13 +143,13 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
       instructions: "Die Umgebung ist enger geworden. Hilf dem Agenten mit den Parametern, den besten Weg durch den Korridor zu lernen."
     },
     4: {
-      name: "Zwei Raume",
-      description: "Lerne zwischen zwei Raumen zu navigieren und beachte die verschlossene Tur",
-      instructions: "Der Agent muss zuerst den Schlussel einsammeln, um die Tur zu offnen. Stimme die Parameter so ab, dass er diese Schlussel-Tur-Mechanik lernt."
+      name: "Zwei Räume",
+      description: "Lerne zwischen zwei Räumen zu navigieren und beachte die verschlossene Tür",
+      instructions: "Der Agent muss zuerst den Schlüssel einsammeln, um die Tür zu öffnen. Stimme die Parameter so ab, dass er diese Schlüssel-Tür-Mechanik lernt."
     },
     5: {
       name: "Labyrinth-Meister",
-      description: "Offne die Tur, erreiche die Trophae und meide die Lava",
+      description: "Öffne die Tür, erreiche die Trophäe und meide die Lava",
       instructions: "Die letzte Herausforderung ist ein verwinkeltes Labyrinth. Finde eine gute Belohnungsstruktur, damit der Agent den richtigen Weg lernt."
     }
   },
@@ -157,17 +157,17 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
     1: {
       name: "Demo",
       description: "Impara le basi in una piccola griglia",
-      instructions: "Benvenuto nel laboratorio RL. In questo campo aperto l'agente deve raggiungere il traguardo. Avvia la simulazione e osserva come impara per tentativi. L'agente parte in basso a sinistra e il traguardo e in alto a destra."
+      instructions: "Benvenuto nel laboratorio RL. In questo campo aperto l'agente deve raggiungere il traguardo. Avvia la simulazione e osserva come impara per tentativi. L'agente parte in basso a sinistra e il traguardo è in alto a destra."
     },
     2: {
       name: "Regola la memoria",
       description: "Ora tocca a te ottimizzare i parametri di memoria",
-      instructions: "Prova diverse combinazioni dei parametri di memoria per aiutare l'agente a imparare piu rapidamente."
+      instructions: "Prova diverse combinazioni dei parametri di memoria per aiutare l'agente a imparare più rapidamente."
     },
     3: {
       name: "Sfida del corridoio",
       description: "Attraversa un corridoio stretto",
-      instructions: "L'ambiente e piu difficile. Usa i parametri disponibili per aiutare l'agente a trovare il percorso migliore nel corridoio."
+      instructions: "L'ambiente è più difficile. Usa i parametri disponibili per aiutare l'agente a trovare il percorso migliore nel corridoio."
     },
     4: {
       name: "Sfida delle due stanze",
@@ -177,61 +177,61 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
     5: {
       name: "Maestro del labirinto",
       description: "Apri la porta e raggiungi il trofeo senza cadere nella lava",
-      instructions: "La sfida finale e un labirinto complesso. Trova una struttura di ricompense che guidi l'agente verso il percorso corretto."
+      instructions: "La sfida finale è un labirinto complesso. Trova una struttura di ricompense che guidi l'agente verso il percorso corretto."
     }
   },
   fr: {
     1: {
       name: "Demo",
       description: "Apprends les bases sur une petite grille",
-      instructions: "Bienvenue dans le laboratoire RL. Dans cette zone ouverte, l'agent doit atteindre l'objectif. Lance la simulation et observe comment il apprend par essais et erreurs. L'agent part en bas a gauche et l'objectif est en haut a droite."
+      instructions: "Bienvenue dans le laboratoire RL. Dans cette zone ouverte, l'agent doit atteindre l'objectif. Lance la simulation et observe comment il apprend par essais et erreurs. L'agent part en bas à gauche et l'objectif est en haut à droite."
     },
     2: {
-      name: "Reglage de la memoire",
-      description: "A toi d'ajuster les parametres de memoire",
-      instructions: "Teste differentes combinaisons de memoire pour aider l'agent a apprendre plus vite."
+      name: "Réglage de la memoire",
+      description: "À toi d'ajuster les paramètres de mémoire",
+      instructions: "Teste différentes combinaisons de paramètres pour aider l'agent à apprendre plus vite."
     },
     3: {
-      name: "Defi du couloir",
-      description: "Traverse un couloir etroit",
-      instructions: "L'environnement est plus difficile. Ajuste les parametres pour aider l'agent a trouver le meilleur chemin dans le couloir."
+      name: "Défi du couloir",
+      description: "Traverse un couloir étroit",
+      instructions: "L'environnement est plus difficile. Ajuste les paramètres pour aider l'agent à trouver le meilleur chemin dans le couloir."
     },
     4: {
-      name: "Defi des deux salles",
-      description: "Navigue entre deux salles en tenant compte de la porte verrouillee",
-      instructions: "L'agent doit d'abord recuperer la cle pour ouvrir la porte. Regle les parametres afin qu'il apprenne ce mecanisme."
+      name: "Défi des deux salles",
+      description: "Navigue entre deux salles en tenant compte de la porte verrouillée",
+      instructions: "L'agent doit d'abord récupérer la clé pour ouvrir la porte. Règle les paramètres afin qu'il apprenne ce mécanisme."
     },
     5: {
-      name: "Maitre du labyrinthe",
-      description: "Ouvre la porte, atteins le trophee et evite la lave",
-      instructions: "Le dernier niveau est un labyrinthe complexe. Trouve une structure de recompense qui guide correctement l'agent."
+      name: "Maître du labyrinthe",
+      description: "Ouvre la porte, atteins le trophée et évite la lave",
+      instructions: "Le dernier niveau est un labyrinthe complexe. Trouve une structure de récompense qui guide correctement l'agent."
     }
   },
   es: {
     1: {
-      name: "Demostracion",
-      description: "Aprende lo basico en una cuadricula pequena",
-      instructions: "Bienvenido al laboratorio de RL. En este campo abierto el agente debe llegar a la meta. Inicia la simulacion y observa como aprende por prueba y error. El agente empieza abajo a la izquierda y la meta esta arriba a la derecha."
+      name: "Demostración",
+      description: "Aprende lo básico en una cuadrícula pequeña",
+      instructions: "Bienvenido al laboratorio de RL. En este campo abierto el agente debe llegar a la meta. Inicia la simulación y observa cómo aprende por prueba y error. El agente empieza abajo a la izquierda y la meta está arriba a la derecha."
     },
     2: {
       name: "Ajuste de memoria",
-      description: "Ahora te toca ajustar los parametros de memoria",
-      instructions: "Prueba distintas combinaciones de memoria para ayudar al agente a aprender mas rapido."
+      description: "Ahora te toca ajustar los parámetros de memoria",
+      instructions: "Prueba distintas combinaciones de memoria para ayudar al agente a aprender más rápido."
     },
     3: {
-      name: "Desafio del pasillo",
+      name: "Desafío del pasillo",
       description: "Navega por un pasillo estrecho",
-      instructions: "El entorno ahora es mas dificil. Ajusta los parametros para ayudar al agente a encontrar el mejor camino por el pasillo."
+      instructions: "El entorno ahora es más difícil. Ajusta los parámetros para ayudar al agente a encontrar el mejor camino por el pasillo."
     },
     4: {
-      name: "Desafio de dos salas",
+      name: "Desafío de dos salas",
       description: "Aprende a moverte entre dos salas con una puerta cerrada",
-      instructions: "El agente debe recoger primero la llave para abrir la puerta. Ajusta los parametros para que aprenda esta mecanica."
+      instructions: "El agente debe recoger primero la llave para abrir la puerta. Ajusta los parámetros para que aprenda esta mecánica."
     },
     5: {
       name: "Maestro del laberinto",
       description: "Abre la puerta y llega al trofeo evitando la lava",
-      instructions: "El reto final es un laberinto complejo. Encuentra una estructura de recompensa que guie al agente por el camino correcto."
+      instructions: "El reto final es un laberinto complejo. Encuentra una estructura de recompensa que guíe al agente por el camino correcto."
     }
   }
 };
@@ -430,17 +430,17 @@ const UI_TEXT: Record<Locale, any> = {
     language: "Sprache",
     generalConcepts: "Allgemeine Konzepte",
     generalSections: [
-      { title: "Reinforcement Learning (RL)", body: "Ein Paradigma des maschinellen Lernens, bei dem ein Agent durch Interaktion mit einer Umgebung lernt, Belohnungen fur Aktionen erhalt und versucht, die kumulative Belohnung zu maximieren. Es wird in Bereichen wie Robotik und Spielstrategien eingesetzt." },
-      { title: "Projective Simulation (PS)", body: "Ein Lernverfahren, das Entscheidungen als Zufallsweg auf einem Graphen modelliert. Die Erfahrungen des Agenten werden in Clips gespeichert und belohnte Ubergange werden im Gedachtnisnetzwerk verstarkt." },
-      { title: "Umgebung", body: "Der PS-Agent wird in einer Gitterwelt trainiert, in der er moglichst effizient das Ziel erreichen und Gefahren meiden soll. Je nach Level konnen Wande, Lava, Schlussel und Turen die Belohnungsstruktur verandern." },
-      { title: "Politik-Visualisierung", body: "Das Speicherpanel zeigt die gelernte Politik als Pfeile. Hellere Pfeile bedeuten, dass der Agent diese Aktionen aufgrund fruherer Belohnungen wahrscheinlicher auswahlen wird." }
+      { title: "Reinforcement Learning (RL)", body: "Ein Paradigma des maschinellen Lernens, bei dem ein Agent durch Interaktion mit einer Umgebung lernt, Belohnungen für Aktionen erhält und versucht, die kumulative Belohnung zu maximieren. Es wird in Bereichen wie Robotik und Spielstrategien eingesetzt." },
+      { title: "Projective Simulation (PS)", body: "Ein Lernverfahren, das Entscheidungen als Zufallsweg auf einem Graphen modelliert. Die Erfahrungen des Agenten werden in Clips gespeichert, und belohnte Übergänge werden im Gedächtnisnetzwerk verstärkt." },
+      { title: "Umgebung", body: "Der PS-Agent wird in einer Gitterwelt trainiert, in der er möglichst effizient das Ziel erreichen und Gefahren meiden soll. Je nach Level können Wände, Lava, Schlüssel und Türen die Belohnungsstruktur verändern." },
+      { title: "Politik-Visualisierung", body: "Das Speicherpanel zeigt die gelernte Politik als Pfeile. Hellere Pfeile bedeuten, dass der Agent diese Aktionen aufgrund früherer Belohnungen wahrscheinlicher auswählt." }
     ],
     psModalTitle: "Projective Simulation (PS)",
     psSections: [
-      { title: "Uberblick", body: "Projective Simulation modelliert Entscheidungen als Zufallsweg uber ein Netzwerk von Clips, die Wahrnehmungen, Aktionen und kurze Gedachtnisinhalte reprasentieren. Belohnte Ubergange werden verstarkt und formen so die Politik des Agenten." },
-      { title: "Lernen", body: "Jede Erfahrung aktualisiert das Clip-Netzwerk. Belohnungen erhohen die Wahrscheinlichkeit, dass Aktionen wieder gewahlt werden, die zuvor zum Erfolg gefuhrt haben, wahrend Zerfallsparameter alte Erfahrungen abschwachen." },
-      { title: "Speicherparameter", body: "Gedachtnisdampfung steuert das Vergessen alter Erfahrungen, Belohnungskopplung skaliert den Einfluss von Belohnungen, und Glow-Abbau bestimmt, wie lange fruhere Ubergange noch fur verzogerte Belohnungen relevant bleiben." },
-      { title: "Warum das wichtig ist", body: "Diese Einstellungen entscheiden daruber, ob der Agent eher kurzfristig oder langfristig lernt, vorsichtig oder aggressiv reagiert und ob er Aufgaben mit verzogerten Belohnungen losen kann." }
+      { title: "Überblick", body: "Projective Simulation modelliert Entscheidungen als Zufallsweg über ein Netzwerk von Clips, die Wahrnehmungen, Aktionen und kurze Gedächtnisinhalte repräsentieren. Belohnte Übergänge werden verstärkt und formen so die Politik des Agenten." },
+      { title: "Lernen", body: "Jede Erfahrung aktualisiert das Clip-Netzwerk. Belohnungen erhöhen die Wahrscheinlichkeit, dass Aktionen wieder gewählt werden, die zuvor zum Erfolg geführt haben, während Zerfallsparameter alte Erfahrungen abschwächen." },
+      { title: "Speicherparameter", body: "Gedächtnisdämpfung steuert das Vergessen alter Erfahrungen, Belohnungskopplung skaliert den Einfluss von Belohnungen, und Glow-Abbau bestimmt, wie lange frühere Übergänge noch für verzögerte Belohnungen relevant bleiben." },
+      { title: "Warum das wichtig ist", body: "Diese Einstellungen entscheiden darüber, ob der Agent eher kurzfristig oder langfristig lernt, vorsichtig oder aggressiv reagiert und ob er Aufgaben mit verzögerten Belohnungen lösen kann." }
     ],
     levelLabel: "Level",
     levelInstructions: "Level-Hinweise",
@@ -449,26 +449,26 @@ const UI_TEXT: Record<Locale, any> = {
     howToPlay: "So spielst du",
     howToPlayItems: [
       "Starte die Simulation und beobachte die Erkundung.",
-      "Passe die verfugbaren Regler an.",
+      "Passe die verfügbaren Regler an.",
       "Nutze Speicherpfeile und Belohnungskurven zur Bewertung.",
       "Erreiche das Ziel in 5 Folgen hintereinander.",
-      "Schliesse ein Level ab, um das nachste freizuschalten."
+      "Schließe ein Level ab, um das nächste freizuschalten."
     ],
     levelComplete: "Level geschafft",
     advancingTo: "Weiter zu",
     nextLevelButton: "Zum nächsten Level",
-    congratulations: "Gluckwunsch",
+    congratulations: "Glückwunsch",
     rlMaster: "Alle Level sind abgeschlossen. Du kannst jetzt im freien Spiel weiter experimentieren.",
     continueFreePlay: "Freies Spiel starten",
     freePlayMenu: "Freies Spiel",
-    freePlayActive: "Freies Spiel ist aktiv. Die Kampagne ist beendet, aber die Simulation lauft weiter.",
+    freePlayActive: "Freies Spiel ist aktiv. Die Kampagne ist beendet, aber die Simulation läuft weiter.",
     run: "Start",
     pause: "Pause",
-    resetLevel: "Level zurucksetzen",
-    resetGame: "Spiel zurucksetzen",
+    resetLevel: "Level zurücksetzen",
+    resetGame: "Spiel zurücksetzen",
     buildEnvironment: "Baue deine Umgebung",
-    memoryTitle: "Gedachtnis des PS-Agenten",
-    learnMorePS: "Mehr uber Projective Simulation",
+    memoryTitle: "Gedächtnis des PS-Agenten",
+    learnMorePS: "Mehr über Projective Simulation",
     tuneAgent: "Stimme den Agenten ab",
     rewardsTitle: "Lernkurven",
     tipsTitle: "Lerntipps",
@@ -480,14 +480,14 @@ const UI_TEXT: Record<Locale, any> = {
     optimalParamsLead: "Das sind praxistaugliche Startbereiche für die meisten Level.",
     level: "Level",
     preset: "Voreinstellung",
-    keyStatus: "Schlusselstatus",
+    keyStatus: "Schlüsselstatus",
     keyStatusCollected: "Gesammelte Schlüssel",
     keyStatusAvailable: "Schlüssel im Gitter",
     keyStatusUnused: "Keine Schlüssel in diesem Gitter",
     keyStatusMissing: "Eine Tür ist vorhanden, aber der passende Schlüssel fehlt",
     addChallenges: "Neue Herausforderungen",
     width: "Breite",
-    height: "Hohe",
+    height: "Höhe",
     apply: "Anwenden",
     stepsPerSecond: "Schritte/s",
     stepCost: "Schrittkosten",
@@ -552,7 +552,7 @@ const UI_TEXT: Record<Locale, any> = {
     presetLabels: {
       open: "Offenes Feld",
       corridor: "Korridor",
-      "two-rooms": "Zwei Raume",
+      "two-rooms": "Zwei Räume",
       maze: "Labyrinth"
     },
     keyColors: {
@@ -578,16 +578,16 @@ const UI_TEXT: Record<Locale, any> = {
     generalConcepts: "Concetti generali",
     generalSections: [
       { title: "Reinforcement Learning (RL)", body: "Un paradigma del machine learning in cui un agente impara interagendo con un ambiente, ricevendo ricompense per le azioni e cercando di massimizzare la ricompensa cumulativa nel tempo. Viene usato in robotica, giochi e molti altri ambiti." },
-      { title: "Projective Simulation (PS)", body: "Un algoritmo di apprendimento che modella il processo decisionale come una passeggiata casuale su un grafo. Le esperienze dell'agente vengono memorizzate in clip e le transizioni premiate diventano piu forti." },
+      { title: "Projective Simulation (PS)", body: "Un algoritmo di apprendimento che modella il processo decisionale come una passeggiata casuale su un grafo. Le esperienze dell'agente vengono memorizzate in clip e le transizioni premiate diventano più forti." },
       { title: "Ambiente", body: "Alleniamo un agente PS in un ambiente a griglia in cui deve raggiungere l'obiettivo in modo efficiente evitando i pericoli. A seconda del livello possono comparire muri, lava, chiavi e porte." },
-      { title: "Visualizzazione della policy", body: "Il pannello della memoria mostra la policy appresa come frecce. Le frecce piu luminose indicano le azioni che l'agente e piu propenso a scegliere grazie alle ricompense ricevute." }
+      { title: "Visualizzazione della policy", body: "Il pannello della memoria mostra la policy appresa come frecce. Le frecce più luminose indicano le azioni che l'agente è più propenso a scegliere grazie alle ricompense ricevute." }
     ],
     psModalTitle: "Projective Simulation (PS)",
     psSections: [
       { title: "Panoramica", body: "Projective Simulation modella le decisioni come una passeggiata casuale su una rete di clip che rappresentano percezioni, azioni e brevi frammenti di memoria. Le ricompense rafforzano le transizioni utili e plasmano la policy dell'agente." },
-      { title: "Come impara", body: "Ogni esperienza aggiorna la rete di clip. Le ricompense aumentano la probabilita di scegliere di nuovo azioni che hanno portato al successo, mentre i parametri di decadimento fanno svanire gradualmente le esperienze piu vecchie." },
+      { title: "Come impara", body: "Ogni esperienza aggiorna la rete di clip. Le ricompense aumentano la probabilità di scegliere di nuovo azioni che hanno portato al successo, mentre i parametri di decadimento fanno svanire gradualmente le esperienze più vecchie." },
       { title: "Parametri di memoria", body: "Lo smorzamento della memoria controlla quanto velocemente l'agente dimentica, l'accoppiamento della ricompensa regola quanto la ricompensa modifica la memoria, e il decadimento del glow stabilisce per quanto tempo le azioni recenti continuano a ricevere credito." },
-      { title: "Perche conta", body: "Questi parametri determinano se l'agente impara strategie a breve o lungo termine, se si adatta in modo prudente o aggressivo e se riesce a risolvere compiti con ricompense ritardate." }
+      { title: "Perché conta", body: "Questi parametri determinano se l'agente impara strategie a breve o lungo termine, se si adatta in modo prudente o aggressivo e se riesce a risolvere compiti con ricompense ritardate." }
     ],
     levelLabel: "Livello",
     levelInstructions: "Istruzioni del livello",
@@ -605,17 +605,17 @@ const UI_TEXT: Record<Locale, any> = {
     advancingTo: "Passaggio a",
     nextLevelButton: "Vai al livello successivo",
     congratulations: "Complimenti",
-    rlMaster: "Hai completato tutti i livelli. Ora puoi continuare in modalita libera.",
+    rlMaster: "Hai completato tutti i livelli. Ora puoi continuare in modalità libera.",
     continueFreePlay: "Continua in free play",
     freePlayMenu: "Gioco libero",
-    freePlayActive: "La modalita libera e attiva. La campagna e finita ma puoi continuare a sperimentare.",
+    freePlayActive: "La modalità libera è attiva. La campagna è finita, ma puoi continuare a sperimentare.",
     run: "Avvia",
     pause: "Pausa",
     resetLevel: "Reset livello",
     resetGame: "Reset gioco",
     buildEnvironment: "Costruisci il tuo ambiente",
     memoryTitle: "Memoria dell'agente PS",
-    learnMorePS: "Scopri di piu sulla Projective Simulation",
+    learnMorePS: "Scopri di più sulla Projective Simulation",
     tuneAgent: "Regola l'agente per farlo imparare",
     rewardsTitle: "Curve di apprendimento",
     tipsTitle: "Suggerimenti",
@@ -626,7 +626,7 @@ const UI_TEXT: Record<Locale, any> = {
     optimalParamsTitle: "Buoni intervalli di parametri",
     optimalParamsLead: "Questi intervalli sono ottimi punti di partenza pratici per la maggior parte dei livelli.",
     level: "Livello",
-    preset: "Preset",
+    preset: "Preimpostazione",
     keyStatus: "Stato della chiave",
     keyStatusCollected: "Chiavi raccolte",
     keyStatusAvailable: "Chiavi nella griglia",
@@ -639,7 +639,7 @@ const UI_TEXT: Record<Locale, any> = {
     stepsPerSecond: "Passi/sec",
     stepCost: "Costo passo",
     goalReward: "Ricompensa obiettivo",
-    lavaPenalty: "Penalita lava",
+    lavaPenalty: "Penalità lava",
     envSliderHelp: {
       speed: "Velocità della simulazione. Valori più alti eseguono più episodi al secondo.",
       stepCost: "Penalità per ogni passo. Valori negativi incoraggiano l'agente a trovare percorsi più brevi verso l'obiettivo.",
@@ -720,73 +720,73 @@ const UI_TEXT: Record<Locale, any> = {
   },
   fr: {
     appTitle: "Laboratoire interactif de Reinforcement Learning",
-    appSubtitle: "Viens entraîner ton agent de reinforcement learning en temps réel !",
+    appSubtitle: "Entraîne ton agent de reinforcement learning en temps réel !",
     language: "Langue",
-    generalConcepts: "Concepts generaux",
+    generalConcepts: "Concepts généraux",
     generalSections: [
-      { title: "Reinforcement Learning (RL)", body: "Un paradigme d'apprentissage automatique dans lequel un agent apprend en interagissant avec un environnement, en recevant des recompenses pour ses actions et en cherchant a maximiser la recompense cumulative au fil du temps." },
-      { title: "Projective Simulation (PS)", body: "Un algorithme d'apprentissage qui modele la prise de decision comme une marche aleatoire sur un graphe. Les experiences de l'agent sont stockees dans des clips et les transitions recompensees deviennent plus fortes." },
-      { title: "Environnement", body: "Nous entrainons un agent PS dans un monde en grille ou il doit atteindre un objectif efficacement tout en evitant les dangers. Selon le niveau, la grille peut contenir des murs, de la lave, des cles et des portes." },
-      { title: "Visualisation de la politique", body: "Le panneau memoire montre la politique apprise sous forme de fleches. Les fleches les plus lumineuses correspondent aux actions que l'agent choisira le plus probablement." }
+      { title: "Reinforcement Learning (RL)", body: "Un paradigme de machine learning dans lequel un agent apprend en interagissant avec un environnement. Il reçoit des récompenses pour ses actions et en cherchant à maximiser la récompense accumulée au fil du temps." },
+      { title: "Projective Simulation (PS)", body: "Un algorithme d'apprentissage qui modélise la prise de décision comme une marche aléatoire sur un graphe. Les expériences de l'agent sont stockées dans des clips, et les transitions récompensées deviennent plus fortes." },
+      { title: "Environnement", body: "Nous entraînons un agent PS dans un monde en grille où il doit atteindre un objectif efficacement tout en évitant les dangers. Selon le niveau, la grille peut contenir des murs, de la lave, des clés et des portes." },
+      { title: "Visualisation de la politique", body: "Le panneau mémoire montre la politique apprise sous forme de flèches. Les flèches les plus lumineuses correspondent aux actions que l'agent choisira le plus probablement." }
     ],
     psModalTitle: "Projective Simulation (PS)",
     psSections: [
-      { title: "Vue d'ensemble", body: "Projective Simulation modele la prise de decision comme une marche aleatoire sur un reseau de clips representant perceptions, actions et courts fragments de memoire. Les recompenses renforcent les transitions utiles et faconnent la politique de l'agent." },
-      { title: "Apprentissage", body: "Chaque experience met a jour le reseau de clips. Les recompenses augmentent la probabilite de choisir a nouveau les actions qui ont mene au succes, tandis que les parametres de decroissance affaiblissent progressivement les experiences anciennes." },
-      { title: "Parametres de memoire", body: "L'amortissement de memoire controle l'oubli, le couplage de recompense regle la force avec laquelle les recompenses modifient la memoire, et la decroissance du glow determine combien de temps les transitions recentes restent pertinentes pour des recompenses differees." },
-      { title: "Pourquoi c'est utile", body: "Ces reglages determinent si l'agent apprend des strategies a court ou long terme, s'il s'adapte prudemment ou agressivement, et s'il peut resoudre des taches avec recompenses retardees." }
+      { title: "Vue d'ensemble", body: "Projective Simulation modélise la prise de décision comme une marche aléatoire sur un réseau de clips représentant perceptions, actions et courts fragments de mémoire. Les récompenses renforcent les transitions utiles et façonnent la politique de l'agent." },
+      { title: "Apprentissage", body: "Chaque expérience met à jour le réseau de clips. Les récompenses augmentent la probabilité de choisir à nouveau les actions qui ont mené au succès, tandis que les paramètres de décroissance affaiblissent progressivement les expériences anciennes." },
+      { title: "Paramètres de mémoire", body: "L'amortissement de mémoire contrôle l'oubli, le couplage de récompense règle la force avec laquelle les récompenses modifient la mémoire, et la décroissance du glow détermine combien de temps les transitions récentes restent pertinentes pour des récompenses différées." },
+      { title: "Pourquoi c'est utile", body: "Ces réglages déterminent si l'agent apprend des stratégies à court ou long terme, s'il s'adapte prudemment ou agressivement, et s'il peut résoudre des tâches avec des récompenses retardées." }
     ],
     levelLabel: "Niveau",
     levelInstructions: "Instructions du niveau",
     winCondition: "Condition de victoire",
-    lockedParameters: "Parametres verrouilles",
+    lockedParameters: "Paramètres verrouillés",
     howToPlay: "Comment jouer",
     howToPlayItems: [
       "Lance la simulation et observe l'exploration.",
       "Ajuste les curseurs disponibles.",
-      "Utilise les fleches de memoire et les courbes de recompense.",
-      "Atteins l'objectif pendant 5 episodes consecutifs.",
-      "Termine un niveau pour debloquer le suivant."
+      "Utilise les flèches de mémoire et les courbes de récompense.",
+      "Atteins l'objectif pendant 5 épisodes consécutifs.",
+      "Termine un niveau pour débloquer le suivant."
     ],
-    levelComplete: "Niveau termine",
+    levelComplete: "Niveau terminé",
     advancingTo: "Passage au",
     nextLevelButton: "Aller au niveau suivant",
-    congratulations: "Felicitations",
+    congratulations: "Félicitations",
     rlMaster: "Tous les niveaux sont termines. Tu peux maintenant continuer en mode libre.",
     continueFreePlay: "Continuer en mode libre",
     freePlayMenu: "Mode libre",
     freePlayActive: "Le mode libre est actif. La campagne est finie mais la simulation reste ouverte.",
     run: "Lancer",
     pause: "Pause",
-    resetLevel: "Reinitialiser le niveau",
-    resetGame: "Reinitialiser le jeu",
+    resetLevel: "Réinitialiser le niveau",
+    resetGame: "Réinitialiser le jeu",
     buildEnvironment: "Construis ton environnement",
-    memoryTitle: "Memoire de l'agent PS",
+    memoryTitle: "Mémoire de l'agent PS",
     learnMorePS: "En savoir plus sur la Projective Simulation",
-    tuneAgent: "Regle l'agent pour qu'il apprenne",
+    tuneAgent: "Règle l'agent pour qu'il apprenne",
     rewardsTitle: "Courbes d'apprentissage",
     tipsTitle: "Conseils d'apprentissage",
     tipsButton: "Ouvrir les conseils",
     tipsModalTitle: "Conseils et guide des paramètres",
-    tipsLead: "Aide-memoire rapide pour guider l'agent.",
+    tipsLead: "Aide-mémoire rapide pour guider l'agent.",
     strugglingTitle: "Besoin d'un indice ?",
     optimalParamsTitle: "Bonnes plages de paramètres",
     optimalParamsLead: "Ces plages sont de très bons points de départ pour la plupart des niveaux.",
     level: "Niveau",
-    preset: "Preset",
-    keyStatus: "Etat de la cle",
+    preset: "Préréglage",
+    keyStatus: "État de la clé",
     keyStatusCollected: "Clés récupérées",
     keyStatusAvailable: "Clés sur la grille",
     keyStatusUnused: "Aucune clé sur cette grille",
     keyStatusMissing: "Une porte est présente mais la clé correspondante manque",
-    addChallenges: "Ajouter des defis",
+    addChallenges: "Ajouter des défis",
     width: "Largeur",
     height: "Hauteur",
     apply: "Appliquer",
     stepsPerSecond: "Pas/sec",
-    stepCost: "Cout par pas",
-    goalReward: "Recompense objectif",
-    lavaPenalty: "Penalite lave",
+    stepCost: "Coût par pas",
+    goalReward: "Récompense objectif",
+    lavaPenalty: "Pénalité lave",
     envSliderHelp: {
       speed: "Vitesse de la simulation. Des valeurs plus élevées exécutent plus d'épisodes par seconde.",
       stepCost: "Pénalité appliquée à chaque pas. Des valeurs négatives encouragent l'agent à trouver des chemins plus courts vers l'objectif.",
@@ -831,15 +831,15 @@ const UI_TEXT: Record<Locale, any> = {
       )
     },
     rewardCharts: {
-      instant: "Recompense instantanee (R)",
-      cumulative: "Recompense cumulative (C)",
-      episode: "Retour par episode (G)",
+      instant: "Récompense instantanée (R)",
+      cumulative: "Récompense cumulative (C)",
+      episode: "Retour par épisode (G)",
       instantHelp: "Montre les récompenses reçues à chaque pas de temps pendant l'apprentissage.",
       cumulativeHelp: "Récompense totale accumulée sur l'ensemble des pas de temps - mesure la progression globale de l'apprentissage.",
       episodeHelp: "Récompense totale accumulée dans chaque épisode - une tendance à la hausse montre que l'agent apprend de meilleures politiques."
     },
     stats: {
-      episode: "Episode",
+      episode: "Épisode",
       currentReturn: "G actuel",
       totalReturn: "Retour total"
     },
@@ -871,25 +871,25 @@ const UI_TEXT: Record<Locale, any> = {
     language: "Idioma",
     generalConcepts: "Conceptos generales",
     generalSections: [
-      { title: "Reinforcement Learning (RL)", body: "Un paradigma de aprendizaje automatico en el que un agente aprende interactuando con un entorno, recibiendo recompensas por sus acciones y tratando de maximizar la recompensa acumulada a lo largo del tiempo." },
-      { title: "Projective Simulation (PS)", body: "Un algoritmo de aprendizaje que modela la toma de decisiones como un paseo aleatorio sobre un grafo. Las experiencias del agente se almacenan en clips y las transiciones recompensadas se vuelven mas fuertes." },
+      { title: "Reinforcement Learning (RL)", body: "Un paradigma de aprendizaje automático en el que un agente aprende interactuando con un entorno, recibiendo recompensas por sus acciones y tratando de maximizar la recompensa acumulada a lo largo del tiempo." },
+      { title: "Projective Simulation (PS)", body: "Un algoritmo de aprendizaje que modela la toma de decisiones como un paseo aleatorio sobre un grafo. Las experiencias del agente se almacenan en clips y las transiciones recompensadas se vuelven más fuertes." },
       { title: "Entorno", body: "Entrenamos a un agente PS en un mundo de cuadrícula donde debe llegar a la meta de forma eficiente evitando peligros. Según el nivel, la cuadrícula puede incluir muros, lava, llaves y puertas." },
-      { title: "Visualizacion de la politica", body: "El panel de memoria muestra la política aprendida en forma de flechas. Las flechas más brillantes representan acciones que el agente elegirá con mayor probabilidad." }
+      { title: "Visualización de la política", body: "El panel de memoria muestra la política aprendida en forma de flechas. Las flechas más brillantes representan acciones que el agente elegirá con mayor probabilidad." }
     ],
     psModalTitle: "Projective Simulation (PS)",
     psSections: [
       { title: "Resumen", body: "Projective Simulation modela la toma de decisiones como un paseo aleatorio sobre una red de clips que representan percepciones, acciones y fragmentos cortos de memoria. Las recompensas refuerzan transiciones útiles y moldean la política del agente." },
-      { title: "Como aprende", body: "Cada experiencia actualiza la red de clips. Las recompensas aumentan la probabilidad de repetir acciones que antes condujeron al éxito, mientras que los parámetros de decaimiento hacen que las experiencias antiguas pierdan peso." },
-      { title: "Parametros de memoria", body: "La amortiguación de memoria controla cuánto olvida el agente, el acoplamiento de recompensa regula cuánto cambia la memoria con la recompensa, y el decaimiento del glow determina cuánto tiempo siguen recibiendo crédito las transiciones recientes." },
-      { title: "Por que importa", body: "Estos ajustes determinan si el agente aprende estrategias a corto o largo plazo, si se adapta de forma prudente o agresiva y si puede resolver tareas con recompensas retardadas." }
+      { title: "Cómo aprende", body: "Cada experiencia actualiza la red de clips. Las recompensas aumentan la probabilidad de repetir acciones que antes condujeron al éxito, mientras que los parámetros de decaimiento hacen que las experiencias antiguas pierdan peso." },
+      { title: "Parámetros de memoria", body: "La amortiguación de memoria controla cuánto olvida el agente, el acoplamiento de recompensa regula cuánto cambia la memoria con la recompensa, y el decaimiento del glow determina cuánto tiempo siguen recibiendo crédito las transiciones recientes." },
+      { title: "Por qué importa", body: "Estos ajustes determinan si el agente aprende estrategias a corto o largo plazo, si se adapta de forma prudente o agresiva y si puede resolver tareas con recompensas retardadas." }
     ],
     levelLabel: "Nivel",
     levelInstructions: "Instrucciones del nivel",
-    winCondition: "Condicion de victoria",
-    lockedParameters: "Parametros bloqueados",
-    howToPlay: "Como jugar",
+    winCondition: "Condición de victoria",
+    lockedParameters: "Parámetros bloqueados",
+    howToPlay: "Cómo jugar",
     howToPlayItems: [
-      "Inicia la simulacion y observa la exploracion.",
+      "Inicia la simulación y observa la exploración.",
       "Ajusta los controles disponibles.",
       "Usa las flechas de memoria y las curvas de recompensa para medir el progreso.",
       "Alcanza el objetivo durante 5 episodios seguidos.",
@@ -902,38 +902,38 @@ const UI_TEXT: Record<Locale, any> = {
     rlMaster: "Has completado todos los niveles. Ahora puedes seguir en modo libre.",
     continueFreePlay: "Continuar en modo libre",
     freePlayMenu: "Modo libre",
-    freePlayActive: "El modo libre esta activo. La campana termino pero la simulacion sigue disponible.",
+    freePlayActive: "El modo libre está activo. La campaña terminó, pero la simulación sigue disponible.",
     run: "Iniciar",
     pause: "Pausa",
     resetLevel: "Reiniciar nivel",
     resetGame: "Reiniciar juego",
     buildEnvironment: "Construye tu entorno",
     memoryTitle: "Memoria del agente PS",
-    learnMorePS: "Aprende mas sobre Projective Simulation",
+    learnMorePS: "Aprende más sobre Projective Simulation",
     tuneAgent: "Ajusta el agente para que aprenda",
     rewardsTitle: "Curvas de aprendizaje",
     tipsTitle: "Consejos de aprendizaje",
     tipsButton: "Abrir consejos",
     tipsModalTitle: "Consejos y guía de parámetros",
-    tipsLead: "Chuleta rapida para ayudar al agente.",
-    strugglingTitle: "Necesitas una pista?",
+    tipsLead: "Chuleta rápida para ayudar al agente.",
+    strugglingTitle: "¿Necesitas una pista?",
     optimalParamsTitle: "Buenos rangos de parámetros",
     optimalParamsLead: "Estos rangos son buenos puntos de partida prácticos para la mayoría de los niveles.",
     level: "Nivel",
-    preset: "Preset",
+    preset: "Preajuste",
     keyStatus: "Estado de la llave",
     keyStatusCollected: "Llaves recogidas",
     keyStatusAvailable: "Llaves en la cuadrícula",
     keyStatusUnused: "No hay llaves en esta cuadrícula",
     keyStatusMissing: "Hay una puerta pero falta su llave correspondiente",
-    addChallenges: "Anadir nuevos retos",
+    addChallenges: "Añadir nuevos retos",
     width: "Ancho",
     height: "Alto",
     apply: "Aplicar",
     stepsPerSecond: "Pasos/seg",
     stepCost: "Costo por paso",
     goalReward: "Recompensa meta",
-    lavaPenalty: "Penalizacion lava",
+    lavaPenalty: "Penalización lava",
     envSliderHelp: {
       speed: "Velocidad de la simulación. Los valores más altos ejecutan más episodios por segundo.",
       stepCost: "Penalización por cada paso. Los valores negativos animan al agente a encontrar caminos más cortos hacia la meta.",
@@ -978,7 +978,7 @@ const UI_TEXT: Record<Locale, any> = {
       )
     },
     rewardCharts: {
-      instant: "Recompensa instantanea (R)",
+      instant: "Recompensa instantánea (R)",
       cumulative: "Recompensa acumulada (C)",
       episode: "Retorno por episodio (G)",
       instantHelp: "Muestra las recompensas recibidas en cada paso temporal durante el aprendizaje.",
@@ -1006,7 +1006,7 @@ const UI_TEXT: Record<Locale, any> = {
     openDoorBrushLabel: "Puerta abierta",
     cellLabels: {
       wall: "Muro",
-      empty: "Vacio",
+      empty: "Vacío",
       goal: "Meta",
       lava: "Lava",
       start: "Inicio"
@@ -1112,9 +1112,9 @@ function getMiscText(language: Locale) {
       return {
         infoButtonTitle: "Allgemeine Informationen anzeigen",
         instructionsButtonTitle: "Level-Hinweise anzeigen",
-        winConditionBody: "Erreiche in den letzten 5 Episoden jeweils einen Return über",
+        winConditionBody: "Erreiche in den letzten 5 Episoden jeweils einen Return größer als",
         winConditionTail: ".",
-        fixedAt: "Fest auf",
+        fixedAt: "Festgelegt auf",
         memoryEquationsTitle: "Speicher-Update-Gleichungen",
         memoryEquationsLead: "Diese Gleichungen zeigen, wie h-Werte und Glow-Spuren nach jedem Schritt aktualisiert werden.",
         glowLead: "Glow-Werte markieren kürzlich genutzte Übergänge, damit verzögerte Belohnungen frühere Aktionen noch verstärken können.",
@@ -1137,12 +1137,12 @@ function getMiscText(language: Locale) {
       return {
         infoButtonTitle: "Mostra le informazioni generali",
         instructionsButtonTitle: "Mostra le istruzioni del livello",
-        winConditionBody: "Ottieni un return superiore a",
+        winConditionBody: "Ottieni un ritorno superiore a",
         winConditionTail: " per 5 episodi consecutivi.",
         fixedAt: "Fissato a",
         memoryEquationsTitle: "Equazioni di aggiornamento della memoria",
         memoryEquationsLead: "Queste equazioni mostrano come vengono aggiornati i valori h e le tracce glow dopo ogni passo.",
-        glowLead: "I valori glow marcano le transizioni recenti, così anche le ricompense ritardate possono rinforzare azioni precedenti.",
+        glowLead: "I valori glow evidenziano le transizioni recenti, così anche le ricompense ritardate possono rinforzare le azioni precedenti.",
         glowRecent: "Se una transizione è appena stata eseguita, il suo glow viene impostato a 1.",
         gridSizeLabel: "Dimensione griglia",
         gridSizeHelp: "Controlla la dimensione di visualizzazione della griglia dell'ispettore di memoria/policy. Più grande = vista più dettagliata della policy appresa.",
@@ -1150,7 +1150,7 @@ function getMiscText(language: Locale) {
         yReward: "Ricompensa",
         yCumulativeReward: "Ricompensa cumulativa",
         xEpisodeNumber: "Numero episodio",
-        yReturn: "Return",
+        yReturn: "Ritorno",
         noGridData: "Nessun dato della griglia disponibile",
         gridUnavailable: "Impossibile caricare i dati della griglia",
         psCell: "Cella PS",
@@ -1167,7 +1167,7 @@ function getMiscText(language: Locale) {
         fixedAt: "Fixé à",
         memoryEquationsTitle: "Équations de mise à jour de la mémoire",
         memoryEquationsLead: "Ces équations montrent comment les valeurs h et les traces glow sont mises à jour après chaque pas.",
-        glowLead: "Les valeurs glow marquent les transitions récentes afin que des récompenses tardives puissent encore renforcer les actions passées.",
+        glowLead: "Les valeurs de glow marquent les transitions récentes afin que des récompenses tardives puissent encore renforcer les actions passées.",
         glowRecent: "Si une transition vient juste d'être empruntée, son glow est fixé à 1.",
         gridSizeLabel: "Taille de la grille",
         gridSizeHelp: "Contrôle la taille d'affichage de la grille de l'inspecteur mémoire/politique. Plus grand = vue plus détaillée de la politique apprise.",
@@ -1192,7 +1192,7 @@ function getMiscText(language: Locale) {
         fixedAt: "Fijado en",
         memoryEquationsTitle: "Ecuaciones de actualización de memoria",
         memoryEquationsLead: "Estas ecuaciones muestran cómo se actualizan los valores h y las trazas glow después de cada paso.",
-        glowLead: "Los valores glow marcan transiciones recientes para que recompensas tardías todavía refuercen acciones anteriores.",
+        glowLead: "Los valores de glow marcan transiciones recientes para que recompensas tardías aún puedan reforzar acciones anteriores.",
         glowRecent: "Si una transición acaba de ocurrir, su glow se fija en 1.",
         gridSizeLabel: "Tamaño de la cuadrícula",
         gridSizeHelp: "Controla el tamaño de visualización de la cuadrícula del inspector de memoria/política. Más grande = vista más detallada de la política aprendida.",
@@ -2349,51 +2349,51 @@ const StaticGrid = React.memo(function StaticGrid({
   const tips: string[] = [];
   if (stepCost >= -0.01) {
     tips.push(language === "de" ? "Nutze kleine negative Schrittkosten, damit kurze Wege attraktiver werden." :
-      language === "it" ? "Usa un piccolo costo negativo per incoraggiare percorsi piu brevi." :
-      language === "fr" ? "Ajoute un petit cout negatif pour favoriser les trajets plus courts." :
-      language === "es" ? "Usa un pequeno costo negativo para favorecer rutas mas cortas." :
+      language === "it" ? "Usa un piccolo costo negativo per favorire percorsi più brevi." :
+      language === "fr" ? "Ajoute un léger coût négatif pour favoriser des trajets plus courts." :
+      language === "es" ? "Usa un pequeño costo negativo para favorecer rutas más cortas." :
       "Use a small negative step cost so shorter paths look better.");
   }
   if (epsilon > 0.35) {
-    tips.push(language === "de" ? "Die Exploration ist hoch. Senke e, sobald der Agent das Ziel findet." :
-      language === "it" ? "L'esplorazione e alta. Riduci e quando l'agente inizia a trovare l'obiettivo." :
-      language === "fr" ? "L'exploration est elevee. Reduis e quand l'agent commence a trouver l'objectif." :
-      language === "es" ? "La exploracion es alta. Baja e cuando el agente ya encuentre la meta." :
+    tips.push(language === "de" ? "Die Exploration ist hoch. Senke ε, sobald der Agent das Ziel findet." :
+      language === "it" ? "L'esplorazione è alta. Riduci ε quando l'agente inizia a trovare l'obiettivo." :
+      language === "fr" ? "L'exploration est élevée. Réduis ε quand l'agent commence à trouver l'objectif." :
+      language === "es" ? "La exploración es alta. Baja ε cuando el agente ya encuentre la meta." :
       "Exploration is high. Lower e once the agent starts finding the goal.");
   }
   if (psGlowEta > 0.25) {
-    tips.push(language === "de" ? "Senke eta bei verzogerten Belohnungen, damit fruhere Schritte langer berucksichtigt werden." :
-      language === "it" ? "Riduci eta se la ricompensa arriva tardi, cosi le azioni passate restano rilevanti." :
-      language === "fr" ? "Reduis eta si la recompense arrive tard afin que les actions passees restent utiles." :
+    tips.push(language === "de" ? "Senke η bei verzögerten Belohnungen, damit frühere Schritte länger berücksichtigt werden." :
+      language === "it" ? "Riduci η se la ricompensa arriva tardi, così le azioni passate restano rilevanti." :
+      language === "fr" ? "Réduis η si la récompense arrive tard, afin que les actions passées restent utiles." :
       language === "es" ? "Reduce eta cuando la recompensa llega tarde para conservar la influencia de acciones pasadas." :
       "Lower eta when rewards arrive late so earlier actions still receive credit.");
   }
   if (psGamma > 0.08) {
-    tips.push(language === "de" ? "Ein hohes g lasst den Agenten schnell vergessen. Niedrigere Werte helfen in schwierigeren Gittern." :
-      language === "it" ? "Un g alto fa dimenticare in fretta. Valori piu bassi aiutano nelle griglie piu difficili." :
-      language === "fr" ? "Un g eleve fait oublier trop vite. Des valeurs plus faibles aident sur les grilles difficiles." :
-      language === "es" ? "Un g alto hace que olvide muy rapido. Valores mas bajos ayudan en mapas dificiles." :
+    tips.push(language === "de" ? "Ein hohes γ lässt den Agenten schnell vergessen. Niedrigere Werte helfen in schwierigeren Gittern." :
+      language === "it" ? "Un γ alto fa dimenticare in fretta. Valori più bassi aiutano nelle griglie più difficili." :
+      language === "fr" ? "Un γ élevé fait oublier trop vite. Des valeurs plus faibles aident sur les grilles difficiles." :
+      language === "es" ? "Un γ alto hace que el agente olvide muy rápido. Valores más bajos ayudan en mapas difíciles." :
       "High g makes the agent forget quickly. Lower values help on harder maps.");
   }
   if (placedDoorIds.length > 0) {
-    tips.push(language === "de" ? "Bei Tur-Leveln braucht der Agent erst den Schlussel. Platziere mindestens einen Schlussel und eine geschlossene Tur." :
+    tips.push(language === "de" ? "Bei Tür-Leveln braucht der Agent zuerst den Schlüssel. Platziere mindestens einen Schlüssel und eine geschlossene Tür." :
       language === "it" ? "Nei livelli con porta l'agente deve prima prendere la chiave. Metti almeno una chiave e una porta chiusa." :
-      language === "fr" ? "Sur les niveaux avec porte, l'agent doit d'abord prendre la cle. Place au moins une cle et une porte fermee." :
+      language === "fr" ? "Dans les niveaux avec porte, l'agent doit d'abord récupérer la clé. Place au moins une clé et une porte fermée." :
       language === "es" ? "En niveles con puerta el agente debe coger antes la llave. Coloca al menos una llave y una puerta cerrada." :
       "On door levels the agent must collect a key first. Place at least one key and one closed door.");
   }
   if (gridHasCell(grid, "lava") && lavaPenalty > -1) {
-    tips.push(language === "de" ? "Wenn Lava kaum bestraft wird, wirken riskante Wege zu attraktiv. Erhohe die Lava-Strafe." :
-      language === "it" ? "Se la lava punisce poco, i percorsi rischiosi sembrano convenienti. Aumenta la penalita." :
-      language === "fr" ? "Si la lave penalise peu, les chemins dangereux paraissent trop bons. Augmente la penalite." :
-      language === "es" ? "Si la lava castiga poco, las rutas peligrosas parecen demasiado buenas. Aumenta la penalizacion." :
+    tips.push(language === "de" ? "Wenn Lava kaum bestraft wird, wirken riskante Wege zu attraktiv. Erhöhe die Lava-Strafe." :
+      language === "it" ? "Se la lava punisce poco, i percorsi rischiosi sembrano convenienti. Aumenta la penalità." :
+      language === "fr" ? "Si la lave pénalise peu, les chemins dangereux paraissent trop avantageux. Augmente la pénalité." :
+      language === "es" ? "Si la lava castiga poco, las rutas peligrosas parecen demasiado buenas. Aumenta la penalización." :
       "If lava is barely punished, risky routes look too good. Increase the lava penalty.");
   }
   if (tips.length === 0) {
-    tips.push(language === "de" ? "Wenn du mehrere Parameter stark veranderst, setze das Level zuruck und beobachte eine neue Lernphase." :
+    tips.push(language === "de" ? "Wenn du mehrere Parameter stark veränderst, setze das Level zurück und beobachte eine neue Lernphase." :
       language === "it" ? "Se cambi molto i parametri, resetta il livello e osserva una nuova fase di apprendimento." :
-      language === "fr" ? "Si tu modifies fortement plusieurs parametres, reinitialise le niveau et observe une nouvelle phase d'apprentissage." :
-      language === "es" ? "Si cambias mucho varios parametros, reinicia el nivel y observa una nueva fase de aprendizaje." :
+      language === "fr" ? "Si tu modifies fortement plusieurs paramètres, réinitialise le niveau et observe une nouvelle phase d'apprentissage." :
+      language === "es" ? "Si cambias mucho varios parámetros, reinicia el nivel y observa una nueva fase de aprendizaje." :
       "If you change several parameters a lot, reset the level and watch a fresh learning run.");
   }
 
@@ -2420,7 +2420,7 @@ const StaticGrid = React.memo(function StaticGrid({
       "ε (exploration): 0.05 to 0.20 is often near-optimal once the agent has found some successful routes.",
   ];
   const strategyNotes = [
-    language === "de" ? "Beobachte zuerst die Episoden-Returns. Wenn sie flach bleiben, fehlen meist bessere Belohnungssignale oder weniger Exploration." :
+    language === "de" ? "Beobachte zuerst die Episoden-Returns. Wenn sie flach bleiben, fehlen meist klarere Belohnungssignale oder weniger Exploration." :
       language === "it" ? "Guarda prima i ritorni per episodio. Se restano piatti, di solito servono ricompense migliori o meno esplorazione." :
       language === "fr" ? "Observe d'abord les retours par épisode. S'ils restent plats, il faut souvent de meilleurs signaux de récompense ou moins d'exploration." :
       language === "es" ? "Mira primero los retornos por episodio. Si se quedan planos, normalmente faltan mejores señales de recompensa o menos exploración." :
@@ -2435,9 +2435,9 @@ const StaticGrid = React.memo(function StaticGrid({
       language === "fr" ? "Sur les niveaux avec portes, rends d'abord le chemin vers la clé attractif avant d'optimiser l'arrivée finale." :
       language === "es" ? "En niveles con puertas conviene volver atractivo primero el camino hacia la llave y después optimizar la llegada final." :
       "On door levels, make the key route attractive first and only then optimize the final run to the goal.",
-    language === "de" ? "Nutze Reset Level nach größeren Änderungen. Sonst mischst du neue Einstellungen mit alten gelernten h-Werten." :
+    language === "de" ? "Nutze " + text.resetLevel + " nach größeren Änderungen. Sonst mischst du neue Einstellungen mit alten h-Werten." :
       language === "it" ? "Usa Reset Level dopo modifiche grandi. Altrimenti mescoli i nuovi parametri con valori h appresi prima." :
-      language === "fr" ? "Utilise Reset Level après de gros changements. Sinon tu mélanges les nouveaux réglages avec d'anciens h-values appris." :
+      language === "fr" ? "Utilise Reset Level après de gros changements. Sinon, tu mélanges les nouveaux réglages avec d'anciennes valeurs h déjà apprises." :
       language === "es" ? "Usa Reset Level después de cambios grandes. Si no, mezclas ajustes nuevos con valores h aprendidos antes." :
       "Use Reset Level after large parameter changes. Otherwise you mix new settings with old learned h-values.",
   ];
