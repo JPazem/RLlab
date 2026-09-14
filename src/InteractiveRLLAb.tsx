@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen, Languages, Lightbulb } from "lucide-react";
+import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 import qrCode from "./assets/QR_Code_RLGame_Outreach.png";
+import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
 
 console.log("InteractiveRLLab render", Date.now());
 
@@ -117,14 +118,6 @@ const LEVELS: LevelConfig[] = [
     winThreshold: 1,
     instructions: "The ultimate challenge! Navigate through a complex maze with many walls and dead ends. Can you find the perfect reward structure to guide the agent through this maze?"
   }
-];
-
-const LANGUAGE_OPTIONS: { value: Locale; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "de", label: "Deutsch" },
-  { value: "it", label: "Italiano" },
-  { value: "fr", label: "Français" },
-  { value: "es", label: "Español" },
 ];
 
 const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: string; description: string; instructions: string }>> = {
@@ -1718,8 +1711,23 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }:
   );
 }
 
-export default function InteractiveRLLab(){
-  const [language, setLanguage] = useState<Locale>("en");
+export default function InteractiveRLLab({
+  language: controlledLanguage = "en",
+  onLanguageChange,
+}: {
+  language?: AppLanguage;
+  onLanguageChange?: (language: AppLanguage) => void;
+}){
+  const [language, setInternalLanguage] = useState<Locale>(controlledLanguage);
+
+  useEffect(() => {
+    setInternalLanguage(controlledLanguage);
+  }, [controlledLanguage]);
+
+  function setLanguage(nextLanguage: AppLanguage) {
+    setInternalLanguage(nextLanguage);
+    onLanguageChange?.(nextLanguage);
+  }
   const [currentLevel, setCurrentLevel] = useState(1);
   const [gridW,setGridW]=useState(LEVELS[0].gridW);
   const [gridH,setGridH]=useState(LEVELS[0].gridH);
@@ -2835,21 +2843,7 @@ const StaticGrid = React.memo(function StaticGrid({
     )}
     </div>
     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 w-full sm:w-auto">
-    <div className="flex items-center gap-2 w-full sm:w-auto sm:min-w-[180px]">
-      <Languages className="w-4 h-4 text-slate-600" />
-      <Select value={language} onValueChange={(value) => setLanguage(value as Locale)}>
-        <SelectTrigger className="h-9 bg-white/90 w-full sm:w-[180px]">
-          <SelectValue placeholder={text.language} />
-        </SelectTrigger>
-        <SelectContent>
-          {LANGUAGE_OPTIONS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <LanguageToggle language={language as AppLanguage} onChange={setLanguage} className="lab-language-toggle" />
     <button onClick={() => setShowInfo(true)} title={miscText.infoButtonTitle} className="text-slate-500 hover:text-slate-700 transition-colors">
       <Info className="w-5 h-5 sm:w-6 sm:h-6" />
     </button>
