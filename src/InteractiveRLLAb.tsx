@@ -1795,6 +1795,8 @@ export default function InteractiveRLLab(){
     setGameWon(false);
     gameWonRef.current = false;
     setRunning(true);
+  };
+
   const text = UI_TEXT[language];
   const miscText = getMiscText(language);
   const isEnglish = language === "en";

@@ -12,13 +12,13 @@ jobs:
     steps:
       # 1️⃣ Checkout RLlab
       - name: Checkout RLlab
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 2️⃣ Setup Node
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
 
       # 3️⃣ Install deps
       - name: Install dependencies
@@ -30,7 +30,7 @@ jobs:
 
       # 5️⃣ Checkout InteractiveRLlab
       - name: Checkout website repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: JPazem/InteractiveRLlab
           token: ${{ secrets.DEPLOY_TOKEN }}
