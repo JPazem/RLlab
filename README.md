@@ -1,3 +1,9 @@
+# An interactive activity to learn and teach reinforcement learning by interacting with a simple RL agent and tuning its learning parameters.
+
+This page proposes a simple, interactive game to explain reinforcement learning using projective simulation. Agents are trained to reach goals in grids with increasing complexity. Users are guided through the process of tuning their own agents and are encouraged to interact with the agent-building process in a pedagogical way.
+
+jpazem.github.io/InteractiveRLlab/
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
