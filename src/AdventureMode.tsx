@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Nova_standing from "./assets/Nova_Standing_noBackground.png";
 import Nova_face from "./assets/Nova_Face.png";
+import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
 
 type Point = { x: number; y: number };
 type Action = "up" | "right" | "down" | "left";
@@ -44,7 +45,328 @@ const CELL_OBJECTS = [
   "🎸", "🧭", "☂️", "💎", "🧺",
   "🎒", "🍒", "🔔", "✏️", "🌻",
 ];
-const LEVEL_TITLES = ["Welcome, Coach", "The Percept–Action Loop", "How One Trip Teaches", "Practice Makes Memory"];
+const ADVENTURE_TEXT = {
+  en: {
+    levelTitles: ["Welcome, Coach", "The Percept–Action Loop", "How One Trip Teaches", "Practice Makes Memory"],
+    actions: ["up", "right", "down", "left"],
+    characterStanding: "Nova standing",
+    detectiveStudent: "Detective student",
+    detectiveStudentNova: "Detective student Nova",
+    newStudent: "Your new detective student",
+    detectiveTraining: "Detective in training",
+    novaPortrait: "Nova portrait",
+    novaPosition: "Nova’s current position",
+    gridLabel: "Five by five detective training grid",
+    colorPercept: "Color percept at row {row}, column {column}",
+    lostWatch: "The lost watch",
+    object: "Object",
+    memoryShown: "Agent memory shown as {view}",
+    probabilityExplorer: "Probability explorer",
+    probabilitySubtitle: "Two ways to see the same chances",
+    probabilityVisualization: "Probability visualization",
+    bars: "Bars",
+    beads: "Beads",
+    beadJar: "A jar of colored action beads",
+    beadExplanation: "If Nova draws one bead without looking, colors that appear more often are more likely to be selected.",
+    sampleHistogram: "Histogram of {count} sampled actions",
+    sampledActions: "Nova’s sampled actions",
+    sample: "sample",
+    samples: "samples",
+    memoryRepresentation: "Memory representation",
+    glow: "Glow",
+    hValues: "H-values",
+    policy: "Policy",
+    exactly: "Exactly!",
+    notQuite: "Not quite yet.",
+    previousLesson: "Previous lesson",
+    nextLesson: "Next lesson",
+    openLabMode: "Open Lab mode",
+    quizzes: [
+      {
+        eyebrow: "Case note 1 of 3",
+        question: "How does Nova choose an action from memory?",
+        answers: ["The strongest arrow always wins", "The stronger the arrow, the more chances to choose (sample) the corresponding action.", "The watch tells Nova where to move"],
+        correct: 1,
+        explanation: "Nova turns the four weights into chances. A stronger arrow is more likely, but it is not guaranteed to be chosen.",
+      },
+      {
+        eyebrow: "Case note 2 of 3",
+        question: "What job does glow do during a trajectory?",
+        answers: ["It marks recent choices so a later reward can strengthen them", "It changes the color of the environment", "It guarantees the shortest path immediately"],
+        correct: 0,
+        explanation: "Glow is a temporary trail in memory that fades away with time. When the watch is found, edges that glow more receive more credit.",
+      },
+      {
+        eyebrow: "Final academy check",
+        question: "What happens when forgetting is very fast?",
+        answers: ["Old improvements fade quickly unless useful trips are repeated", "Every action keeps its strongest value forever", "Nova stops using probabilities"],
+        correct: 0,
+        explanation: "Repetition consolidates a useful route, while forgetting continuously pulls unused connections back toward their starting value.",
+      },
+    ],
+    newCase: "A new case has arrived",
+    welcomeTitle: "Welcome to the Detective Academy, Coach!",
+    welcomeLead: "You are in charge of a new student of the Detective Academy, Nova. Guide her in the acquisition of her first detective skill: recovering lost objects.",
+    yourTask: "Your task:",
+    taskDescription: "Train Nova and give her her first detective lesson!",
+    welcomeStory: "Today’s mystery is a lost watch hidden in a place Nova has never seen. You won’t tell Nova where to find it. Instead, you’ll help her discover it through trial and error, and reward her every time she finds the watch.",
+    meetNova: "Meet Nova",
+    skipStory: "Skip the story",
+    lesson1Eyebrow: "Lesson 1 · See and Act",
+    lesson1Title: "The percept–action loop",
+    lesson1Summary: "This is a mess! Help Nova find the watch in this chaos. Nova can see the color and contents of each cell, and decide where to move next. Everything Nova sees is called a percept. Based on the current percept, Nova chooses an action. After she moves, she has access to the next percept: its color and object.",
+    trainingRoom: "Training room",
+    environmentDescription: "The environment: what Nova can see and affect.",
+    lookFirst: "Look first:",
+    lookInstruction: "find Nova, the watch, and the colored percepts.",
+    studentBottomLeft: "Student at bottom-left",
+    watchTopRight: "Watch at top-right",
+    percept: "percept",
+    action: "action",
+    novaMemory: "Nova’s memory",
+    associationDescription: "Stores associations between percepts and actions.",
+    yourAction: "Your action",
+    openMemoryPrompt: "Open the memory to continue.",
+    drawActionPrompt: "Draw one possible action.",
+    openMemory: "Open memory",
+    sampleAction: "Sample an action",
+    memoryLocked: "Nova’s memories associate each percept with four possible actions of different strengths.",
+    back: "Back",
+    checkUnderstanding: "Check my understanding",
+    comparisonTitle: "Same path, different glow decay",
+    slowDecay: "slow decay",
+    fastDecay: "fast decay",
+    firstStepUpdate: "first-step update",
+    decayExplanation: "A smaller η keeps earlier actions glowing, so a distant reward can reach farther back.",
+    lesson2Eyebrow: "Lesson 2 · Follow the trace",
+    lesson2Title: "How does a move change the memory?",
+    lesson2Summary: "Move Nova one step at a time. Each choice leaves a temporary glow. It marks her recent moves and fades as time passes. When the watch is recovered, the reward travels along that glowing trail and increases the strength of the associations used during deliberation.",
+    followNova: "Follow Nova in her environment.",
+    steps: "steps",
+    watchRecovered: "The watch is recovered.",
+    advanceDecision: "Advance Nova by one decision.",
+    takeStep: "Take one step",
+    resetTrip: "Reset this trip",
+    watchRecoveredTitle: "Watch recovered!",
+    compareMemory: "Now compare the three attributes of the memory.",
+    memoryAssociations: "Memory associations",
+    memoryFunctions: "The memory has three functions. (1) Glow represents a short-term memory of recent actions. (2) H-values store long-term useful associations between percepts and actions. (3) The policy is derived from the H-values and determines how likely Nova is to take an action for each percept.",
+    nextAction: "Next action",
+    reviewUpdate: "Review the highlighted update, then continue to Lesson 3.",
+    continue: "Continue",
+    greenGlow: "Green glow",
+    redGlow: "Red glow",
+    glowExplanation: "shows which recent percept–action edges are eligible for credit.",
+    hExplanation: "are durable connection strengths.",
+    goldUpdate: "Gold highlights mark the edges that just received reward.",
+    updateWhenFound: "They will update when the watch is found.",
+    policyExplanation: "turns the four h-values into the probabilities used for the next choice.",
+    finishLesson: "Finish lesson",
+    lesson3Eyebrow: "Lesson 3 · Consolidate with repetitions",
+    lesson3Title: "Practice makes perfect!",
+    lesson3Summary: "Run multiple trajectories and see how forgetting affects Nova’s memory. Select either setting below to inspect its matching decisions, position, and three memory attributes.",
+    observeTrajectories: "Observe trajectories Nova can take.",
+    trajectories: "trajectories",
+    slowForgetting: "Slow forgetting",
+    fastForgetting: "Fast forgetting",
+    instantReward: "Instant reward",
+    noAction: "No action yet",
+    watchDecisions: "Watch the next decisions.",
+    startPauseTraining: "Start or pause the training.",
+    pause: "Pause",
+    start: "Start",
+    restartPractice: "Restart practice",
+    memory: "Memory",
+    glowLearning: "Watch glow become learning",
+    recentEdges: "recent edges are brighter.",
+    rewardConsolidates: "reward consolidates useful edges.",
+    strengthsChances: "updated strengths become action chances.",
+    learningProgress: "Learning progress",
+    progressExplanation: "Select a cursor to show the corresponding environment and all three memory views. Values report cumulative reward, including step costs.",
+    complete: "complete",
+    reward: "reward",
+    slowRouteNote: "Consolidated routes become shorter over time.",
+    fastRouteNote: "More reward is lost to longer trajectories.",
+    slow: "Slow",
+    fast: "Fast",
+    trajectoryProgress: "{done} of {total} {mode}-forgetting trajectories complete",
+    coachObservation: "Coach’s observation",
+    observationText: "Repetition refreshes useful connections; faster forgetting makes progress harder to retain.",
+    stopAndCheck: "Stop trajectories & check my understanding",
+    startHint: "Start a trajectory to unlock the optional understanding check.",
+    finalQuestion: "Answer final question",
+    briefing: "Briefing",
+    lesson: "Lesson",
+    modes: "Modes",
+    academyBrand: "Detective Academy",
+    academySubtitle: "Projective Simulation",
+    returnModes: "Return to mode selection",
+    adventureProgress: "Adventure progress",
+  },
+  de: {
+    levelTitles: ["Willkommen, Coach", "Die Wahrnehmungs-Aktions-Schleife", "Wie ein Durchlauf lehrt", "Übung stärkt das Gedächtnis"],
+    actions: ["oben", "rechts", "unten", "links"],
+    characterStanding: "Nova stehend",
+    detectiveStudent: "Detektivschülerin",
+    detectiveStudentNova: "Detektivschülerin Nova",
+    newStudent: "Deine neue Detektivschülerin",
+    detectiveTraining: "Detektivin in Ausbildung",
+    novaPortrait: "Porträt von Nova",
+    novaPosition: "Novas aktuelle Position",
+    gridLabel: "Detektiv-Trainingsfeld mit fünf mal fünf Zellen",
+    colorPercept: "Farbwahrnehmung in Zeile {row}, Spalte {column}",
+    lostWatch: "Die verlorene Uhr",
+    object: "Gegenstand",
+    memoryShown: "Gedächtnis des Agenten als {view}",
+    probabilityExplorer: "Wahrscheinlichkeits-Explorer",
+    probabilitySubtitle: "Zwei Darstellungen derselben Chancen",
+    probabilityVisualization: "Darstellung der Wahrscheinlichkeiten",
+    bars: "Balken",
+    beads: "Kugeln",
+    beadJar: "Ein Glas mit farbigen Aktionskugeln",
+    beadExplanation: "Wenn Nova blind eine Kugel zieht, werden häufiger vorkommende Farben mit höherer Wahrscheinlichkeit ausgewählt.",
+    sampleHistogram: "Histogramm von {count} gezogenen Aktionen",
+    sampledActions: "Novas gezogene Aktionen",
+    sample: "Ziehung",
+    samples: "Ziehungen",
+    memoryRepresentation: "Darstellung des Gedächtnisses",
+    glow: "Glow",
+    hValues: "H-Werte",
+    policy: "Policy",
+    exactly: "Genau!",
+    notQuite: "Noch nicht ganz.",
+    previousLesson: "Vorherige Lektion",
+    nextLesson: "Nächste Lektion",
+    openLabMode: "Labormodus öffnen",
+    quizzes: [
+      {
+        eyebrow: "Fallnotiz 1 von 3",
+        question: "Wie wählt Nova eine Aktion aus ihrem Gedächtnis?",
+        answers: ["Der stärkste Pfeil gewinnt immer", "Je stärker ein Pfeil ist, desto größer ist die Chance, die zugehörige Aktion auszuwählen.", "Die Uhr sagt Nova, wohin sie gehen soll"],
+        correct: 1,
+        explanation: "Nova wandelt die vier Gewichte in Wahrscheinlichkeiten um. Ein stärkerer Pfeil wird eher gewählt, aber seine Auswahl ist nicht garantiert.",
+      },
+      {
+        eyebrow: "Fallnotiz 2 von 3",
+        question: "Welche Aufgabe hat der Glow während einer Trajektorie?",
+        answers: ["Er markiert kürzlich gewählte Aktionen, damit eine spätere Belohnung sie verstärken kann", "Er verändert die Farbe der Umgebung", "Er garantiert sofort den kürzesten Weg"],
+        correct: 0,
+        explanation: "Der Glow ist eine vorübergehende Spur im Gedächtnis, die mit der Zeit verblasst. Wenn die Uhr gefunden wird, erhalten stärker leuchtende Verbindungen mehr Anerkennung.",
+      },
+      {
+        eyebrow: "Abschlussprüfung der Akademie",
+        question: "Was geschieht bei sehr schnellem Vergessen?",
+        answers: ["Ältere Verbesserungen verblassen schnell, wenn nützliche Wege nicht wiederholt werden", "Jede Aktion behält ihren stärksten Wert für immer", "Nova verwendet keine Wahrscheinlichkeiten mehr"],
+        correct: 0,
+        explanation: "Wiederholung festigt einen nützlichen Weg, während das Vergessen ungenutzte Verbindungen fortlaufend zu ihrem Ausgangswert zurückzieht.",
+      },
+    ],
+    newCase: "Ein neuer Fall ist eingetroffen",
+    welcomeTitle: "Willkommen in der Detektivakademie, Coach!",
+    welcomeLead: "Du bist für Nova, eine neue Schülerin der Detektivakademie, verantwortlich. Hilf ihr, ihre erste Detektivfähigkeit zu erlernen: verlorene Gegenstände wiederzufinden.",
+    yourTask: "Deine Aufgabe:",
+    taskDescription: "Trainiere Nova und erteile ihr die erste Detektivlektion!",
+    welcomeStory: "Im heutigen Fall geht es um eine verlorene Uhr, die an einem für Nova unbekannten Ort versteckt ist. Du verrätst ihr nicht, wo sie liegt. Stattdessen hilfst du ihr, die Uhr durch Versuch und Irrtum zu entdecken, und belohnst sie jedes Mal, wenn sie sie findet.",
+    meetNova: "Nova kennenlernen",
+    skipStory: "Geschichte überspringen",
+    lesson1Eyebrow: "Lektion 1 · Sehen und handeln",
+    lesson1Title: "Die Wahrnehmungs-Aktions-Schleife",
+    lesson1Summary: "Was für ein Durcheinander! Hilf Nova, in diesem Chaos die Uhr zu finden. Nova sieht die Farbe und den Inhalt jeder Zelle und entscheidet, wohin sie als Nächstes geht. Alles, was Nova sieht, nennt man Wahrnehmung oder Perzept. Ausgehend vom aktuellen Perzept wählt Nova eine Aktion. Nach der Bewegung nimmt sie die nächste Farbe und den nächsten Gegenstand wahr.",
+    trainingRoom: "Trainingsraum",
+    environmentDescription: "Die Umgebung: was Nova sehen und beeinflussen kann.",
+    lookFirst: "Schau zuerst:",
+    lookInstruction: "Finde Nova, die Uhr und die farbigen Perzepte.",
+    studentBottomLeft: "Schülerin unten links",
+    watchTopRight: "Uhr oben rechts",
+    percept: "Perzept",
+    action: "Aktion",
+    novaMemory: "Novas Gedächtnis",
+    associationDescription: "Speichert Verknüpfungen zwischen Perzepten und Aktionen.",
+    yourAction: "Deine Aktion",
+    openMemoryPrompt: "Öffne das Gedächtnis, um fortzufahren.",
+    drawActionPrompt: "Ziehe eine mögliche Aktion.",
+    openMemory: "Gedächtnis öffnen",
+    sampleAction: "Aktion ziehen",
+    memoryLocked: "Novas Gedächtnis verknüpft jedes Perzept mit vier möglichen Aktionen unterschiedlicher Stärke.",
+    back: "Zurück",
+    checkUnderstanding: "Mein Verständnis prüfen",
+    comparisonTitle: "Gleicher Weg, unterschiedlicher Glow-Abbau",
+    slowDecay: "langsamer Abbau",
+    fastDecay: "schneller Abbau",
+    firstStepUpdate: "Aktualisierung des ersten Schritts",
+    decayExplanation: "Ein kleineres η hält frühere Aktionen länger im Glow, sodass eine entfernte Belohnung weiter zurückwirken kann.",
+    lesson2Eyebrow: "Lektion 2 · Der Spur folgen",
+    lesson2Title: "Wie verändert ein Schritt das Gedächtnis?",
+    lesson2Summary: "Bewege Nova Schritt für Schritt. Jede Wahl hinterlässt einen vorübergehenden Glow. Er markiert ihre letzten Bewegungen und verblasst mit der Zeit. Wenn die Uhr gefunden wird, wandert die Belohnung entlang dieser leuchtenden Spur und erhöht die Stärke der verwendeten Verknüpfungen.",
+    followNova: "Folge Nova in ihrer Umgebung.",
+    steps: "Schritte",
+    watchRecovered: "Die Uhr wurde gefunden.",
+    advanceDecision: "Lass Nova eine weitere Entscheidung treffen.",
+    takeStep: "Einen Schritt gehen",
+    resetTrip: "Diesen Weg zurücksetzen",
+    watchRecoveredTitle: "Uhr gefunden!",
+    compareMemory: "Vergleiche jetzt die drei Eigenschaften des Gedächtnisses.",
+    memoryAssociations: "Gedächtnisverknüpfungen",
+    memoryFunctions: "Das Gedächtnis hat drei Funktionen. (1) Der Glow ist ein Kurzzeitgedächtnis für kürzlich gewählte Aktionen. (2) H-Werte speichern langfristig nützliche Verknüpfungen zwischen Perzepten und Aktionen. (3) Die Policy wird aus den H-Werten abgeleitet und bestimmt, wie wahrscheinlich Nova bei jedem Perzept eine Aktion wählt.",
+    nextAction: "Nächste Aktion",
+    reviewUpdate: "Sieh dir die hervorgehobene Aktualisierung an und fahre dann mit Lektion 3 fort.",
+    continue: "Weiter",
+    greenGlow: "Grüner Glow",
+    redGlow: "Roter Glow",
+    glowExplanation: "zeigt, welche kürzlich verwendeten Perzept-Aktions-Verbindungen Belohnung erhalten können.",
+    hExplanation: "sind dauerhafte Verbindungsstärken.",
+    goldUpdate: "Goldene Markierungen zeigen die Verbindungen, die gerade belohnt wurden.",
+    updateWhenFound: "Sie werden aktualisiert, sobald die Uhr gefunden wird.",
+    policyExplanation: "wandelt die vier H-Werte in Wahrscheinlichkeiten für die nächste Aktion um.",
+    finishLesson: "Lektion abschließen",
+    lesson3Eyebrow: "Lektion 3 · Durch Wiederholung festigen",
+    lesson3Title: "Übung macht den Meister!",
+    lesson3Summary: "Starte mehrere Trajektorien und beobachte, wie das Vergessen Novas Gedächtnis beeinflusst. Wähle unten eine Einstellung, um die zugehörigen Entscheidungen, die Position und alle drei Gedächtniseigenschaften zu untersuchen.",
+    observeTrajectories: "Beobachte die Trajektorien, die Nova nehmen kann.",
+    trajectories: "Trajektorien",
+    slowForgetting: "Langsames Vergessen",
+    fastForgetting: "Schnelles Vergessen",
+    instantReward: "Sofortige Belohnung",
+    noAction: "Noch keine Aktion",
+    watchDecisions: "Beobachte die nächsten Entscheidungen.",
+    startPauseTraining: "Starte oder pausiere das Training.",
+    pause: "Pause",
+    start: "Start",
+    restartPractice: "Training neu starten",
+    memory: "Gedächtnis",
+    glowLearning: "Beobachte, wie aus Glow Lernen wird",
+    recentEdges: "kürzlich verwendete Verbindungen leuchten heller.",
+    rewardConsolidates: "Belohnung festigt nützliche Verbindungen.",
+    strengthsChances: "aktualisierte Stärken werden zu Aktionswahrscheinlichkeiten.",
+    learningProgress: "Lernfortschritt",
+    progressExplanation: "Wähle einen Regler, um die zugehörige Umgebung und alle drei Gedächtnisansichten anzuzeigen. Die Werte geben die kumulierte Belohnung einschließlich der Schrittkosten an.",
+    complete: "abgeschlossen",
+    reward: "Belohnung",
+    slowRouteNote: "Gefestigte Wege werden mit der Zeit kürzer.",
+    fastRouteNote: "Auf längeren Trajektorien geht mehr Belohnung verloren.",
+    slow: "Langsam",
+    fast: "Schnell",
+    trajectoryProgress: "{done} von {total} Trajektorien mit {mode}em Vergessen abgeschlossen",
+    coachObservation: "Beobachtung des Coaches",
+    observationText: "Wiederholung frischt nützliche Verbindungen auf; schnelleres Vergessen erschwert es, Fortschritte zu bewahren.",
+    stopAndCheck: "Trajektorien stoppen & Verständnis prüfen",
+    startHint: "Starte eine Trajektorie, um die optionale Verständnisfrage freizuschalten.",
+    finalQuestion: "Abschlussfrage beantworten",
+    briefing: "Einführung",
+    lesson: "Lektion",
+    modes: "Modi",
+    academyBrand: "Detektivakademie",
+    academySubtitle: "Projektive Simulation",
+    returnModes: "Zur Modusauswahl zurückkehren",
+    adventureProgress: "Fortschritt im Abenteuer",
+  },
+};
+
+type AdventureText = (typeof ADVENTURE_TEXT)["en"];
+
+function interpolate(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce((result, [key, value]) => result.replace(`{${key}}`, String(value)), template);
+}
 function makeMemory(): Memory {
   return Array.from({ length: GRID_SIZE }, () =>
     Array.from({ length: GRID_SIZE }, () => ({
@@ -80,25 +402,25 @@ function perceptColor(x: number, y: number) {
   return colors[(x + y * 2) % colors.length];
 }
 
-function CharacterSlot({ kind = "student", compact = false }: { kind?: "guide" | "student"; compact?: boolean }) {
+function CharacterSlot({ text, kind = "student", compact = false }: { text: AdventureText; kind?: "guide" | "student"; compact?: boolean }) {
   return (
-    <div className={`character-slot ${compact ? "character-slot-compact" : ""}`} aria-label={kind === "guide" ? "Nova standing" : "Detective student"}>
+    <div className={`character-slot ${compact ? "character-slot-compact" : ""}`} aria-label={kind === "guide" ? text.characterStanding : text.detectiveStudent}>
       <div className={`character-art ${kind === "guide" ? "nova-standing-art" : ""}`}>
-        {kind === "student" ? <GraduationCap /> : <img src={Nova_standing} alt="Nova standing"  />}
+        {kind === "student" ? <GraduationCap /> : <img src={Nova_standing} alt={text.characterStanding} />}
       </div>
       {!compact && (
         <div className="character-caption">
-          <span>Detective student Nova</span>
-          <small>{kind === "guide" ? "Your new detective student" : "Detective in training"}</small>
+          <span>{text.detectiveStudentNova}</span>
+          <small>{kind === "guide" ? text.newStudent : text.detectiveTraining}</small>
         </div>
       )}
     </div>
   );
 }
 
-function NovaFaceMedal() {
+function NovaFaceMedal({ text }: { text: AdventureText }) {
   return (
-    <div className="nova-face-medal" aria-label="Nova portrait">
+    <div className="nova-face-medal" aria-label={text.novaPortrait}>
       <img src={Nova_face} alt="Nova" />
     </div>
   );
@@ -106,15 +428,17 @@ function NovaFaceMedal() {
 
 function AdventureGrid({
   agent,
+  text,
   trail = [],
   active = true,
 }: {
   agent: Point;
+  text: AdventureText;
   trail?: Point[];
   active?: boolean;
 }) {
   return (
-    <div className="adventure-grid" aria-label="Five by five detective training grid">
+    <div className="adventure-grid" aria-label={text.gridLabel}>
       {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
         const x = index % GRID_SIZE;
         const y = Math.floor(index / GRID_SIZE);
@@ -127,18 +451,18 @@ function AdventureGrid({
             className={`adventure-cell ${visited ? "visited" : ""}`}
             style={{ background: cellColor }}
             key={`${x}-${y}`}
-            aria-label={`Color percept at row ${y + 1}, column ${x + 1}`}
+            aria-label={interpolate(text.colorPercept, { row: y + 1, column: x + 1 })}
           >
             <span
               className="cell-object"
               style={{ background: cellColor }}
-              aria-label={isWatch ? "The lost watch" : `Object: ${CELL_OBJECTS[index]}`}
-              title={isWatch ? "The lost watch" : undefined}
+              aria-label={isWatch ? text.lostWatch : `${text.object}: ${CELL_OBJECTS[index]}`}
+              title={isWatch ? text.lostWatch : undefined}
             >
               {CELL_OBJECTS[index]}
             </span>
             {isAgent && (
-              <span className={`student-token ${active ? "student-active" : ""}`} title="Detective student Nova">
+              <span className={`student-token ${active ? "student-active" : ""}`} title={text.detectiveStudentNova}>
                 <Search />
               </span>
             )}
@@ -151,6 +475,7 @@ function AdventureGrid({
 
 function MemoryGrid({
   memory,
+  text,
   view,
   focus,
   highlightUpdates = false,
@@ -161,6 +486,7 @@ function MemoryGrid({
   showAgent = false,
 }: {
   memory: Memory;
+  text: AdventureText;
   view: MemoryView;
   focus?: Point;
   highlightUpdates?: boolean;
@@ -171,7 +497,7 @@ function MemoryGrid({
   showAgent?: boolean;
 }) {
   return (
-    <div className="memory-grid" aria-label={`Agent memory shown as ${view}`}>
+    <div className="memory-grid" aria-label={interpolate(text.memoryShown, { view: view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy })}>
       {memory.flatMap((row, y) =>
         row.map((cell, x) => {
           const values = view === "policy" ? policy(cell.h) : view === "h" ? cell.h : cell.glow;
@@ -206,14 +532,14 @@ function MemoryGrid({
                       "--arrow-stroke": emphasizeStrength ? `${Math.max(0, strength - 0.45) * 2.2}px` : "0px",
                     } as CSSProperties}
                     key={action}
-                    title={`${ACTIONS[action]}: ${value.toFixed(2)}`}
+                    title={`${text.actions[action]}: ${value.toFixed(2)}`}
                   >
                     <span className="memory-arrow-glyph">{ARROWS[action]}</span>
                     {showValues && <small>{view === "policy" ? `${Math.round(value * 100)}%` : value.toFixed(1)}</small>}
                   </span>
                 );
               })}
-              {showAgent && focused && <img className="memory-agent-marker" src={Nova_face} alt="Nova’s current position" />}
+              {showAgent && focused && <img className="memory-agent-marker" src={Nova_face} alt={text.novaPosition} />}
             </div>
           );
         }),
@@ -222,7 +548,7 @@ function MemoryGrid({
   );
 }
 
-function ProbabilityInset({ probabilities }: { probabilities: number[] }) {
+function ProbabilityInset({ probabilities, text }: { probabilities: number[]; text: AdventureText }) {
   const [mode, setMode] = useState<"bars" | "beads">("bars");
   const beadCounts = probabilities.map((chance) => Math.round(chance * 44));
   const beads = Array.from({ length: 44 }, (_, index) => {
@@ -237,17 +563,17 @@ function ProbabilityInset({ probabilities }: { probabilities: number[] }) {
   return (
     <aside className="probability-inset">
       <div className="probability-heading">
-        <div><strong>Probability explorer</strong><small>Two ways to see the same chances</small></div>
-        <div className="probability-switch" role="tablist" aria-label="Probability visualization">
-          <button className={mode === "bars" ? "active" : ""} onClick={() => setMode("bars")}>Bars</button>
-          <button className={mode === "beads" ? "active" : ""} onClick={() => setMode("beads")}>Beads</button>
+        <div><strong>{text.probabilityExplorer}</strong><small>{text.probabilitySubtitle}</small></div>
+        <div className="probability-switch" role="tablist" aria-label={text.probabilityVisualization}>
+          <button className={mode === "bars" ? "active" : ""} onClick={() => setMode("bars")}>{text.bars}</button>
+          <button className={mode === "beads" ? "active" : ""} onClick={() => setMode("beads")}>{text.beads}</button>
         </div>
       </div>
       {mode === "bars" ? (
         <div className="probability-bars">
           {probabilities.map((chance, index) => (
             <div className="probability-bar" key={ACTIONS[index]}>
-              <span>{ARROWS[index]} {ACTIONS[index]}</span>
+              <span>{ARROWS[index]} {text.actions[index]}</span>
               <i><b style={{ width: `${chance * 100}%`, background: ACTION_COLORS[index] }} /></i>
               <strong>{Math.round(chance * 100)}%</strong>
             </div>
@@ -255,33 +581,33 @@ function ProbabilityInset({ probabilities }: { probabilities: number[] }) {
         </div>
       ) : (
         <div className="bead-view">
-          <div className="bead-jar" aria-label="A jar of colored action beads">
+          <div className="bead-jar" aria-label={text.beadJar}>
             {beads.map((action, index) => <i style={{ background: ACTION_COLORS[action] }} key={index} />)}
           </div>
-          <p>If Nova draws one bead without looking, colors that appear more often are more likely to be selected.</p>
+          <p>{text.beadExplanation}</p>
         </div>
       )}
       <div className="action-legend">
-        {ACTIONS.map((action, index) => <span key={action}><i style={{ background: ACTION_COLORS[index] }} />{ARROWS[index]} {action}</span>)}
+        {ACTIONS.map((action, index) => <span key={action}><i style={{ background: ACTION_COLORS[index] }} />{ARROWS[index]} {text.actions[index]}</span>)}
       </div>
     </aside>
   );
 }
 
-function SampleHistogram({ counts }: { counts: number[] }) {
+function SampleHistogram({ counts, text }: { counts: number[]; text: AdventureText }) {
   const total = counts.reduce((sum, count) => sum + count, 0);
 
   return (
-    <div className="sample-histogram" aria-label={`Histogram of ${total} sampled actions`}>
+    <div className="sample-histogram" aria-label={interpolate(text.sampleHistogram, { count: total })}>
       <div className="sample-histogram-heading">
-        <strong>Nova’s sampled actions</strong>
-        <span>{total} {total === 1 ? "sample" : "samples"}</span>
+        <strong>{text.sampledActions}</strong>
+        <span>{total} {total === 1 ? text.sample : text.samples}</span>
       </div>
       {counts.map((count, index) => {
         const frequency = total ? count / total : 0;
         return (
           <div className="sample-histogram-row" key={ACTIONS[index]}>
-            <span style={{ color: ACTION_COLORS[index] }}>{ARROWS[index]} {ACTIONS[index]}</span>
+            <span style={{ color: ACTION_COLORS[index] }}>{ARROWS[index]} {text.actions[index]}</span>
             <i><b style={{ width: `${frequency * 100}%`, background: ACTION_COLORS[index] }} /></i>
             <strong>{Math.round(frequency * 100)}%</strong>
           </div>
@@ -291,12 +617,12 @@ function SampleHistogram({ counts }: { counts: number[] }) {
   );
 }
 
-function MemoryTabs({ value, onChange }: { value: MemoryView; onChange: (view: MemoryView) => void }) {
+function MemoryTabs({ value, onChange, text }: { value: MemoryView; onChange: (view: MemoryView) => void; text: AdventureText }) {
   return (
-    <div className="memory-tabs" role="tablist" aria-label="Memory representation">
+    <div className="memory-tabs" role="tablist" aria-label={text.memoryRepresentation}>
       {(["glow", "h", "policy"] as MemoryView[]).map((view) => (
         <button className={value === view ? "active" : ""} onClick={() => onChange(view)} key={view} role="tab">
-          {view === "glow" ? "Glow" : view === "h" ? "H-values" : "Policy"}
+          {view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy}
         </button>
       ))}
     </div>
@@ -313,11 +639,13 @@ type QuizConfig = {
 
 function QuizModal({
   config,
+  text,
   onBack,
   onContinue,
   final = false,
 }: {
   config: QuizConfig;
+  text: AdventureText;
   onBack: () => void;
   onContinue: () => void;
   final?: boolean;
@@ -343,13 +671,13 @@ function QuizModal({
         {selected !== null && (
           <div className={`quiz-feedback ${correct ? "is-correct" : ""}`}>
             {correct ? <Check /> : <Lightbulb />}
-            <p><strong>{correct ? "Exactly!" : "Not quite yet."}</strong> {config.explanation}</p>
+            <p><strong>{correct ? text.exactly : text.notQuite}</strong> {config.explanation}</p>
           </div>
         )}
         <div className="quiz-actions">
-          <button className="button-secondary" onClick={onBack}><ArrowLeft /> Previous lesson</button>
+          <button className="button-secondary" onClick={onBack}><ArrowLeft /> {text.previousLesson}</button>
           <button className="button-primary" onClick={onContinue} disabled={!correct}>
-            {final ? "Open Lab mode" : "Next lesson"} <ArrowRight />
+            {final ? text.openLabMode : text.nextLesson} <ArrowRight />
           </button>
         </div>
       </div>
@@ -357,70 +685,29 @@ function QuizModal({
   );
 }
 
-const QUIZZES: QuizConfig[] = [
-  {
-    eyebrow: "Case note 1 of 3",
-    question: "How does Nova choose an action from memory?",
-    answers: [
-      "The strongest arrow always wins",
-      "The stronger the arrow, the more chances to choose (sample) the corresponding action.",
-      "The watch tells Nova where to move",
-    ],
-    correct: 1,
-    explanation: "Nova turns the four weights into chances. A stronger arrow is more likely, but it is not guaranteed to be chosen.",
-  },
-  {
-    eyebrow: "Case note 2 of 3",
-    question: "What job does glow do during a trajectory?",
-    answers: [
-      "It marks recent choices so a later reward can strengthen them",
-      "It changes the color of the environment",
-      "It guarantees the shortest path immediately",
-    ],
-    correct: 0,
-    explanation: "Glow is a temporary trail in memory that fades away with time. When the watch is found, edges that glow more receive more credit.",
-  },
-  {
-    eyebrow: "Final academy check",
-    question: "What happens when forgetting is very fast?",
-    answers: [
-      "Old improvements fade quickly unless useful trips are repeated",
-      "Every action keeps its strongest value forever",
-      "Nova stops using probabilities",
-    ],
-    correct: 0,
-    explanation: "Repetition consolidates a useful route, while forgetting continuously pulls unused connections back toward their starting value.",
-  },
-];
-
-function WelcomeLevel({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
+function WelcomeLevel({ onNext, onSkip, text }: { onNext: () => void; onSkip: () => void; text: AdventureText }) {
   return (
     <section className="story-page">
       <div className="story-copy">
-        <span className="story-eyebrow"><Compass /> A new case has arrived</span>
-        <h1>Welcome to the Detective Academy, Coach!</h1>
-        <p className="story-lead">
-          You are in charge of a new student of the Detective Academy, <strong>Nova</strong>. Guide her in the acquisition of her first detective skill: recovering lost objects.
-        </p>
+        <span className="story-eyebrow"><Compass /> {text.newCase}</span>
+        <h1>{text.welcomeTitle}</h1>
+        <p className="story-lead">{text.welcomeLead}</p>
         <div className="story-note">
           <Sparkles />
-          <p><strong>Your task:</strong> Train Nova and give her her first detective lesson!</p>
+          <p><strong>{text.yourTask}</strong> {text.taskDescription}</p>
         </div>
-        <p>
-          Today’s mystery is a lost watch hidden in a place Nova never saw. You won’t tell Nova where to find the watch.
-          Instead, you’ll help her to discover it with trials and errors and you will reward her everytime she finds the watch.
-        </p>
+        <p>{text.welcomeStory}</p>
         <div className="story-actions">
-          <button className="button-primary" onClick={onNext}>Meet Nova <ArrowRight /></button>
-          <button className="button-text" onClick={onSkip}>Skip the story</button>
+          <button className="button-primary" onClick={onNext}>{text.meetNova} <ArrowRight /></button>
+          <button className="button-text" onClick={onSkip}>{text.skipStory}</button>
         </div>
       </div>
-      <CharacterSlot kind="guide" />
+      <CharacterSlot kind="guide" text={text} />
     </section>
   );
 }
 
-function LoopLevel({ onPrevious, onComplete }: { onPrevious: () => void; onComplete: () => void }) {
+function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; onComplete: () => void; text: AdventureText }) {
   const [phase, setPhase] = useState<"environment" | "memory">("environment");
   const [sampled, setSampled] = useState<number | null>(null);
   const [sampleCounts, setSampleCounts] = useState<number[]>([0, 0, 0, 0]);
@@ -448,45 +735,45 @@ function LoopLevel({ onPrevious, onComplete }: { onPrevious: () => void; onCompl
   return (
     <section className="lesson-page">
         <div className="lesson-intro lesson-intro-row">
-        <div><span className="story-eyebrow"><Footprints /> Lesson 1 · See and Act</span><h1>The percept–action loop</h1></div>
-        <NovaFaceMedal />
+        <div><span className="story-eyebrow"><Footprints /> {text.lesson1Eyebrow}</span><h1>{text.lesson1Title}</h1></div>
+        <NovaFaceMedal text={text} />
       </div>
-      <p className="lesson-summary">This is a mess! Help Nova to find the watch in this chaos. Nova can see the color and content of each cell, and she can decide where to move next. Everything Nova sees is called a <strong>percept</strong>. Based on the current percept, Nova can choose an <strong>action</strong>: after she moves and changes position, she has access to the next percept (color and object).</p>
+      <p className="lesson-summary">{text.lesson1Summary}</p>
 
 
       <div className="loop-layout">
         <div className={`lesson-panel ${phase === "environment" ? "panel-active" : ""}`}>
-          <div className="panel-heading"><span>1</span><div><strong>Training room </strong><small>The environment: what Nova can see and affect.</small></div></div>
-          <div className="instruction-strip"><Eye /><span><strong>Look first:</strong> find Nova, the watch, and the colored percepts.</span></div>
-          <AdventureGrid agent={agent} />
-          <div className="loop-key"><span className="mini-student"><Search /></span> Student at bottom-left <ChevronRight /> <Clock3 /> Watch at top-right</div>
+          <div className="panel-heading"><span>1</span><div><strong>{text.trainingRoom} </strong><small>{text.environmentDescription}</small></div></div>
+          <div className="instruction-strip"><Eye /><span><strong>{text.lookFirst}</strong> {text.lookInstruction}</span></div>
+          <AdventureGrid agent={agent} text={text} />
+          <div className="loop-key"><span className="mini-student"><Search /></span> {text.studentBottomLeft} <ChevronRight /> <Clock3 /> {text.watchTopRight}</div>
         </div>
 
-        <div className="loop-arrow" aria-hidden>percept <ArrowRight /> <ArrowLeft /> action </div>
+        <div className="loop-arrow" aria-hidden>{text.percept} <ArrowRight /> <ArrowLeft /> {text.action} </div>
 
         <div className={`lesson-panel ${phase === "memory" ? "panel-active" : "panel-muted"}`}>
-          <div className="panel-heading lesson-one-memory-heading"><span><Brain /></span><div><strong>Nova’s memory</strong><small>Stores associations between percepts and actions.</small></div></div>
+          <div className="panel-heading lesson-one-memory-heading"><span><Brain /></span><div><strong>{text.novaMemory}</strong><small>{text.associationDescription}</small></div></div>
           <div className="interaction-bar">
-            <span><strong>Your action</strong>{phase === "environment" ? "Open the memory to continue." : "Draw one possible action."}</span>
+            <span><strong>{text.yourAction}</strong>{phase === "environment" ? text.openMemoryPrompt : text.drawActionPrompt}</span>
             {phase === "environment" ? (
-              <button className="button-primary" onClick={() => setPhase("memory")}>Open memory <ArrowRight /></button>
+              <button className="button-primary" onClick={() => setPhase("memory")}>{text.openMemory} <ArrowRight /></button>
             ) : (
-              <button className="button-primary" onClick={sampleAction}><Sparkles /> Sample an action</button>
+              <button className="button-primary" onClick={sampleAction}><Sparkles /> {text.sampleAction}</button>
             )}
           </div>
           {phase === "environment" ? (
             <div className="memory-locked">
               <Brain />
-              <p>Nova’s memories associate each percept to four possible actions with different strengths.</p>
+              <p>{text.memoryLocked}</p>
             </div>
           ) : (
             <>
               <div className="memory-and-probability">
-                <MemoryGrid memory={memory} view="policy" focus={agent} showValues={false} colorActions emphasizeStrength showAgent />
-                <ProbabilityInset probabilities={startPolicy} />
+                <MemoryGrid memory={memory} view="policy" focus={agent} showValues={false} colorActions emphasizeStrength showAgent text={text} />
+                <ProbabilityInset probabilities={startPolicy} text={text} />
               </div>
               <div className="sample-box">
-                <SampleHistogram counts={sampleCounts} />
+                <SampleHistogram counts={sampleCounts} text={text} />
               </div>
             </>
           )}
@@ -494,10 +781,10 @@ function LoopLevel({ onPrevious, onComplete }: { onPrevious: () => void; onCompl
       </div>
 
       <div className="lesson-footer">
-        <button className="button-text" onClick={onPrevious}><ArrowLeft /> Back</button>
-        <button className="button-primary" disabled={sampled === null} onClick={() => setShowQuiz(true)}>Check my understanding <ArrowRight /></button>
+        <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.back}</button>
+        <button className="button-primary" disabled={sampled === null} onClick={() => setShowQuiz(true)}>{text.checkUnderstanding} <ArrowRight /></button>
       </div>
-      {showQuiz && <QuizModal config={QUIZZES[0]} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} />}
+      {showQuiz && <QuizModal config={text.quizzes[0]} text={text} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} />}
     </section>
   );
 }
@@ -508,10 +795,12 @@ function GlowComparison({
   steps,
   selected,
   onSelect,
+  text,
 }: {
   steps: number;
   selected: ComparisonMode;
   onSelect: (mode: ComparisonMode) => void;
+  text: AdventureText;
 }) {
   const samples = Array.from({ length: Math.min(7, steps + 1) }, (_, index) => index);
   const age = Math.max(0, steps - 1);
@@ -519,21 +808,21 @@ function GlowComparison({
   const fastCredit = Math.pow(0.3, age) * 1.4;
   return (
     <div className="comparison-card">
-      <div className="comparison-title"><Footprints /> Same path, different glow decay</div>
+      <div className="comparison-title"><Footprints /> {text.comparisonTitle}</div>
       <button className={`decay-row ${selected === "slow" ? "selected" : ""}`} onClick={() => onSelect("slow")} aria-pressed={selected === "slow"}>
-        <span><strong>η = 0.10</strong><small>slow decay · first-step update +{slowCredit.toFixed(2)}</small></span>
+        <span><strong>η = 0.10</strong><small>{text.slowDecay} · {text.firstStepUpdate} +{slowCredit.toFixed(2)}</small></span>
         <span className="decay-dots">{samples.map((sampleAge) => <i style={{ opacity: Math.pow(0.9, samples.length - sampleAge - 1) }} key={sampleAge} />)}<em aria-hidden /></span>
       </button>
       <button className={`decay-row ${selected === "fast" ? "selected" : ""}`} onClick={() => onSelect("fast")} aria-pressed={selected === "fast"}>
-        <span><strong>η = 0.70</strong><small>fast decay · first-step update +{fastCredit.toFixed(2)}</small></span>
+        <span><strong>η = 0.70</strong><small>{text.fastDecay} · {text.firstStepUpdate} +{fastCredit.toFixed(2)}</small></span>
         <span className="decay-dots fast">{samples.map((sampleAge) => <i style={{ opacity: Math.max(0.08, Math.pow(0.3, samples.length - sampleAge - 1)) }} key={sampleAge} />)}<em aria-hidden /></span>
       </button>
-      <p>A smaller η keeps earlier actions glowing, so a distant reward can reach farther back.</p>
+      <p>{text.decayExplanation}</p>
     </div>
   );
 }
 
-function GlowLevel({ onPrevious, onComplete }: { onPrevious: () => void; onComplete: () => void }) {
+function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; onComplete: () => void; text: AdventureText }) {
   const [agent, setAgent] = useState<Point>(START);
   const [trail, setTrail] = useState<Point[]>([START]);
   const [memories, setMemories] = useState<{ slow: Memory; fast: Memory }>(() => ({ slow: makeMemory(), fast: makeMemory() }));
@@ -593,47 +882,47 @@ function GlowLevel({ onPrevious, onComplete }: { onPrevious: () => void; onCompl
   return (
     <section className="lesson-page">
       <div className="lesson-intro lesson-intro-row">
-        <div><span className="story-eyebrow"><Footprints /> Lesson 2 · Follow the trace</span><h1>How does a move change the memory?</h1></div>
-        <NovaFaceMedal />
+        <div><span className="story-eyebrow"><Footprints /> {text.lesson2Eyebrow}</span><h1>{text.lesson2Title}</h1></div>
+        <NovaFaceMedal text={text} />
       </div>
-      <p className="lesson-summary">Move Nova one step at a time. Each choice leaves a temporary <strong>glow</strong>. It flags her recent moves and <strong>fades away</strong> as time passes. When the watch is recovered, the <strong>reward travels along that glowing trail</strong> and raises the strength of associations that were used during deliberation.</p>
+      <p className="lesson-summary">{text.lesson2Summary}</p>
 
       <div className="learning-layout">
         <div className="lesson-panel environment-panel">
-          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>Training room</strong><small>Follow Nova in her environment.</small></div><div className="card-counter"><strong>{steps}</strong><small>steps</small></div></div>
+          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{text.trainingRoom}</strong><small>{text.followNova}</small></div><div className="card-counter"><strong>{steps}</strong><small>{text.steps}</small></div></div>
           <div className="interaction-bar step-controls">
-            <span><strong>Your action</strong>{reached ? "The watch is recovered." : "Advance Nova by one decision."}</span>
-            <button className="button-primary" onClick={takeStep} disabled={reached}><Footprints /> Take one step</button>
-            <button className="icon-button" onClick={reset} title="Reset this trip"><RotateCcw /></button>
+            <span><strong>{text.yourAction}</strong>{reached ? text.watchRecovered : text.advanceDecision}</span>
+            <button className="button-primary" onClick={takeStep} disabled={reached}><Footprints /> {text.takeStep}</button>
+            <button className="icon-button" onClick={reset} title={text.resetTrip}><RotateCcw /></button>
           </div>
-          <AdventureGrid agent={agent} trail={trail} active={!reached} />
-          {reached && <div className="success-note"><Trophy /> <span><strong>Watch recovered!</strong> Now compare the three attributes of the memory.</span></div>}
+          <AdventureGrid agent={agent} trail={trail} active={!reached} text={text} />
+          {reached && <div className="success-note"><Trophy /> <span><strong>{text.watchRecoveredTitle}</strong> {text.compareMemory}</span></div>}
         </div>
 
         <div className="lesson-panel memory-panel-wide">
-          <div className="panel-heading"><span><Brain /></span><div><strong>Memory associations</strong><small>The memory has three functions. (1) Glow represents a short-term memory of recent actions. (2) H-values store long-term useful associations between percepts and actions. (3) The policy is derived from the H-values and determines how likely Nova is to take an action for each given percept.</small></div></div>
+          <div className="panel-heading"><span><Brain /></span><div><strong>{text.memoryAssociations}</strong><small>{text.memoryFunctions}</small></div></div>
           {reached && (
             <div className="interaction-bar completion-bar">
-              <span><strong>Next action</strong>Review the highlighted update, then continue to Lesson 3.</span>
-              <button className="button-primary" onClick={() => setShowQuiz(true)}>Continue <ArrowRight /></button>
+              <span><strong>{text.nextAction}</strong>{text.reviewUpdate}</span>
+              <button className="button-primary" onClick={() => setShowQuiz(true)}>{text.continue} <ArrowRight /></button>
             </div>
           )}
-          <MemoryTabs value={view} onChange={setView} />
-          <div className={`memory-setting-label ${decayMode}`}>{decayMode === "slow" ? "Green glow · η = 0.10" : "Red glow · η = 0.70"}</div>
-          <MemoryGrid memory={memories[decayMode]} view={view} focus={agent} highlightUpdates={reached} glowColor={decayMode === "slow" ? "green" : "red"} />
+          <MemoryTabs value={view} onChange={setView} text={text} />
+          <div className={`memory-setting-label ${decayMode}`}>{decayMode === "slow" ? `${text.greenGlow} · η = 0.10` : `${text.redGlow} · η = 0.70`}</div>
+          <MemoryGrid memory={memories[decayMode]} view={view} focus={agent} highlightUpdates={reached} glowColor={decayMode === "slow" ? "green" : "red"} text={text} />
           <div className="view-explanation">
-            {view === "glow" && <><strong>Glow</strong> shows which recent percept–action edges are eligible for credit.</>}
-            {view === "h" && <><strong>H-values</strong> are durable connection strengths. {reached ? "Gold highlights mark the edges that just received reward." : "They will update when the watch is found."}</>}
-            {view === "policy" && <><strong>Policy</strong> turns the four h-values into the probabilities used for the next choice.</>}
+            {view === "glow" && <><strong>{text.glow}</strong> {text.glowExplanation}</>}
+            {view === "h" && <><strong>{text.hValues}</strong> {text.hExplanation} {reached ? text.goldUpdate : text.updateWhenFound}</>}
+            {view === "policy" && <><strong>{text.policy}</strong> {text.policyExplanation}</>}
           </div>
         </div>
       </div>
-      <GlowComparison steps={steps} selected={decayMode} onSelect={setDecayMode} />
+      <GlowComparison steps={steps} selected={decayMode} onSelect={setDecayMode} text={text} />
       <div className="lesson-footer">
-        <button className="button-text" onClick={onPrevious}><ArrowLeft /> Previous lesson</button>
-        <button className="button-primary" disabled={!reached} onClick={() => setShowQuiz(true)}>Finish lesson <ArrowRight /></button>
+        <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.previousLesson}</button>
+        <button className="button-primary" disabled={!reached} onClick={() => setShowQuiz(true)}>{text.finishLesson} <ArrowRight /></button>
       </div>
-      {showQuiz && <QuizModal config={QUIZZES[1]} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} />}
+      {showQuiz && <QuizModal config={text.quizzes[1]} text={text} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} />}
     </section>
   );
 }
@@ -732,7 +1021,7 @@ function advancePracticeRun(current: PracticeRun, forgetting: ComparisonMode, ta
   };
 }
 
-function PracticeLevel({ onPrevious, onComplete }: { onPrevious: () => void; onComplete: () => void }) {
+function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; onComplete: () => void; text: AdventureText }) {
   const targetRecoveries = 5;
   const [running, setRunning] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -797,99 +1086,110 @@ function PracticeLevel({ onPrevious, onComplete }: { onPrevious: () => void; onC
   return (
     <section className="lesson-page">
       <div className="lesson-intro lesson-intro-row">
-        <div><span className="story-eyebrow"><Trophy /> Lesson 3 · Consolidate with repetitions</span><h1>Practice makes perfect!</h1></div>
-        <NovaFaceMedal />
+        <div><span className="story-eyebrow"><Trophy /> {text.lesson3Eyebrow}</span><h1>{text.lesson3Title}</h1></div>
+        <NovaFaceMedal text={text} />
       </div>
-      <p className="lesson-summary">Run multiple trajectories and see how forgetting affects Nova’s memory. Select either setting below to inspect its matching decisions, position, and three memory attributes.</p>
+      <p className="lesson-summary">{text.lesson3Summary}</p>
 
       <div className="practice-layout">
         <div className="lesson-panel practice-environment">
-          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>Training room </strong><small>Observe trajectories Nova can take.</small></div><div className="card-counter"><strong>{activePractice.recovered}/{targetRecoveries}</strong><small>trajectories</small></div></div>
-          <div className={`memory-setting-label ${forgettingMode}`}>{forgettingMode === "slow" ? "Slow forgetting · γ = 0.0001 · η = 0.05" : "Fast forgetting · γ = 0.1 · η = 0.05"}</div>
+          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{text.trainingRoom} </strong><small>{text.observeTrajectories}</small></div><div className="card-counter"><strong>{activePractice.recovered}/{targetRecoveries}</strong><small>{text.trajectories}</small></div></div>
+          <div className={`memory-setting-label ${forgettingMode}`}>{forgettingMode === "slow" ? `${text.slowForgetting} · γ = 0.0001 · η = 0.05` : `${text.fastForgetting} · γ = 0.1 · η = 0.05`}</div>
           <div className="reward-readout">
-            <span>Instant reward</span>
+            <span>{text.instantReward}</span>
             <strong className={activePractice.instantReward > 0 ? "positive" : ""}>
-              {activePractice.lastAction ? `${ARROWS[ACTIONS.indexOf(activePractice.lastAction)]} ${activePractice.lastAction}` : "No action yet"}
+              {activePractice.lastAction ? `${ARROWS[ACTIONS.indexOf(activePractice.lastAction)]} ${text.actions[ACTIONS.indexOf(activePractice.lastAction)]}` : text.noAction}
               <b>{activePractice.instantReward >= 0 ? "+" : ""}{activePractice.instantReward.toFixed(2)}</b>
             </strong>
           </div>
           <div className="interaction-bar practice-controls">
-            <span><strong>Your action</strong>{running ? "Watch the next decisions." : "Start or pause the training."}</span>
+            <span><strong>{text.yourAction}</strong>{running ? text.watchDecisions : text.startPauseTraining}</span>
             <div>
               <button className="button-primary" onClick={() => setRunning((value) => !value)} disabled={activeFinished}>
-                {running ? <><Pause /> Pause</> : <><Play /> {activePractice.recovered ? "Continue" : "Start"}</>}
+                {running ? <><Pause /> {text.pause}</> : <><Play /> {activePractice.recovered ? text.continue : text.start}</>}
               </button>
-              <button className="icon-button" onClick={reset} title="Restart practice"><RotateCcw /></button>
+              <button className="icon-button" onClick={reset} title={text.restartPractice}><RotateCcw /></button>
             </div>
           </div>
-          <AdventureGrid agent={activePractice.agent} trail={activePractice.trail} active={running && activePractice.rewardPauseTicks === 0} />
+          <AdventureGrid agent={activePractice.agent} trail={activePractice.trail} active={running && activePractice.rewardPauseTicks === 0} text={text} />
         </div>
 
         <div className="lesson-panel practice-memory">
-          <div className="panel-heading"><span><Brain /></span><div><strong>Memory</strong><small>Watch glow become learning</small></div></div>
-          <MemoryTabs value={view} onChange={setView} />
-          <MemoryGrid memory={activePractice.memory} view={view} focus={activePractice.agent} glowColor={forgettingMode === "slow" ? "green" : "red"} emphasizeStrength />
+          <div className="panel-heading"><span><Brain /></span><div><strong>{text.memory}</strong><small>{text.glowLearning}</small></div></div>
+          <MemoryTabs value={view} onChange={setView} text={text} />
+          <MemoryGrid memory={activePractice.memory} view={view} focus={activePractice.agent} glowColor={forgettingMode === "slow" ? "green" : "red"} emphasizeStrength text={text} />
           <div className="view-explanation">
-            {view === "glow" && <><strong>Glow:</strong> recent edges are brighter.</>}
-            {view === "h" && <><strong>H-values:</strong> reward consolidates useful edges.</>}
-            {view === "policy" && <><strong>Policy:</strong> updated strengths become action chances.</>}
+            {view === "glow" && <><strong>{text.glow}:</strong> {text.recentEdges}</>}
+            {view === "h" && <><strong>{text.hValues}:</strong> {text.rewardConsolidates}</>}
+            {view === "policy" && <><strong>{text.policy}:</strong> {text.strengthsChances}</>}
           </div>
         </div>
 
         <div className="forgetting-panel practice-progress">
-          <div className="comparison-title"><Trophy /> Learning progress</div>
-          <p>Select a cursor to show the corresponding environment and all three memory views. Values report cumulative reward, including step costs.</p>
+          <div className="comparison-title"><Trophy /> {text.learningProgress}</div>
+          <p>{text.progressExplanation}</p>
           <button className={`memory-meter slow-meter ${forgettingMode === "slow" ? "selected" : ""}`} onClick={() => selectForgettingMode("slow")} aria-pressed={forgettingMode === "slow"}>
-            <div><span><strong>Slow forgetting</strong><small>γ = 0.0001 {completedModels.slow ? "· complete" : ""}</small></span><b>Σ reward {practice.slow.cumulativeReward.toFixed(2)}</b></div>
+            <div><span><strong>{text.slowForgetting}</strong><small>γ = 0.0001 {completedModels.slow ? `· ${text.complete}` : ""}</small></span><b>Σ {text.reward} {practice.slow.cumulativeReward.toFixed(2)}</b></div>
             <div className="meter-track reward-track"><i style={{ left: `${Math.min(50, slowPosition)}%`, width: `${Math.abs(slowPosition - 50)}%` }}><em className={slowPosition < 50 ? "negative" : ""} /></i></div>
-            <small>Consolidated routes become shorter over time.</small>
+            <small>{text.slowRouteNote}</small>
           </button>
           <button className={`memory-meter fast-meter ${forgettingMode === "fast" ? "selected" : ""}`} onClick={() => selectForgettingMode("fast")} aria-pressed={forgettingMode === "fast"}>
-            <div><span><strong>Fast forgetting</strong><small>γ = 0.1 {completedModels.fast ? "· complete" : ""}</small></span><b>Σ reward {practice.fast.cumulativeReward.toFixed(2)}</b></div>
+            <div><span><strong>{text.fastForgetting}</strong><small>γ = 0.1 {completedModels.fast ? `· ${text.complete}` : ""}</small></span><b>Σ {text.reward} {practice.fast.cumulativeReward.toFixed(2)}</b></div>
             <div className="meter-track reward-track"><i style={{ left: `${Math.min(50, fastPosition)}%`, width: `${Math.abs(fastPosition - 50)}%` }}><em className={fastPosition < 50 ? "negative" : ""} /></i></div>
-            <small>More reward is lost to longer trajectories.</small>
+            <small>{text.fastRouteNote}</small>
           </button>
           <div className="model-trajectory-counters">
             <div className="trajectory-counter-row slow-trajectory-row">
-              <span>Slow</span>
-              <div className="episode-dots" aria-label={`${practice.slow.recovered} of ${targetRecoveries} slow-forgetting trajectories complete`}>
+              <span>{text.slow}</span>
+              <div className="episode-dots" aria-label={interpolate(text.trajectoryProgress, { done: practice.slow.recovered, total: targetRecoveries, mode: text.slow.toLowerCase() })}>
                 {Array.from({ length: targetRecoveries }, (_, index) => <i className={index < practice.slow.recovered ? "complete" : ""} key={index}>{index + 1}</i>)}
               </div>
             </div>
             <div className="trajectory-counter-row fast-trajectory-row">
-              <span>Fast</span>
-              <div className="episode-dots" aria-label={`${practice.fast.recovered} of ${targetRecoveries} fast-forgetting trajectories complete`}>
+              <span>{text.fast}</span>
+              <div className="episode-dots" aria-label={interpolate(text.trajectoryProgress, { done: practice.fast.recovered, total: targetRecoveries, mode: text.fast.toLowerCase() })}>
                 {Array.from({ length: targetRecoveries }, (_, index) => <i className={index < practice.fast.recovered ? "complete" : ""} key={index}>{index + 1}</i>)}
               </div>
             </div>
           </div>
-          <div className="academy-tip"><Lightbulb /><span><strong>Coach’s observation</strong> Repetition refreshes useful connections; faster forgetting makes progress harder to retain.</span></div>
+          <div className="academy-tip"><Lightbulb /><span><strong>{text.coachObservation}</strong> {text.observationText}</span></div>
         </div>
       </div>
 
       <div className="lesson-footer">
-        <button className="button-text" onClick={onPrevious}><ArrowLeft /> Previous lesson</button>
+        <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.previousLesson}</button>
         {!finished ? (
           hasPracticeStarted ? (
             <button className="button-secondary" onClick={stopAndCheckUnderstanding}>
-              <Pause /> Stop trajectories &amp; check my understanding
+              <Pause /> {text.stopAndCheck}
             </button>
           ) : (
-            <span className="finish-hint">Start a trajectory to unlock the optional understanding check.</span>
+            <span className="finish-hint">{text.startHint}</span>
           )
         ) : (
           <button className="button-primary" onClick={() => setShowQuiz(true)}>
-            Answer final question <ArrowRight />
+            {text.finalQuestion} <ArrowRight />
           </button>
         )}
       </div>
-      {showQuiz && <QuizModal config={QUIZZES[2]} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} final />}
+      {showQuiz && <QuizModal config={text.quizzes[2]} text={text} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} final />}
     </section>
   );
 }
 
-export default function AdventureMode({ onHome, onOpenLab }: { onHome: () => void; onOpenLab: () => void }) {
+export default function AdventureMode({
+  onHome,
+  onOpenLab,
+  language,
+  onLanguageChange,
+}: {
+  onHome: () => void;
+  onOpenLab: () => void;
+  language: AppLanguage;
+  onLanguageChange: (language: AppLanguage) => void;
+}) {
   const [level, setLevel] = useState(0);
+  const text = ADVENTURE_TEXT[language];
 
   function goTo(next: number) {
     setLevel(Math.max(0, Math.min(3, next)));
@@ -899,25 +1199,28 @@ export default function AdventureMode({ onHome, onOpenLab }: { onHome: () => voi
   return (
     <main className="adventure-shell">
       <header className="adventure-header">
-        <button className="academy-brand" onClick={onHome} aria-label="Return to mode selection">
-          <span><Search /></span><div><strong>Detective Academy</strong><small>Projective Simulation</small></div>
+        <button className="academy-brand" onClick={onHome} aria-label={text.returnModes}>
+          <span><Search /></span><div><strong>{text.academyBrand}</strong><small>{text.academySubtitle}</small></div>
         </button>
-        <nav className="adventure-progress" aria-label="Adventure progress">
-          {LEVEL_TITLES.map((title, index) => (
+        <nav className="adventure-progress" aria-label={text.adventureProgress}>
+          {text.levelTitles.map((title, index) => (
             <button className={`${index === level ? "current" : ""} ${index < level ? "complete" : ""}`} onClick={() => index <= level && goTo(index)} key={title} title={title}>
               {index < level && <Check />}
-              <span>{index === 0 ? "Briefing" : `Lesson ${index}`}</span>
+              <span>{index === 0 ? text.briefing : `${text.lesson} ${index}`}</span>
             </button>
           ))}
         </nav>
-        <button className="header-home" onClick={onHome}><Home /> <span>Modes</span></button>
+        <div className="adventure-header-actions">
+          <button className="header-home" onClick={onHome}><Home /> <span>{text.modes}</span></button>
+          <LanguageToggle language={language} onChange={onLanguageChange} className="adventure-language-toggle" />
+        </div>
       </header>
 
       <div className="adventure-content">
-        {level === 0 && <WelcomeLevel onNext={() => goTo(1)} onSkip={() => goTo(1)} />}
-        {level === 1 && <LoopLevel onPrevious={() => goTo(0)} onComplete={() => goTo(2)} />}
-        {level === 2 && <GlowLevel onPrevious={() => goTo(1)} onComplete={() => goTo(3)} />}
-        {level === 3 && <PracticeLevel onPrevious={() => goTo(2)} onComplete={onOpenLab} />}
+        {level === 0 && <WelcomeLevel onNext={() => goTo(1)} onSkip={() => goTo(1)} text={text} />}
+        {level === 1 && <LoopLevel onPrevious={() => goTo(0)} onComplete={() => goTo(2)} text={text} />}
+        {level === 2 && <GlowLevel onPrevious={() => goTo(1)} onComplete={() => goTo(3)} text={text} />}
+        {level === 3 && <PracticeLevel onPrevious={() => goTo(2)} onComplete={onOpenLab} text={text} />}
       </div>
     </main>
   );
