@@ -1,8 +1,8 @@
-# An interactive activity to learn and teach reinforcement learning by interacting with a simple RL agent and tuning its learning parameters.
+# Learn and teach RL
 
 This page proposes a simple, interactive game to explain reinforcement learning using projective simulation. Agents are trained to reach goals in grids with increasing complexity. Users are guided through the process of tuning their own agents and are encouraged to interact with the agent-building process in a pedagogical way.
 
-jpazem.github.io/InteractiveRLlab/
+The activity is accessible at this [link](jpazem.github.io/InteractiveRLlab/), and is translated in German and in English.
 
 # React + TypeScript + Vite
 
