@@ -70,6 +70,7 @@ const ADVENTURE_TEXT = {
     beadExplanation: "If Nova draws one bead without looking, colors that appear more often are more likely to be selected.",
     sampleHistogram: "Histogram of {count} sampled actions",
     sampledActions: "Nova’s sampled actions",
+    lastAction: "Last action",
     sample: "sample",
     samples: "samples",
     memoryRepresentation: "Memory representation",
@@ -127,7 +128,7 @@ const ADVENTURE_TEXT = {
     associationDescription: "Stores associations between percepts and actions.",
     yourAction: "Your action",
     openMemoryPrompt: "Open the memory to continue.",
-    drawActionPrompt: "Draw one possible action.",
+    drawActionPrompt: "Explore how the initial move is chosen.",
     openMemory: "Open memory",
     sampleAction: "Sample an action",
     memoryLocked: "Nova’s memories associate each percept with four possible actions of different strengths.",
@@ -227,6 +228,7 @@ const ADVENTURE_TEXT = {
     beadExplanation: "Wenn Nova blind eine Kugel zieht, werden häufiger vorkommende Farben mit höherer Wahrscheinlichkeit ausgewählt.",
     sampleHistogram: "Histogramm von {count} gezogenen Aktionen",
     sampledActions: "Novas gezogene Aktionen",
+    lastAction: "Letzte Aktion",
     sample: "Ziehung",
     samples: "Ziehungen",
     memoryRepresentation: "Darstellung des Gedächtnisses",
@@ -594,13 +596,20 @@ function ProbabilityInset({ probabilities, text }: { probabilities: number[]; te
   );
 }
 
-function SampleHistogram({ counts, text }: { counts: number[]; text: AdventureText }) {
+function SampleHistogram({ counts, lastAction, text }: { counts: number[]; lastAction: number | null; text: AdventureText }) {
   const total = counts.reduce((sum, count) => sum + count, 0);
 
   return (
     <div className="sample-histogram" aria-label={interpolate(text.sampleHistogram, { count: total })}>
       <div className="sample-histogram-heading">
-        <strong>{text.sampledActions}</strong>
+        <div className="sample-histogram-title">
+          <strong>{text.sampledActions}</strong>
+          {lastAction !== null && (
+            <span className="last-sampled-action">
+              {text.lastAction}: <b style={{ color: ACTION_COLORS[lastAction] }}><i>{ARROWS[lastAction]}</i> {text.actions[lastAction]}</b>
+            </span>
+          )}
+        </div>
         <span>{total} {total === 1 ? text.sample : text.samples}</span>
       </div>
       {counts.map((count, index) => {
@@ -769,11 +778,11 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
           ) : (
             <>
               <div className="memory-and-probability">
-                <MemoryGrid memory={memory} view="policy" focus={agent} showValues={false} colorActions emphasizeStrength showAgent text={text} />
+                <MemoryGrid memory={memory} view="policy" focus={START} showValues={false} colorActions emphasizeStrength showAgent text={text} />
                 <ProbabilityInset probabilities={startPolicy} text={text} />
               </div>
               <div className="sample-box">
-                <SampleHistogram counts={sampleCounts} text={text} />
+                <SampleHistogram counts={sampleCounts} lastAction={sampled} text={text} />
               </div>
             </>
           )}
