@@ -278,6 +278,10 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
 .sample-histogram-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 2px; }
 .sample-histogram-heading strong { color: var(--ink); font-size: 12px; }
 .sample-histogram-heading span { color: var(--muted-ink); font-size: 10px; font-weight: 700; }
+.sample-histogram-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.sample-histogram-heading .last-sampled-action { display: inline-flex; align-items: center; gap: 4px; }
+.last-sampled-action b { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; text-transform: capitalize; }
+.last-sampled-action b i { font-size: 17px; font-style: normal; font-weight: 950; line-height: 1; -webkit-text-stroke: 1.2px currentColor; paint-order: stroke fill; }
 .sample-histogram-row { display: grid; grid-template-columns: 62px 1fr 34px; align-items: center; gap: 7px; font-size: 10px; }
 .sample-histogram-row > span { font-weight: 800; text-transform: capitalize; }
 .sample-histogram-row > i { height: 9px; overflow: hidden; border-radius: 99px; background: #dce5ee; }
