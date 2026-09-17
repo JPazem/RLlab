@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,6 +12,7 @@ import {
   Footprints,
   GraduationCap,
   Home,
+  Info,
   Lightbulb,
   Pause,
   Play,
@@ -23,28 +24,15 @@ import {
 import Nova_standing from "./assets/Nova_Standing_noBackground.png";
 import Nova_face from "./assets/Nova_Face.png";
 import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
-
-type Point = { x: number; y: number };
-type Action = "up" | "right" | "down" | "left";
-type MemoryCell = { h: number[]; glow: number[] };
-type Memory = MemoryCell[][];
-type MemoryView = "glow" | "h" | "policy";
-
-const GRID_SIZE = 5;
-const START = { x: 0, y: 4 };
-const WATCH = { x: 4, y: 0 };
+import WelcomeShare from "./WelcomeShare";
+import { updateGlowValue } from "./glow";
+import { MemoryGrid, MemoryTabs, type Memory, type MemoryView } from "./AcademyMemory";
+import { GUIDE_ACTIONS, ROOM_CELLS, ROOM_HEIGHT, ROOM_WIDTH, START, WATCH, initialRoomWeights, isRoomCell, move, roomPercept, type Point, type Action } from "./adventureRoom";
 const FINAL_REWARD = 5;
 const PRACTICE_GLOW_RETENTION = 0.9;
 const ACTIONS: Action[] = ["up", "right", "down", "left"];
 const ARROWS = ["↑", "→", "↓", "←"];
 const ACTION_COLORS = ["#256d55", "#376bb5", "#d2764e", "#7357a6"];
-const CELL_OBJECTS = [
-  "💡", "📕", "🧸", "🌸", "⌚",
-  "🔑", "🪁", "🧲", "🍎", "🎨",
-  "📚", "🌱", "🧵", "🔍", "🎀",
-  "🎸", "🧭", "☂️", "💎", "🧺",
-  "🎒", "🍒", "🔔", "✏️", "🌻",
-];
 const ADVENTURE_TEXT = {
   en: {
     levelTitles: ["Welcome, Coach", "The Percept–Action Loop", "How One Trip Teaches", "Practice Makes Memory"],
@@ -56,10 +44,22 @@ const ADVENTURE_TEXT = {
     detectiveTraining: "Detective in training",
     novaPortrait: "Nova portrait",
     novaPosition: "Nova’s current position",
-    gridLabel: "Five by five detective training grid",
+    gridLabel: "Winding detective training room with dead ends and one route to the watch",
     colorPercept: "Color percept at row {row}, column {column}",
     lostWatch: "The lost watch",
     object: "Object",
+    perceptDetails: "What does Nova perceive?",
+    currentPercept: "Current percept",
+    initialPosition: "Starting position",
+    initialPercept: "Starting percept",
+    behavior: "Behavior",
+    initialMemoryNote: "In the beginning, Nova knows only this starting percept. After seeing the percept, Nova chooses an action based on how strongly it is related to the percept.",
+    discoveredPercepts: "{count} of {total} percepts discovered",
+    memoryChainExplanation: "New cells appear only when Nova sees their percepts. Links trace the actions and their consequences during this guided trip.",
+    cellColor: "Cell color",
+    perceptColors: ["Mint green", "Blue", "Yellow", "Purple", "Pink"],
+    perceptContents: "Nova can only see the current cell’s color and the object it contains. She does not know her position, nor does she have a map of the room.",
+    availableActions: "Available actions",
     memoryShown: "Agent memory shown as {view}",
     probabilityExplorer: "Probability explorer",
     probabilitySubtitle: "Two ways to see the same chances",
@@ -119,7 +119,7 @@ const ADVENTURE_TEXT = {
     trainingRoom: "Training room",
     environmentDescription: "The environment: what Nova can see and affect.",
     lookFirst: "Look first:",
-    lookInstruction: "find Nova, the watch, and the colored percepts.",
+    lookInstruction: "find Nova and the watch.",
     studentBottomLeft: "Student at bottom-left",
     watchTopRight: "Watch at top-right",
     percept: "percept",
@@ -141,7 +141,7 @@ const ADVENTURE_TEXT = {
     decayExplanation: "A smaller η keeps earlier actions glowing, so a distant reward can reach farther back.",
     lesson2Eyebrow: "Lesson 2 · Follow the trace",
     lesson2Title: "How does a move change the memory?",
-    lesson2Summary: "Move Nova one step at a time. Each choice leaves a temporary glow. It marks her recent moves and fades as time passes. When the watch is recovered, the reward travels along that glowing trail and increases the strength of the associations used during deliberation.",
+    lesson2Summary: "Follow a guided trip with Nova, one step at a time. Each move reveals the next percept and extends her memory. Recent choices leave a temporary glow that fades with time. When the watch is recovered, reward strengthens the associations along that glowing trail.",
     followNova: "Follow Nova in her environment.",
     steps: "steps",
     watchRecovered: "The watch is recovered.",
@@ -151,7 +151,7 @@ const ADVENTURE_TEXT = {
     watchRecoveredTitle: "Watch recovered!",
     compareMemory: "Now compare the three attributes of the memory.",
     memoryAssociations: "Memory associations",
-    memoryFunctions: "The memory has three functions. (1) Glow represents a short-term memory of recent actions. (2) H-values store long-term useful associations between percepts and actions. (3) The policy is derived from the H-values and determines how likely Nova is to take an action for each percept.",
+    memoryFunctions: ["Glow represents a short-term memory of recent actions.", "H-values store long-term useful associations between percepts and actions.", "The policy is derived from the H-values and determines how likely Nova is to take an action for each percept."],
     nextAction: "Next action",
     reviewUpdate: "Review the highlighted update, then continue to Lesson 3.",
     continue: "Continue",
@@ -214,10 +214,22 @@ const ADVENTURE_TEXT = {
     detectiveTraining: "Detektivin in Ausbildung",
     novaPortrait: "Porträt von Nova",
     novaPosition: "Novas aktuelle Position",
-    gridLabel: "Detektiv-Trainingsfeld mit fünf mal fünf Zellen",
+    gridLabel: "Gewundener Detektiv-Trainingsraum mit Sackgassen und einem Weg zur Uhr",
     colorPercept: "Farbwahrnehmung in Zeile {row}, Spalte {column}",
     lostWatch: "Die verlorene Uhr",
     object: "Gegenstand",
+    perceptDetails: "Was nimmt Nova wahr?",
+    currentPercept: "Aktuelles Perzept",
+    initialPosition: "Startposition",
+    initialPercept: "Startperzept",
+    behavior: "Verhalten",
+    initialMemoryNote: "Nova kennt nur dieses Startperzept. Jede Auswahl hier nutzt dessen vier Aktionswahrscheinlichkeiten.",
+    discoveredPercepts: "{count} von {total} Perzepten entdeckt",
+    memoryChainExplanation: "Neue Zellen erscheinen erst, wenn Nova ihre Perzepte wahrnimmt. Verbindungen zeigen die Aktionen und ihre Folgen auf diesem geführten Weg.",
+    cellColor: "Zellfarbe",
+    perceptColors: ["Mintgrün", "Blau", "Gelb", "Violett", "Rosa"],
+    perceptContents: "Nur die Farbe und den Gegenstand der aktuellen Zelle, nicht den Plan des Raums.",
+    availableActions: "Verfügbare Aktionen",
     memoryShown: "Gedächtnis des Agenten als {view}",
     probabilityExplorer: "Wahrscheinlichkeits-Explorer",
     probabilitySubtitle: "Zwei Darstellungen derselben Chancen",
@@ -277,7 +289,7 @@ const ADVENTURE_TEXT = {
     trainingRoom: "Trainingsraum",
     environmentDescription: "Die Umgebung: was Nova sehen und beeinflussen kann.",
     lookFirst: "Schau zuerst:",
-    lookInstruction: "Finde Nova, die Uhr und die farbigen Perzepte.",
+    lookInstruction: "Finde Nova und die Uhr.",
     studentBottomLeft: "Schülerin unten links",
     watchTopRight: "Uhr oben rechts",
     percept: "Perzept",
@@ -299,7 +311,7 @@ const ADVENTURE_TEXT = {
     decayExplanation: "Ein kleineres η hält frühere Aktionen länger im Glow, sodass eine entfernte Belohnung weiter zurückwirken kann.",
     lesson2Eyebrow: "Lektion 2 · Der Spur folgen",
     lesson2Title: "Wie verändert ein Schritt das Gedächtnis?",
-    lesson2Summary: "Bewege Nova Schritt für Schritt. Jede Wahl hinterlässt einen vorübergehenden Glow. Er markiert ihre letzten Bewegungen und verblasst mit der Zeit. Wenn die Uhr gefunden wird, wandert die Belohnung entlang dieser leuchtenden Spur und erhöht die Stärke der verwendeten Verknüpfungen.",
+    lesson2Summary: "Begleite Nova Schritt für Schritt auf einem geführten Weg. Jede Bewegung erschließt das nächste Perzept und erweitert ihr Gedächtnis. Kürzlich gewählte Aktionen hinterlassen einen vorübergehenden Glow, der mit der Zeit verblasst. Wird die Uhr gefunden, verstärkt die Belohnung die Verbindungen entlang dieser leuchtenden Spur.",
     followNova: "Folge Nova in ihrer Umgebung.",
     steps: "Schritte",
     watchRecovered: "Die Uhr wurde gefunden.",
@@ -309,7 +321,7 @@ const ADVENTURE_TEXT = {
     watchRecoveredTitle: "Uhr gefunden!",
     compareMemory: "Vergleiche jetzt die drei Eigenschaften des Gedächtnisses.",
     memoryAssociations: "Gedächtnisverknüpfungen",
-    memoryFunctions: "Das Gedächtnis hat drei Funktionen. (1) Der Glow ist ein Kurzzeitgedächtnis für kürzlich gewählte Aktionen. (2) H-Werte speichern langfristig nützliche Verknüpfungen zwischen Perzepten und Aktionen. (3) Die Policy wird aus den H-Werten abgeleitet und bestimmt, wie wahrscheinlich Nova bei jedem Perzept eine Aktion wählt.",
+    memoryFunctions: ["Der Glow ist ein Kurzzeitgedächtnis für kürzlich gewählte Aktionen.", "H-Werte speichern langfristig nützliche Verknüpfungen zwischen Perzepten und Aktionen.", "Die Policy wird aus den H-Werten abgeleitet und bestimmt, wie wahrscheinlich Nova bei jedem Perzept eine Aktion wählt."],
     nextAction: "Nächste Aktion",
     reviewUpdate: "Sieh dir die hervorgehobene Aktualisierung an und fahre dann mit Lektion 3 fort.",
     continue: "Weiter",
@@ -370,28 +382,19 @@ function interpolate(template: string, values: Record<string, string | number>) 
   return Object.entries(values).reduce((result, [key, value]) => result.replace(`{${key}}`, String(value)), template);
 }
 function makeMemory(): Memory {
-  return Array.from({ length: GRID_SIZE }, () =>
-    Array.from({ length: GRID_SIZE }, () => ({
-      // Up and right are favored, while down and left remain plausible choices.
-      h: [2.4, 2.4, 1, 1],
+  return Array.from({ length: ROOM_HEIGHT }, (_, y) =>
+    Array.from({ length: ROOM_WIDTH }, (_, x) => ({
+      h: initialRoomWeights({ x, y }),
       glow: [0, 0, 0, 0],
+      blocked: !isRoomCell({ x, y }),
+      known: x === START.x && y === START.y,
+      percept: isRoomCell({ x, y }) ? roomPercept({ x, y }) : undefined,
     })),
   );
 }
 
 function copyMemory(memory: Memory): Memory {
-  return memory.map((row) => row.map((cell) => ({ h: [...cell.h], glow: [...cell.glow] })));
-}
-
-function move(point: Point, action: Action): Point {
-  const next = { ...point };
-  if (action === "up") next.y -= 1;
-  if (action === "right") next.x += 1;
-  if (action === "down") next.y += 1;
-  if (action === "left") next.x -= 1;
-  next.x = Math.max(0, Math.min(GRID_SIZE - 1, next.x));
-  next.y = Math.max(0, Math.min(GRID_SIZE - 1, next.y));
-  return next;
+  return memory.map((row) => row.map((cell) => ({ ...cell, h: [...cell.h], glow: [...cell.glow] })));
 }
 
 function policy(values: number[]) {
@@ -399,10 +402,6 @@ function policy(values: number[]) {
   return values.map((value) => value / total);
 }
 
-function perceptColor(x: number, y: number) {
-  const colors = ["#bcebd4", "#c8dcff", "#ffe0a3", "#d9ccff", "#ffc8d0"];
-  return colors[(x + y * 2) % colors.length];
-}
 
 function CharacterSlot({ text, kind = "student", compact = false }: { text: AdventureText; kind?: "guide" | "student"; compact?: boolean }) {
   return (
@@ -428,6 +427,26 @@ function NovaFaceMedal({ text }: { text: AdventureText }) {
   );
 }
 
+function LessonIntro({ eyebrow, title, summary, text }: { eyebrow: string; title: string; summary: string; text: AdventureText }) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(100);
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setHeight(element.clientHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return <div className="lesson-intro lesson-intro-row compact-lesson-intro">
+    <div ref={textRef}><span className="story-eyebrow"><Footprints /> {eyebrow}</span><h1>{title}</h1><p className="lesson-summary">{summary}</p></div>
+    <div className="lesson-portrait" style={{ height, width: height * .75 }}><NovaFaceMedal text={text} /></div>
+  </div>;
+}
+
+function clearMemoryGlow(memory: Memory): Memory {
+  return memory.map((row) => row.map((cell) => ({ ...cell, h: [...cell.h], glow: [0, 0, 0, 0] })));
+}
+
 function AdventureGrid({
   agent,
   text,
@@ -440,28 +459,31 @@ function AdventureGrid({
   active?: boolean;
 }) {
   return (
-    <div className="adventure-grid" aria-label={text.gridLabel}>
-      {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
-        const x = index % GRID_SIZE;
-        const y = Math.floor(index / GRID_SIZE);
+    <div className="adventure-grid adventure-room-grid" aria-label={text.gridLabel} style={{ gridTemplateColumns: `repeat(${ROOM_WIDTH}, 1fr)`, aspectRatio: `${ROOM_WIDTH} / ${ROOM_HEIGHT}` }}>
+      {Array.from({ length: ROOM_WIDTH * ROOM_HEIGHT }, (_, index) => {
+        const x = index % ROOM_WIDTH;
+        const y = Math.floor(index / ROOM_WIDTH);
+        if (!isRoomCell({ x, y })) return <div className="adventure-room-gap" key={`${x}-${y}`} aria-hidden="true" />;
         const isAgent = x === agent.x && y === agent.y;
         const isWatch = x === WATCH.x && y === WATCH.y;
+        const isStart = x === START.x && y === START.y;
         const visited = trail.some((point) => point.x === x && point.y === y);
-        const cellColor = perceptColor(x, y);
+        const { color: cellColor, object } = roomPercept({ x, y });
         return (
           <div
-            className={`adventure-cell ${visited ? "visited" : ""}`}
+            className={`adventure-cell ${visited ? "visited" : ""} ${isStart ? "adventure-start-cell" : ""}`}
             style={{ background: cellColor }}
             key={`${x}-${y}`}
             aria-label={interpolate(text.colorPercept, { row: y + 1, column: x + 1 })}
+            title={isStart ? text.initialPosition : undefined}
           >
             <span
               className="cell-object"
               style={{ background: cellColor }}
-              aria-label={isWatch ? text.lostWatch : `${text.object}: ${CELL_OBJECTS[index]}`}
+              aria-label={isWatch ? text.lostWatch : `${text.object}: ${object}`}
               title={isWatch ? text.lostWatch : undefined}
             >
-              {CELL_OBJECTS[index]}
+              {object}
             </span>
             {isAgent && (
               <span className={`student-token ${active ? "student-active" : ""}`} title={text.detectiveStudentNova}>
@@ -475,80 +497,27 @@ function AdventureGrid({
   );
 }
 
-function MemoryGrid({
-  memory,
-  text,
-  view,
-  focus,
-  highlightUpdates = false,
-  showValues = true,
-  colorActions = false,
-  glowColor = "green",
-  emphasizeStrength = false,
-  showAgent = false,
-}: {
-  memory: Memory;
-  text: AdventureText;
-  view: MemoryView;
-  focus?: Point;
-  highlightUpdates?: boolean;
-  showValues?: boolean;
-  colorActions?: boolean;
-  glowColor?: "green" | "red";
-  emphasizeStrength?: boolean;
-  showAgent?: boolean;
-}) {
+function PerceptActionsCard({ agent, text }: { agent: Point; text: AdventureText }) {
+  const percept = roomPercept(agent);
+  const colorName = text.perceptColors[percept.colorFamily];
   return (
-    <div className="memory-grid" aria-label={interpolate(text.memoryShown, { view: view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy })}>
-      {memory.flatMap((row, y) =>
-        row.map((cell, x) => {
-          const values = view === "policy" ? policy(cell.h) : view === "h" ? cell.h : cell.glow;
-          const max = Math.max(...values);
-          const focused = focus?.x === x && focus?.y === y;
-          const cellGlow = Math.max(...cell.glow);
-          const updatedCell = highlightUpdates && view === "h" && cellGlow > 0.02;
-          return (
-            <div
-              className={`memory-cell ${focused ? "memory-focus" : ""} ${updatedCell ? "memory-updated" : ""}`}
-              style={{
-                "--cell-glow": Math.min(1, cellGlow),
-                "--glow-rgb": glowColor === "green" ? "29, 165, 111" : "220, 92, 63",
-              } as CSSProperties}
-              key={`${x}-${y}`}
-            >
-              {values.map((value, action) => {
-                const opacity = view === "glow" ? Math.max(0.16, Math.min(1, value)) : 0.35 + (value / (max || 1)) * 0.65;
-                const updatedEdge = updatedCell && cell.glow[action] > 0.02;
-                const arrowColor = colorActions
-                  ? ACTION_COLORS[action]
-                  : view === "glow"
-                    ? glowColor === "green" ? "#1da56f" : "#dc5c3f"
-                    : undefined;
-                const strength = value / (max || 1);
-                return (
-                  <span
-                    className={`memory-arrow memory-arrow-${action} ${updatedEdge ? "updated-edge" : ""}`}
-                    style={{
-                      opacity,
-                      color: arrowColor,
-                      "--arrow-stroke": emphasizeStrength ? `${Math.max(0, strength - 0.45) * 2.2}px` : "0px",
-                    } as CSSProperties}
-                    key={action}
-                    title={`${text.actions[action]}: ${value.toFixed(2)}`}
-                  >
-                    <span className="memory-arrow-glyph">{ARROWS[action]}</span>
-                    {showValues && <small>{view === "policy" ? `${Math.round(value * 100)}%` : value.toFixed(1)}</small>}
-                  </span>
-                );
-              })}
-              {showAgent && focused && <img className="memory-agent-marker" src={Nova_face} alt={text.novaPosition} />}
-            </div>
-          );
-        }),
-      )}
-    </div>
+    <aside className="percept-actions-card" aria-label={text.perceptDetails}>
+      <div className="percept-header">
+        <strong><Eye /> {text.currentPercept}:</strong>
+        <div className="percept-contents">
+          <span title={text.cellColor}><i style={{ background: percept.color }} aria-hidden="true" /> {colorName}</span>
+          <span className="percept-object" role="img" aria-label={`${text.object}: ${percept.object}`}>{percept.object}</span>
+        </div>
+      </div>
+      <p>{text.perceptContents}</p>
+      <strong>{text.availableActions}</strong>
+      <ul className="percept-action-list">
+        {ACTIONS.map((action, index) => <li key={action} style={{ color: ACTION_COLORS[index] }}><span aria-hidden="true">{ARROWS[index]}</span> {text.actions[index]}</li>)}
+      </ul>
+    </aside>
   );
 }
+
 
 function ProbabilityInset({ probabilities, text }: { probabilities: number[]; text: AdventureText }) {
   const [mode, setMode] = useState<"bars" | "beads">("bars");
@@ -626,17 +595,6 @@ function SampleHistogram({ counts, lastAction, text }: { counts: number[]; lastA
   );
 }
 
-function MemoryTabs({ value, onChange, text }: { value: MemoryView; onChange: (view: MemoryView) => void; text: AdventureText }) {
-  return (
-    <div className="memory-tabs" role="tablist" aria-label={text.memoryRepresentation}>
-      {(["glow", "h", "policy"] as MemoryView[]).map((view) => (
-        <button className={value === view ? "active" : ""} onClick={() => onChange(view)} key={view} role="tab">
-          {view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 type QuizConfig = {
   eyebrow: string;
@@ -662,7 +620,7 @@ function QuizModal({
   const [selected, setSelected] = useState<number | null>(null);
   const correct = selected === config.correct;
   return (
-    <div className="quiz-backdrop" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+    <div className="quiz-backdrop" role="dialog" aria-modal="false" aria-labelledby="quiz-title">
       <div className="quiz-card">
         <div className="quiz-badge"><CircleHelp /> {config.eyebrow}</div>
         <h2 id="quiz-title">{config.question}</h2>
@@ -694,7 +652,7 @@ function QuizModal({
   );
 }
 
-function WelcomeLevel({ onNext, onSkip, text }: { onNext: () => void; onSkip: () => void; text: AdventureText }) {
+function WelcomeLevel({ onNext, onSkip, text, language }: { onNext: () => void; onSkip: () => void; text: AdventureText; language: AppLanguage }) {
   return (
     <section className="story-page">
       <div className="story-copy">
@@ -710,6 +668,7 @@ function WelcomeLevel({ onNext, onSkip, text }: { onNext: () => void; onSkip: ()
           <button className="button-primary" onClick={onNext}>{text.meetNova} <ArrowRight /></button>
           <button className="button-text" onClick={onSkip}>{text.skipStory}</button>
         </div>
+        <WelcomeShare language={language} />
       </div>
       <CharacterSlot kind="guide" text={text} />
     </section>
@@ -721,8 +680,8 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
   const [sampled, setSampled] = useState<number | null>(null);
   const [sampleCounts, setSampleCounts] = useState<number[]>([0, 0, 0, 0]);
   const [showQuiz, setShowQuiz] = useState(false);
-  const memory = useMemo(makeMemory, []);
-  const startPolicy = policy(memory[START.y][START.x].h);
+  const memory = useMemo<Memory>(() => [[{ h: initialRoomWeights(START), glow: [0, 0, 0, 0] }]], []);
+  const startPolicy = policy(memory[0][0].h);
   const agent = sampled === null ? START : move(START, ACTIONS[sampled]);
 
   function sampleAction() {
@@ -743,11 +702,7 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
 
   return (
     <section className="lesson-page">
-        <div className="lesson-intro lesson-intro-row">
-        <div><span className="story-eyebrow"><Footprints /> {text.lesson1Eyebrow}</span><h1>{text.lesson1Title}</h1></div>
-        <NovaFaceMedal text={text} />
-      </div>
-      <p className="lesson-summary">{text.lesson1Summary}</p>
+      <LessonIntro eyebrow={text.lesson1Eyebrow} title={text.lesson1Title} summary={text.lesson1Summary} text={text} />
 
 
       <div className="loop-layout">
@@ -756,6 +711,7 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
           <div className="instruction-strip"><Eye /><span><strong>{text.lookFirst}</strong> {text.lookInstruction}</span></div>
           <AdventureGrid agent={agent} text={text} />
           <div className="loop-key"><span className="mini-student"><Search /></span> {text.studentBottomLeft} <ChevronRight /> <Clock3 /> {text.watchTopRight}</div>
+          <PerceptActionsCard agent={agent} text={text} />
         </div>
 
         <div className="loop-arrow" aria-hidden>{text.percept} <ArrowRight /> <ArrowLeft /> {text.action} </div>
@@ -778,7 +734,17 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
           ) : (
             <>
               <div className="memory-and-probability">
-                <MemoryGrid memory={memory} view="policy" focus={START} showValues={false} colorActions emphasizeStrength showAgent text={text} />
+                <div className="initial-memory-association">
+                  <div className="percept-policy-association">
+                    <div className="starting-percept-node">
+                      <strong>{text.initialPercept}</strong>
+                      <span className="starting-percept-color" style={{ background: roomPercept(START).color }} aria-label={text.perceptColors[roomPercept(START).colorFamily]}><span className="starting-percept-object" role="img" aria-label={`${text.object}: 🔍`}>🔍</span></span>
+                    </div>
+                    <ArrowRight className="percept-policy-link" aria-hidden="true" />
+                    <div className="starting-behavior-node"><strong>{text.behavior}</strong><MemoryGrid memory={memory} view="policy" colorActions emphasizeStrength cellSize={144} text={text} /></div>
+                  </div>
+                  <p className="initial-memory-note">{text.initialMemoryNote}</p>
+                </div>
                 <ProbabilityInset probabilities={startPolicy} text={text} />
               </div>
               <div className="sample-box">
@@ -800,6 +766,15 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
 
 type ComparisonMode = "slow" | "fast";
 
+function MemoryExplanation({ text }: { text: AdventureText }) {
+  const [pinned, setPinned] = useState(false);
+  const explanationId = useId();
+  return <div className={`memory-explanation ${pinned ? "is-open" : ""}`}>
+    <button type="button" aria-expanded={pinned} aria-describedby={explanationId} onClick={() => setPinned((value) => !value)} onKeyDown={(event) => { if (event.key === "Escape") { setPinned(false); event.currentTarget.blur(); } }}><Info size={16} />{text.memoryRepresentation}</button>
+    <div className="memory-explanation-popover" id={explanationId} role="tooltip"><ul>{text.memoryFunctions.map((description, index) => <li key={description}><strong>({index + 1})</strong> {description}</li>)}</ul></div>
+  </div>;
+}
+
 function GlowComparison({
   steps,
   selected,
@@ -816,7 +791,7 @@ function GlowComparison({
   const slowCredit = Math.pow(0.9, age) * 1.4;
   const fastCredit = Math.pow(0.3, age) * 1.4;
   return (
-    <div className="comparison-card">
+    <div className="lesson-panel comparison-card glow-comparison-panel">
       <div className="comparison-title"><Footprints /> {text.comparisonTitle}</div>
       <button className={`decay-row ${selected === "slow" ? "selected" : ""}`} onClick={() => onSelect("slow")} aria-pressed={selected === "slow"}>
         <span><strong>η = 0.10</strong><small>{text.slowDecay} · {text.firstStepUpdate} +{slowCredit.toFixed(2)}</small></span>
@@ -834,6 +809,7 @@ function GlowComparison({
 function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; onComplete: () => void; text: AdventureText }) {
   const [agent, setAgent] = useState<Point>(START);
   const [trail, setTrail] = useState<Point[]>([START]);
+  const [memoryConnections, setMemoryConnections] = useState<Point[]>([START]);
   const [memories, setMemories] = useState<{ slow: Memory; fast: Memory }>(() => ({ slow: makeMemory(), fast: makeMemory() }));
   const [decayMode, setDecayMode] = useState<ComparisonMode>("slow");
   const [view, setView] = useState<MemoryView>("glow");
@@ -843,8 +819,9 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
 
   function takeStep() {
     if (reached) return;
-    // Alternating up/right creates a short, guaranteed route while retaining stochastic policy elsewhere.
-    const action: Action = agent.y > 0 && (agent.x === GRID_SIZE - 1 || steps % 2 === 0) ? "up" : "right";
+    // Lesson 2 demonstrates the unique route; Lesson 3 samples all four actions.
+    const action = GUIDE_ACTIONS[steps];
+    if (!action) return;
     const actionIndex = ACTIONS.indexOf(action);
     const next = move(agent, action);
     const found = next.x === WATCH.x && next.y === WATCH.y;
@@ -853,10 +830,11 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
       const updateMemory = (memory: Memory, retention: number) => {
         const updated = copyMemory(memory);
         updated.forEach((row) => row.forEach((cell) => {
-          cell.glow = cell.glow.map((value) => value * retention);
+          cell.glow = cell.glow.map((value) => updateGlowValue(value, 1 - retention));
           cell.h = cell.h.map((value) => 1 + (value - 1) * 0.995);
         }));
         updated[agent.y][agent.x].glow[actionIndex] = 1;
+        updated[next.y][next.x].known = true;
         if (found) {
           updated.forEach((row) => row.forEach((cell) => {
             cell.h = cell.h.map((value, index) => value + cell.glow[index] * 1.4);
@@ -871,6 +849,7 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
     });
     setAgent(next);
     setTrail((current) => [...current, next]);
+    setMemoryConnections((current) => [...current, next]);
     setSteps((current) => current + 1);
     if (found) {
       setReached(true);
@@ -881,8 +860,8 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
   function reset() {
     setAgent(START);
     setTrail([START]);
-    setMemories({ slow: makeMemory(), fast: makeMemory() });
-    setDecayMode("slow");
+    setMemoryConnections((current) => [...current, START]);
+    setMemories((current) => ({ slow: clearMemoryGlow(current.slow), fast: clearMemoryGlow(current.fast) }));
     setSteps(0);
     setReached(false);
     setView("glow");
@@ -890,13 +869,9 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
 
   return (
     <section className="lesson-page">
-      <div className="lesson-intro lesson-intro-row">
-        <div><span className="story-eyebrow"><Footprints /> {text.lesson2Eyebrow}</span><h1>{text.lesson2Title}</h1></div>
-        <NovaFaceMedal text={text} />
-      </div>
-      <p className="lesson-summary">{text.lesson2Summary}</p>
+      <LessonIntro eyebrow={text.lesson2Eyebrow} title={text.lesson2Title} summary={text.lesson2Summary} text={text} />
 
-      <div className="learning-layout">
+      <div className="learning-layout glow-learning-layout">
         <div className="lesson-panel environment-panel">
           <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{text.trainingRoom}</strong><small>{text.followNova}</small></div><div className="card-counter"><strong>{steps}</strong><small>{text.steps}</small></div></div>
           <div className="interaction-bar step-controls">
@@ -905,28 +880,25 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
             <button className="icon-button" onClick={reset} title={text.resetTrip}><RotateCcw /></button>
           </div>
           <AdventureGrid agent={agent} trail={trail} active={!reached} text={text} />
+          <PerceptActionsCard agent={agent} text={text} />
           {reached && <div className="success-note"><Trophy /> <span><strong>{text.watchRecoveredTitle}</strong> {text.compareMemory}</span></div>}
         </div>
 
         <div className="lesson-panel memory-panel-wide">
-          <div className="panel-heading"><span><Brain /></span><div><strong>{text.memoryAssociations}</strong><small>{text.memoryFunctions}</small></div></div>
-          {reached && (
-            <div className="interaction-bar completion-bar">
-              <span><strong>{text.nextAction}</strong>{text.reviewUpdate}</span>
-              <button className="button-primary" onClick={() => setShowQuiz(true)}>{text.continue} <ArrowRight /></button>
-            </div>
-          )}
+          <div className="panel-heading memory-heading-with-help"><span><Brain /></span><div><strong>{text.memoryAssociations}</strong><small>{text.glowLearning}</small></div><MemoryExplanation text={text} /></div>
           <MemoryTabs value={view} onChange={setView} text={text} />
           <div className={`memory-setting-label ${decayMode}`}>{decayMode === "slow" ? `${text.greenGlow} · η = 0.10` : `${text.redGlow} · η = 0.70`}</div>
-          <MemoryGrid memory={memories[decayMode]} view={view} focus={agent} highlightUpdates={reached} glowColor={decayMode === "slow" ? "green" : "red"} text={text} />
-          <div className="view-explanation">
+          <p className="memory-discovery-count">{interpolate(text.discoveredPercepts, { count: memories[decayMode].flat().filter((cell) => cell.known).length, total: ROOM_CELLS.length })}</p>
+          <MemoryGrid memory={memories[decayMode]} view={view} focus={agent} highlightUpdates={reached} glowColor={decayMode === "slow" ? "green" : "red"} cellSize={88} fitToPanel heightAllowance={480} roomShape revealKnown showPercepts connections={memoryConnections} text={text} />
+          <p className="memory-chain-explanation">{text.memoryChainExplanation}</p>
+          <details className="view-explanation glow-view-help"><summary>{view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy}</summary><p>
             {view === "glow" && <><strong>{text.glow}</strong> {text.glowExplanation}</>}
             {view === "h" && <><strong>{text.hValues}</strong> {text.hExplanation} {reached ? text.goldUpdate : text.updateWhenFound}</>}
             {view === "policy" && <><strong>{text.policy}</strong> {text.policyExplanation}</>}
-          </div>
+          </p></details>
         </div>
+        <GlowComparison steps={steps} selected={decayMode} onSelect={setDecayMode} text={text} />
       </div>
-      <GlowComparison steps={steps} selected={decayMode} onSelect={setDecayMode} text={text} />
       <div className="lesson-footer">
         <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.previousLesson}</button>
         <button className="button-primary" disabled={!reached} onClick={() => setShowQuiz(true)}>{text.finishLesson} <ArrowRight /></button>
@@ -939,6 +911,7 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
 type PracticeRun = {
   agent: Point;
   trail: Point[];
+  memoryConnections: Point[];
   step: number;
   recovered: number;
   memory: Memory;
@@ -954,6 +927,7 @@ function makePracticeRun(): PracticeRun {
   return {
     agent: START,
     trail: [START],
+    memoryConnections: [START],
     step: 0,
     recovered: 0,
     memory: makeMemory(),
@@ -969,6 +943,7 @@ function restartPracticeSession(current: PracticeRun): PracticeRun {
     ...current,
     agent: START,
     trail: [START],
+    memoryConnections: [...current.memoryConnections, START],
     step: 0,
     recovered: 0,
     lastAction: null,
@@ -992,7 +967,7 @@ function advancePracticeRun(current: PracticeRun, forgetting: ComparisonMode, ta
   if (current.rewardPauseTicks > 0) {
     const rewardPauseTicks = current.rewardPauseTicks - 1;
     return rewardPauseTicks === 0
-      ? { ...current, agent: START, trail: [START], instantReward: 0, lastAction: null, rewardPauseTicks }
+      ? { ...current, agent: START, trail: [START], memoryConnections: [...current.memoryConnections, START], instantReward: 0, lastAction: null, rewardPauseTicks }
       : { ...current, rewardPauseTicks };
   }
   if (current.recovered >= targetRecoveries) return current;
@@ -1006,10 +981,11 @@ function advancePracticeRun(current: PracticeRun, forgetting: ComparisonMode, ta
   const updatedMemory = copyMemory(current.memory);
 
   updatedMemory.forEach((row) => row.forEach((cell) => {
-    cell.glow = cell.glow.map((value) => value * PRACTICE_GLOW_RETENTION);
+    cell.glow = cell.glow.map((value) => updateGlowValue(value, 1 - PRACTICE_GLOW_RETENTION));
     cell.h = cell.h.map((value) => 1 + (value - 1) * (1 - gamma));
   }));
   updatedMemory[current.agent.y][current.agent.x].glow[actionIndex] = 1;
+  updatedMemory[next.y][next.x].known = true;
   if (found) {
     updatedMemory.forEach((row) => row.forEach((cell) => {
       cell.h = cell.h.map((value, index) => value + cell.glow[index] * instantReward);
@@ -1019,6 +995,7 @@ function advancePracticeRun(current: PracticeRun, forgetting: ComparisonMode, ta
   return {
     agent: next,
     trail: [...current.trail, next],
+    memoryConnections: [...current.memoryConnections, next],
     step: found ? 0 : current.step + 1,
     recovered: current.recovered + (found ? 1 : 0),
     memory: updatedMemory,
@@ -1034,7 +1011,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
   const targetRecoveries = 5;
   const [running, setRunning] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [view, setView] = useState<MemoryView>("glow");
+  const [view, setView] = useState<MemoryView>("h");
   const [forgettingMode, setForgettingMode] = useState<ComparisonMode>("slow");
   const [practice, setPractice] = useState<PracticeState>(() => ({ slow: makePracticeRun(), fast: makePracticeRun() }));
   const [completedModels, setCompletedModels] = useState<Record<ComparisonMode, boolean>>({ slow: false, fast: false });
@@ -1070,10 +1047,13 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
   function reset() {
     setRunning(false);
     setShowQuiz(false);
-    setView("glow");
-    setForgettingMode("slow");
-    setPractice({ slow: makePracticeRun(), fast: makePracticeRun() });
-    setCompletedModels({ slow: false, fast: false });
+    setView("h");
+    setPractice((current) => ({ ...current, [forgettingMode]: {
+      ...current[forgettingMode], agent: START, trail: [START], step: 0,
+      memoryConnections: [...current[forgettingMode].memoryConnections, START],
+      lastAction: null, instantReward: 0, rewardPauseTicks: 0,
+      memory: clearMemoryGlow(current[forgettingMode].memory),
+    } }));
   }
 
   const activePractice = practice[forgettingMode];
@@ -1094,16 +1074,12 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
 
   return (
     <section className="lesson-page">
-      <div className="lesson-intro lesson-intro-row">
-        <div><span className="story-eyebrow"><Trophy /> {text.lesson3Eyebrow}</span><h1>{text.lesson3Title}</h1></div>
-        <NovaFaceMedal text={text} />
-      </div>
-      <p className="lesson-summary">{text.lesson3Summary}</p>
+      <LessonIntro eyebrow={text.lesson3Eyebrow} title={text.lesson3Title} summary={text.lesson3Summary} text={text} />
 
       <div className="practice-layout">
         <div className="lesson-panel practice-environment">
           <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{text.trainingRoom} </strong><small>{text.observeTrajectories}</small></div><div className="card-counter"><strong>{activePractice.recovered}/{targetRecoveries}</strong><small>{text.trajectories}</small></div></div>
-          <div className={`memory-setting-label ${forgettingMode}`}>{forgettingMode === "slow" ? `${text.slowForgetting} · γ = 0.0001 · η = 0.05` : `${text.fastForgetting} · γ = 0.1 · η = 0.05`}</div>
+          <div className={`memory-setting-label ${forgettingMode}`}>{forgettingMode === "slow" ? `${text.slowForgetting} · γ = 0.0001` : `${text.fastForgetting} · γ = 0.1`} · η = {(1 - PRACTICE_GLOW_RETENTION).toFixed(2)}</div>
           <div className="reward-readout">
             <span>{text.instantReward}</span>
             <strong className={activePractice.instantReward > 0 ? "positive" : ""}>
@@ -1117,7 +1093,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
               <button className="button-primary" onClick={() => setRunning((value) => !value)} disabled={activeFinished}>
                 {running ? <><Pause /> {text.pause}</> : <><Play /> {activePractice.recovered ? text.continue : text.start}</>}
               </button>
-              <button className="icon-button" onClick={reset} title={text.restartPractice}><RotateCcw /></button>
+              <button className="icon-button" onClick={reset} title={text.resetTrip}><RotateCcw /></button>
             </div>
           </div>
           <AdventureGrid agent={activePractice.agent} trail={activePractice.trail} active={running && activePractice.rewardPauseTicks === 0} text={text} />
@@ -1126,12 +1102,12 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
         <div className="lesson-panel practice-memory">
           <div className="panel-heading"><span><Brain /></span><div><strong>{text.memory}</strong><small>{text.glowLearning}</small></div></div>
           <MemoryTabs value={view} onChange={setView} text={text} />
-          <MemoryGrid memory={activePractice.memory} view={view} focus={activePractice.agent} glowColor={forgettingMode === "slow" ? "green" : "red"} emphasizeStrength text={text} />
-          <div className="view-explanation">
+          <MemoryGrid memory={activePractice.memory} view={view} focus={activePractice.agent} glowColor={forgettingMode === "slow" ? "green" : "red"} emphasizeStrength cellSize={88} fitToPanel roomShape revealKnown showPercepts connections={activePractice.memoryConnections} text={text} />
+          <details className="view-explanation practice-view-help"><summary>{view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy}</summary>
             {view === "glow" && <><strong>{text.glow}:</strong> {text.recentEdges}</>}
             {view === "h" && <><strong>{text.hValues}:</strong> {text.rewardConsolidates}</>}
             {view === "policy" && <><strong>{text.policy}:</strong> {text.strengthsChances}</>}
-          </div>
+          </details>
         </div>
 
         <div className="forgetting-panel practice-progress">
@@ -1161,7 +1137,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
               </div>
             </div>
           </div>
-          <div className="academy-tip"><Lightbulb /><span><strong>{text.coachObservation}</strong> {text.observationText}</span></div>
+          <details className="academy-tip practice-coach"><summary><Lightbulb /> {text.coachObservation}</summary><p>{text.observationText}</p></details>
         </div>
       </div>
 
@@ -1198,11 +1174,19 @@ export default function AdventureMode({
   onLanguageChange: (language: AppLanguage) => void;
 }) {
   const [level, setLevel] = useState(0);
+  const [navigationRevision, setNavigationRevision] = useState(0);
+  const [completedLessons, setCompletedLessons] = useState<number[]>([]);
   const text = ADVENTURE_TEXT[language];
 
   function goTo(next: number) {
     setLevel(Math.max(0, Math.min(3, next)));
+    setNavigationRevision((revision) => revision + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function completeLesson(current: number, next: number) {
+    setCompletedLessons((completed) => completed.includes(current) ? completed : [...completed, current]);
+    goTo(next);
   }
 
   return (
@@ -1213,8 +1197,8 @@ export default function AdventureMode({
         </button>
         <nav className="adventure-progress" aria-label={text.adventureProgress}>
           {text.levelTitles.map((title, index) => (
-            <button className={`${index === level ? "current" : ""} ${index < level ? "complete" : ""}`} onClick={() => index <= level && goTo(index)} key={title} title={title}>
-              {index < level && <Check />}
+            <button className={`${index === level ? "current" : ""} ${completedLessons.includes(index) ? "complete" : ""}`} onClick={() => goTo(index)} key={title} title={title} aria-current={index === level ? "step" : undefined}>
+              {completedLessons.includes(index) && <Check />}
               <span>{index === 0 ? text.briefing : `${text.lesson} ${index}`}</span>
             </button>
           ))}
@@ -1226,10 +1210,10 @@ export default function AdventureMode({
       </header>
 
       <div className="adventure-content">
-        {level === 0 && <WelcomeLevel onNext={() => goTo(1)} onSkip={() => goTo(1)} text={text} />}
-        {level === 1 && <LoopLevel onPrevious={() => goTo(0)} onComplete={() => goTo(2)} text={text} />}
-        {level === 2 && <GlowLevel onPrevious={() => goTo(1)} onComplete={() => goTo(3)} text={text} />}
-        {level === 3 && <PracticeLevel onPrevious={() => goTo(2)} onComplete={onOpenLab} text={text} />}
+        {level === 0 && <WelcomeLevel key={navigationRevision} onNext={() => completeLesson(0, 1)} onSkip={() => completeLesson(0, 1)} text={text} language={language} />}
+        {level === 1 && <LoopLevel key={navigationRevision} onPrevious={() => goTo(0)} onComplete={() => completeLesson(1, 2)} text={text} />}
+        {level === 2 && <GlowLevel key={navigationRevision} onPrevious={() => goTo(1)} onComplete={() => completeLesson(2, 3)} text={text} />}
+        {level === 3 && <PracticeLevel key={navigationRevision} onPrevious={() => goTo(2)} onComplete={onOpenLab} text={text} />}
       </div>
     </main>
   );

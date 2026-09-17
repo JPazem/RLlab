@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Beaker, BookOpen, Compass, Sparkles } from "lucide-react";
+import { Beaker, BookOpen, Compass, Sparkles } from "lucide-react";
 import "./App.css";
 import AdventureMode from "./AdventureMode";
 import InteractiveRLLab from "./InteractiveRLLAb";
 import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
+import WelcomeShare from "./WelcomeShare";
 
 type AppMode = "choose" | "adventure" | "lab";
 
@@ -18,7 +19,7 @@ const MODE_TEXT = {
     begin: "Begin the case",
     openEnded: "Open-ended",
     lab: "Lab mode",
-    labDescription: "Build environments, tune every parameter, and inspect learning curves.",
+    labDescription: "Design Nova’s training rooms, tune her memory, and investigate how she learns at the Detective Academy.",
     openLab: "Open the lab",
     note: "No prior knowledge is needed for Adventure mode.",
     modes: "Modes",
@@ -33,7 +34,7 @@ const MODE_TEXT = {
     begin: "Fall beginnen",
     openEnded: "Freies Experimentieren",
     lab: "Labormodus",
-    labDescription: "Baue Umgebungen, passe alle Parameter an und untersuche Lernkurven.",
+    labDescription: "Gestalte Novas Trainingsräume, passe ihr Gedächtnis an und untersuche ihr Lernen an der Detektivakademie.",
     openLab: "Labor öffnen",
     note: "Für den Abenteuermodus brauchst du keine Vorkenntnisse.",
     modes: "Modi",
@@ -76,6 +77,7 @@ function ModeChooser({
           </button>
         </div>
         <p className="mode-note"><BookOpen size={16} /> {text.note}</p>
+        <WelcomeShare language={language} />
       </section>
     </main>
   );
@@ -107,10 +109,7 @@ export default function App() {
 
   return (
     <div className="lab-shell">
-      <button className="back-to-modes" onClick={() => setMode("choose")}>
-        <ArrowLeft size={17} /> {MODE_TEXT[language].modes}
-      </button>
-      <InteractiveRLLab language={language} onLanguageChange={setLanguage} />
+      <InteractiveRLLab language={language} onLanguageChange={setLanguage} onHome={() => setMode("choose")} />
     </div>
   );
 }
