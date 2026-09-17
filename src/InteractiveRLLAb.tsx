@@ -8,14 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Brain, Bot, Sprout, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen, Lightbulb } from "lucide-react";
+import { Play, Pause, RotateCcw, Brain, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen, Lightbulb, Search, Home, Footprints } from "lucide-react";
 import { motion } from "framer-motion";
 import qrCode from "./assets/QR_Code_RLGame_Outreach.png";
 import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
+import { MemoryGrid, MemoryTabs, type MemoryView } from "./AcademyMemory";
+import { LAB_STORY_TEXT } from "./academyLabText";
+import { CELL_OBJECTS, perceptColor } from "./academyGraphics";
+import { labPolicy } from "./labPolicy";
+import { shortestPathProbability, type PathAssessment } from "./shortestPathProbability";
+import NovaFace from "./assets/Nova_Face.png";
+import { LOG_PARAMETER_MARKS, LOG_SLIDER_MAX, parameterToSlider, sliderToParameter } from "./logParameterScale";
+import { PSLayer } from "./psMemory";
 
 console.log("InteractiveRLLab render", Date.now());
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
+const ROOM_OBJECTS = CELL_OBJECTS.filter((object) => object !== "⌚" && object !== "🔑");
 type Action = typeof ACTIONS[number];
 type Locale = "en" | "de" | "it" | "fr" | "es";
 const KEY_IDS = ["blue", "red", "green"] as const;
@@ -29,7 +38,7 @@ type CellType =
   | "empty"
   | "wall"
   | "goal"
-  | "lava"
+  | "trap"
   | "start"
   | KeyCell
   | DoorClosedCell
@@ -46,16 +55,22 @@ type LevelConfig = {
     psLambda: number;
     psGamma: number;
     psGlowEta: number;
-    epsilon: number;
-    tau: number;
+    greediness: number;
     stepCost: number;
     goalReward: number;
-    lavaPenalty: number;
+    trapPenalty: number;
   }>;
   adjustableParams: string[]; // parameter names that user can adjust
-  winThreshold: number; // minimum return threshold for win condition
   instructions: string;
 };
+
+// The final case has no locked memory parameters: its unchanged baseline is
+// shared by the initial lab session (later edits are retained between cases).
+const FINAL_LAB_PARAMETERS = { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, greediness: 1, stepCost: -0.05, goalReward: 1, trapPenalty: -1 };
+type PlaybackMode = "click" | "slow" | "fast" | "immediate";
+type EpisodeEnd = "goal" | "trap" | "limit";
+type LabDecision = { percept: { x: number; y: number }; action: number };
+const EPISODE_PAUSE_MS = 1000;
 
 const LEVELS: LevelConfig[] = [
   {
@@ -66,8 +81,7 @@ const LEVELS: LevelConfig[] = [
     gridW: 4,
     gridH: 4,
     lockedParams: {},
-    adjustableParams: ["psLambda", "psGamma", "psGlowEta", "epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
-    winThreshold: 1,
+    adjustableParams: ["psLambda", "psGamma", "psGlowEta", "greediness", "stepCost", "goalReward", "trapPenalty"],
     instructions: "Welcome to the RL Lab! This is a simple open field where the agent needs to learn to reach the goal (🏁). Try running the simulation and watch how the agent learns through trial and error. The agent starts at the bottom-left and the goal is at the top-right."
   },
   {
@@ -78,8 +92,7 @@ const LEVELS: LevelConfig[] = [
     gridW: 4,
     gridH: 4,
     lockedParams: {stepCost: -0.05, goalReward: 1},
-    adjustableParams: ["psLambda", "psGamma", "psGlowEta"],
-    winThreshold: 1,
+    adjustableParams: ["psLambda", "psGamma", "psGlowEta", "greediness"],
     instructions: "Now you need to tune the memory parameters! Try different combinations to help the agent learn faster."
   },
   {
@@ -89,9 +102,8 @@ const LEVELS: LevelConfig[] = [
     preset: "corridor",
     gridW: 7,
     gridH: 5,
-    lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1},
-    adjustableParams: ["psGamma", "psLambda", "psGlowEta", "epsilon", "tau", "stepCost", "goalReward", "lavaPenalty"],
-    winThreshold: 1,
+    lockedParams: {stepCost: -0.05, goalReward:1, trapPenalty:-1},
+    adjustableParams: ["psGamma", "psLambda", "psGlowEta", "greediness", "stepCost", "goalReward", "trapPenalty"],
     instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Focus on adjusting the available parameters to help the agent find the optimal path."
   },
   {
@@ -101,21 +113,19 @@ const LEVELS: LevelConfig[] = [
     preset: "two-rooms",
     gridW: 7,
     gridH: 5,
-    lockedParams: {stepCost: -0.05, goalReward:1, lavaPenalty:-1 },
-    adjustableParams: ["tau", "psGamma", "psGlowEta", "epsilon", "psLambda", "epsilon"],
-    winThreshold: 1,
+    lockedParams: {stepCost: -0.05, goalReward:1, trapPenalty:-1 },
+    adjustableParams: ["greediness", "psGamma", "psGlowEta", "psLambda"],
     instructions: "Even more challenging! The agent must navigate between two rooms connected by a locked door. First, collect the key (🔑) in the left room to unlock the door (🚪). Reaching the goal without the key gives only 1/3 of the full reward. Adjust the available parameters to help the agent learn this key-door mechanic."
   },
   {
     id: 5,
     name: "Maze Master",
-    description: "Unlock the door and get to the trophy without falling in the lava!",
+    description: "Unlock the door and get to the trophy without falling in the trap!",
     preset: "maze",
     gridW: 7,
     gridH: 5,
-    lockedParams: {tau: 1 },
-    adjustableParams: ["stepCost", "goalReward", "lavaPenalty", "psLambda", "psGamma", "psGlowEta", "epsilon"],
-    winThreshold: 1,
+    lockedParams: {},
+    adjustableParams: ["stepCost", "goalReward", "trapPenalty", "psLambda", "psGamma", "psGlowEta", "greediness"],
     instructions: "The ultimate challenge! Navigate through a complex maze with many walls and dead ends. Can you find the perfect reward structure to guide the agent through this maze?"
   }
 ];
@@ -144,7 +154,7 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
     },
     5: {
       name: "Labyrinth-Meister",
-      description: "Öffne die Tür, erreiche die Trophäe und meide die Lava",
+      description: "Öffne die Tür, erreiche die Trophäe und meide die Falle",
       instructions: "Die letzte Herausforderung ist ein verwinkeltes Labyrinth. Finde eine gute Belohnungsstruktur, damit der Agent den richtigen Weg lernt."
     }
   },
@@ -171,7 +181,7 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
     },
     5: {
       name: "Maestro del labirinto",
-      description: "Apri la porta e raggiungi il trofeo senza cadere nella lava",
+      description: "Apri la porta e raggiungi il trofeo senza cadere nella trap",
       instructions: "La sfida finale è un labirinto complesso. Trova una struttura di ricompense che guidi l'agente verso il percorso corretto."
     }
   },
@@ -225,7 +235,7 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
     },
     5: {
       name: "Maestro del laberinto",
-      description: "Abre la puerta y llega al trofeo evitando la lava",
+      description: "Abre la puerta y llega al trofeo evitando la trap",
       instructions: "El reto final es un laberinto complejo. Encuentra una estructura de recompensa que guíe al agente por el camino correcto."
     }
   }
@@ -233,8 +243,8 @@ const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: s
 
 const UI_TEXT: Record<Locale, any> = {
   en: {
-    appTitle: "Interactive Reinforcement Learning Lab",
-    appSubtitle: "Come and train your reinforcement learning agent in real life!",
+    appTitle: "Detective Academy · Research lab",
+    appSubtitle: "Design Nova’s training room and investigate how she learns.",
     language: "Language",
     generalConcepts: "General Concepts",
     generalSections: [
@@ -248,18 +258,18 @@ const UI_TEXT: Record<Locale, any> = {
       },
       {
         title: "Environment",
-        body: "We propose to train a PS agent in a simple grid environment, where the agent has to learn to navigate to a goal efficiently while avoiding hazards. The environment consists of a grid with different types of cells, each providing different rewards or penalties.",
+        body: "You are Nova’s coach at the Detective Academy. Build a training room where she learns to recover a lost watch while avoiding hazards. Nova’s percept is her grid position: colored objects decorate the room but do not change the input to her policy.",
         items: [
-          { label: "Agent (🤠):", body: "The learner that navigates the environment" },
-          { label: "Goal (🏁):", body: "The target location where the agent receives positive reward" },
-          { label: "Lava (💀):", body: "A penalty zone that the agent learns to avoid" },
+          { label: "Nova:", body: "The detective student who learns by exploring" },
+          { label: "Lost watch (⌚):", body: "The goal where Nova receives a positive reward" },
+          { label: "Trap (💀):", body: "A penalty zone that the agent learns to avoid" },
           { label: "Walls:", body: "Obstacles the agent cannot pass through" },
           { label: "Reward:", body: "Feedback signal that guides learning" }
         ]
       },
       {
-        title: "Policy Visualization",
-        body: "The middle panel (Memory Inspector) shows the learned policy as arrows. Brighter arrows represent actions the agent is more likely to take, learned through experience with rewards."
+        title: "Three views of Nova’s memory",
+        body: "Glow tracks recent choices; H-values store learned strengths; policy shows the action probabilities, controlled solely by inverse temperature β. Switch between the tabs without resetting Nova’s training. Thicker arrows indicate stronger values; the numbers remain readable."
       }
     ],
     psModalTitle: "Projective Simulation (PS)",
@@ -276,8 +286,8 @@ const UI_TEXT: Record<Locale, any> = {
         title: "Memory Parameters",
         body: "",
         items: [
-          { label: "Memory damping (γ):", body: "How quickly the agent forgets past experiences." },
-          { label: "Reward coupling (λ):", body: "How strongly rewards reinforce connections between memories." },
+          { label: "Forgetting (γ):", body: "How quickly the agent forgets past experiences." },
+          { label: "Reward sensitivity (λ):", body: "How strongly rewards reinforce connections between memories." },
           { label: "Glow decay (η):", body: "How fast the memory of recent transition fades. It enables the agent to learn in environments with sparse rewards." }
         ]
       },
@@ -290,7 +300,7 @@ const UI_TEXT: Record<Locale, any> = {
         body: "The agent learns by updating its memory network based on experiences. When it takes an action and receives a reward, the connections between the corresponding memories are strengthened, guiding future decisions."
       }
     ],
-    levelLabel: "Level",
+    levelLabel: "Case",
     levelInstructions: "Level Instructions",
     winCondition: "Win Condition",
     lockedParameters: "Locked Parameters",
@@ -299,20 +309,20 @@ const UI_TEXT: Record<Locale, any> = {
       { label: "Run the simulation:", body: "Click the play button to start training" },
       { label: "Adjust parameters:", body: "Use the sliders to tune the adjustable parameters above" },
       { label: "Monitor learning:", body: "Watch the policy arrows and reward curves update" },
-      { label: "Achieve the win condition:", body: "Get 5 consecutive episodes with returns above the target threshold" },
+      { label: "Achieve the win condition:", body: "At an episode’s end, the combined probability of all shortest routes to the watch must reach at least 75%." },
       { label: "Advance:", body: "Complete the level to unlock the next challenge!" }
     ],
-    levelComplete: "Level Complete",
+    levelComplete: "complete",
     advancingTo: "Advancing to",
-    nextLevelButton: "Go to Next Level",
+    nextLevelButton: "Go to Next Case",
     congratulations: "Congratulations",
-    rlMaster: "You've completed all levels. You can keep experimenting in free play.",
+    rlMaster: "Nova has completed all academy cases. Keep experimenting with her training in free play.",
     continueFreePlay: "Continue in Free Play",
     freePlayMenu: "Free Play",
     freePlayActive: "Free play is active. The campaign is finished, but the simulation remains available.",
     run: "Run",
     pause: "Pause",
-    resetLevel: "Reset Level",
+    resetLevel: "Reset Case",
     resetGame: "Reset Game",
     buildEnvironment: "Build your Environment!",
     memoryTitle: "Memory of the PS Agent",
@@ -326,7 +336,7 @@ const UI_TEXT: Record<Locale, any> = {
     strugglingTitle: "Need a hint?",
     optimalParamsTitle: "Good parameter ranges",
     optimalParamsLead: "These are practical near-optimal starting ranges for most levels, then fine-tune from there.",
-    level: "Level",
+    level: "Case",
     preset: "Preset",
     keyStatus: "Key status",
     keyStatusCollected: "Collected keys",
@@ -339,19 +349,18 @@ const UI_TEXT: Record<Locale, any> = {
     apply: "Apply",
     stepsPerSecond: "Steps/sec",
     stepCost: "Step cost",
-    goalReward: "Goal reward",
-    lavaPenalty: "Lava penalty",
+    goalReward: "Watch recovery reward",
+    trapPenalty: "Trap penalty",
     envSliderHelp: {
       speed: "Speed of simulation. Higher values run more episodes per second.",
       stepCost: "Penalty for each step taken. Negative values encourage the agent to find shorter paths to the goal.",
-      goalReward: "Positive reward received when the agent reaches the goal. Higher values make the goal more attractive.",
-      lavaPenalty: "Negative reward for stepping into lava. More negative values make the agent strongly avoid lava."
+      goalReward: "Positive reward when Nova recovers a lost watch. Larger values make recovery more attractive.",
+      trapPenalty: "Entering a trap ends the episode with a penalty. More negative values discourage risky routes."
     },
     paramLabels: {
-      psGamma: "Memory damping (γ)",
-      psLambda: "Reward coupling (λ)",
+      psGamma: "Forgetting (γ)",
+      psLambda: "Reward sensitivity (λ)",
       psGlowEta: "Glow decay (η)",
-      epsilon: "Exploration (ε)"
     },
     paramHelp: {
       psGamma: (
@@ -376,13 +385,6 @@ const UI_TEXT: Record<Locale, any> = {
           </strong>
         </ul>
       ),
-      epsilon: (
-        <ul className="pl-4 space-y-1">
-          <p>Probability of taking a random action instead of using learned policy.
-            <strong>
-            <li>Higher values = more exploration and randomness.</li></strong></p>
-        </ul>
-      )
     },
     rewardCharts: {
       instant: "Instantaneous Reward (R)",
@@ -414,30 +416,30 @@ const UI_TEXT: Record<Locale, any> = {
     cellLabels: {
       wall: "Wall",
       empty: "Empty",
-      goal: "Goal",
-      lava: "Lava",
+      goal: "Lost watch ⌚",
+      trap: "Trap",
       start: "Start"
     }
   },
   de: {
-    appTitle: "Interaktives Reinforcement-Learning-Labor",
-    appSubtitle: "Komm und trainiere deinen Reinforcement-Learning-Agenten in Echtzeit!",
+    appTitle: "Detektivakademie · Forschungslabor",
+    appSubtitle: "Gestalte Novas Trainingsraum und untersuche ihr Lernen.",
     language: "Sprache",
     generalConcepts: "Allgemeine Konzepte",
     generalSections: [
       { title: "Reinforcement Learning (RL)", body: "Ein Paradigma des maschinellen Lernens, bei dem ein Agent durch Interaktion mit einer Umgebung lernt, Belohnungen für Aktionen erhält und versucht, die kumulative Belohnung zu maximieren. Es wird in Bereichen wie Robotik und Spielstrategien eingesetzt." },
       { title: "Projective Simulation (PS)", body: "Ein Lernverfahren, das Entscheidungen als Zufallsweg auf einem Graphen modelliert. Die Erfahrungen des Agenten werden in Clips gespeichert, und belohnte Übergänge werden im Gedächtnisnetzwerk verstärkt." },
-      { title: "Umgebung", body: "Der PS-Agent wird in einer Gitterwelt trainiert, in der er möglichst effizient das Ziel erreichen und Gefahren meiden soll. Je nach Level können Wände, Lava, Schlüssel und Türen die Belohnungsstruktur verändern." },
-      { title: "Politik-Visualisierung", body: "Das Speicherpanel zeigt die gelernte Politik als Pfeile. Hellere Pfeile bedeuten, dass der Agent diese Aktionen aufgrund früherer Belohnungen wahrscheinlicher auswählt." }
+      { title: "Trainingsraum", body: "Du trainierst Nova in der Detektivakademie. Sie soll verlorene Uhren finden und Gefahren meiden. Novas Perzept ist ihre Rasterposition. Farben und Gegenstände schmücken den Raum, verändern aber nicht die Eingabe ihrer Policy. Wände, Gefahren, Schlüssel und Türen beeinflussen die Aufgabe." },
+      { title: "Drei Ansichten von Novas Gedächtnis", body: "Glow markiert kürzlich gewählte Aktionen, H-Werte speichern erlernte Stärken und die Policy zeigt Aktionswahrscheinlichkeiten gesteuert allein durch die inverse Temperatur β. Du kannst die Ansicht ohne Neustart wechseln. Dickere Pfeile zeigen stärkere Werte; die Zahlen bleiben gut lesbar." }
     ],
     psModalTitle: "Projective Simulation (PS)",
     psSections: [
       { title: "Überblick", body: "Projective Simulation modelliert Entscheidungen als Zufallsweg über ein Netzwerk von Clips, die Wahrnehmungen, Aktionen und kurze Gedächtnisinhalte repräsentieren. Belohnte Übergänge werden verstärkt und formen so die Politik des Agenten." },
       { title: "Lernen", body: "Jede Erfahrung aktualisiert das Clip-Netzwerk. Belohnungen erhöhen die Wahrscheinlichkeit, dass Aktionen wieder gewählt werden, die zuvor zum Erfolg geführt haben, während Zerfallsparameter alte Erfahrungen abschwächen." },
-      { title: "Speicherparameter", body: "Gedächtnisdämpfung steuert das Vergessen alter Erfahrungen, Belohnungskopplung skaliert den Einfluss von Belohnungen, und Glow-Abbau bestimmt, wie lange frühere Übergänge noch für verzögerte Belohnungen relevant bleiben." },
+      { title: "Speicherparameter", body: "Vergessen steuert das Vergessen alter Erfahrungen, Belohnungssensitivität skaliert den Einfluss von Belohnungen, und Glow-Abbau bestimmt, wie lange frühere Übergänge noch für verzögerte Belohnungen relevant bleiben." },
       { title: "Warum das wichtig ist", body: "Diese Einstellungen entscheiden darüber, ob der Agent eher kurzfristig oder langfristig lernt, vorsichtig oder aggressiv reagiert und ob er Aufgaben mit verzögerten Belohnungen lösen kann." }
     ],
-    levelLabel: "Level",
+    levelLabel: "Fall",
     levelInstructions: "Level-Hinweise",
     winCondition: "Siegbedingung",
     lockedParameters: "Gesperrte Parameter",
@@ -446,20 +448,20 @@ const UI_TEXT: Record<Locale, any> = {
       "Starte die Simulation und beobachte die Erkundung.",
       "Passe die verfügbaren Regler an.",
       "Nutze Speicherpfeile und Belohnungskurven zur Bewertung.",
-      "Erreiche das Ziel in 5 Folgen hintereinander.",
+      "Erreiche am Episodenende mindestens 75% Wahrscheinlichkeit für alle kürzesten Wege zur Uhr zusammen.",
       "Schließe ein Level ab, um das nächste freizuschalten."
     ],
-    levelComplete: "Level geschafft",
+    levelComplete: "abgeschlossen",
     advancingTo: "Weiter zu",
-    nextLevelButton: "Zum nächsten Level",
+    nextLevelButton: "Zum nächsten Fall",
     congratulations: "Glückwunsch",
-    rlMaster: "Alle Level sind abgeschlossen. Du kannst jetzt im freien Spiel weiter experimentieren.",
+    rlMaster: "Nova hat alle Fälle der Akademie abgeschlossen. Experimentiere im freien Spiel weiter mit ihrem Training.",
     continueFreePlay: "Freies Spiel starten",
     freePlayMenu: "Freies Spiel",
     freePlayActive: "Freies Spiel ist aktiv. Die Kampagne ist beendet, aber die Simulation läuft weiter.",
     run: "Start",
     pause: "Pause",
-    resetLevel: "Level zurücksetzen",
+    resetLevel: "Fall zurücksetzen",
     resetGame: "Spiel zurücksetzen",
     buildEnvironment: "Baue deine Umgebung",
     memoryTitle: "Gedächtnis des PS-Agenten",
@@ -473,7 +475,7 @@ const UI_TEXT: Record<Locale, any> = {
     strugglingTitle: "Brauchst du einen Hinweis?",
     optimalParamsTitle: "Gute Parameterbereiche",
     optimalParamsLead: "Das sind praxistaugliche Startbereiche für die meisten Level.",
-    level: "Level",
+    level: "Fall",
     preset: "Voreinstellung",
     keyStatus: "Schlüsselstatus",
     keyStatusCollected: "Gesammelte Schlüssel",
@@ -486,19 +488,18 @@ const UI_TEXT: Record<Locale, any> = {
     apply: "Anwenden",
     stepsPerSecond: "Schritte/s",
     stepCost: "Schrittkosten",
-    goalReward: "Zielbelohnung",
-    lavaPenalty: "Lava-Strafe",
+    goalReward: "Belohnung fürs Finden der Uhr",
+    trapPenalty: "Fallenstrafe",
     envSliderHelp: {
       speed: "Geschwindigkeit der Simulation. Höhere Werte führen pro Sekunde mehr Episoden aus.",
       stepCost: "Strafe für jeden Schritt. Negative Werte ermutigen den Agenten, kürzere Wege zum Ziel zu finden.",
-      goalReward: "Positive Belohnung, wenn der Agent das Ziel erreicht. Höhere Werte machen das Ziel attraktiver.",
-      lavaPenalty: "Negative Belohnung für das Betreten von Lava. Stärker negative Werte sorgen dafür, dass der Agent Lava stärker meidet."
+      goalReward: "Positive Belohnung, wenn Nova eine verlorene Uhr findet. Höhere Werte machen das Finden attraktiver.",
+      trapPenalty: "Das Betreten einer Falle beendet die Episode mit einer Strafe. Stärker negative Werte machen riskante Wege unattraktiver."
     },
     paramLabels: {
-      psGamma: "Gedächtnisdämpfung (γ)",
-      psLambda: "Belohnungskopplung (λ)",
+      psGamma: "Vergessen (γ)",
+      psLambda: "Belohnungssensitivität (λ)",
       psGlowEta: "Glow-Abbau (η)",
-      epsilon: "Exploration (ε)"
     },
     paramHelp: {
       psGamma: (
@@ -523,13 +524,6 @@ const UI_TEXT: Record<Locale, any> = {
           </strong>
         </ul>
       ),
-      epsilon: (
-        <ul className="pl-4 space-y-1">
-          <p>Wahrscheinlichkeit, eine zufällige Aktion statt der gelernten Politik zu wählen.
-            <strong>
-            <li>Höhere Werte = mehr Exploration und Zufall.</li></strong></p>
-        </ul>
-      )
     },
     rewardCharts: {
       instant: "Momentane Belohnung (R)",
@@ -561,8 +555,8 @@ const UI_TEXT: Record<Locale, any> = {
     cellLabels: {
       wall: "Wand",
       empty: "Leer",
-      goal: "Ziel",
-      lava: "Lava",
+      goal: "Verlorene Uhr ⌚",
+      trap: "Falle",
       start: "Start"
     }
   },
@@ -574,7 +568,7 @@ const UI_TEXT: Record<Locale, any> = {
     generalSections: [
       { title: "Reinforcement Learning (RL)", body: "Un paradigma del machine learning in cui un agente impara interagendo con un ambiente, ricevendo ricompense per le azioni e cercando di massimizzare la ricompensa cumulativa nel tempo. Viene usato in robotica, giochi e molti altri ambiti." },
       { title: "Projective Simulation (PS)", body: "Un algoritmo di apprendimento che modella il processo decisionale come una passeggiata casuale su un grafo. Le esperienze dell'agente vengono memorizzate in clip e le transizioni premiate diventano più forti." },
-      { title: "Ambiente", body: "Alleniamo un agente PS in un ambiente a griglia in cui deve raggiungere l'obiettivo in modo efficiente evitando i pericoli. A seconda del livello possono comparire muri, lava, chiavi e porte." },
+      { title: "Ambiente", body: "Alleniamo un agente PS in un ambiente a griglia in cui deve raggiungere l'obiettivo in modo efficiente evitando i pericoli. A seconda del livello possono comparire muri, trap, chiavi e porte." },
       { title: "Visualizzazione della policy", body: "Il pannello della memoria mostra la policy appresa come frecce. Le frecce più luminose indicano le azioni che l'agente è più propenso a scegliere grazie alle ricompense ricevute." }
     ],
     psModalTitle: "Projective Simulation (PS)",
@@ -634,18 +628,17 @@ const UI_TEXT: Record<Locale, any> = {
     stepsPerSecond: "Passi/sec",
     stepCost: "Costo passo",
     goalReward: "Ricompensa obiettivo",
-    lavaPenalty: "Penalità lava",
+    trapPenalty: "Penalità trap",
     envSliderHelp: {
       speed: "Velocità della simulazione. Valori più alti eseguono più episodi al secondo.",
       stepCost: "Penalità per ogni passo. Valori negativi incoraggiano l'agente a trovare percorsi più brevi verso l'obiettivo.",
       goalReward: "Ricompensa positiva quando l'agente raggiunge l'obiettivo. Valori più alti rendono l'obiettivo più attraente.",
-      lavaPenalty: "Ricompensa negativa quando l'agente entra nella lava. Valori più negativi lo spingono a evitarla con più decisione."
+      trapPenalty: "Ricompensa negativa quando l'agente entra nella trap. Valori più negativi lo spingono a evitarla con più decisione."
     },
     paramLabels: {
       psGamma: "Smorzamento memoria (γ)",
       psLambda: "Accoppiamento ricompensa (λ)",
       psGlowEta: "Decadimento glow (η)",
-      epsilon: "Esplorazione (ε)"
     },
     paramHelp: {
       psGamma: (
@@ -670,13 +663,6 @@ const UI_TEXT: Record<Locale, any> = {
           </strong>
         </ul>
       ),
-      epsilon: (
-        <ul className="pl-4 space-y-1">
-          <p>Probabilità di scegliere un'azione casuale invece di seguire la politica appresa.
-            <strong>
-            <li>Valori più alti = più esplorazione e casualità.</li></strong></p>
-        </ul>
-      )
     },
     rewardCharts: {
       instant: "Ricompensa istantanea (R)",
@@ -709,7 +695,7 @@ const UI_TEXT: Record<Locale, any> = {
       wall: "Muro",
       empty: "Vuoto",
       goal: "Obiettivo",
-      lava: "Lava",
+      trap: "Falle",
       start: "Partenza"
     }
   },
@@ -781,18 +767,17 @@ const UI_TEXT: Record<Locale, any> = {
     stepsPerSecond: "Pas/sec",
     stepCost: "Coût par pas",
     goalReward: "Récompense objectif",
-    lavaPenalty: "Pénalité lave",
+    trapPenalty: "Pénalité lave",
     envSliderHelp: {
       speed: "Vitesse de la simulation. Des valeurs plus élevées exécutent plus d'épisodes par seconde.",
       stepCost: "Pénalité appliquée à chaque pas. Des valeurs négatives encouragent l'agent à trouver des chemins plus courts vers l'objectif.",
       goalReward: "Récompense positive reçue lorsque l'agent atteint l'objectif. Des valeurs plus élevées rendent l'objectif plus attractif.",
-      lavaPenalty: "Récompense négative lorsque l'agent entre dans la lave. Des valeurs plus négatives l'amènent à l'éviter plus fortement."
+      trapPenalty: "Récompense négative lorsque l'agent entre dans la lave. Des valeurs plus négatives l'amènent à l'éviter plus fortement."
     },
     paramLabels: {
       psGamma: "Amortissement de mémoire (γ)",
       psLambda: "Couplage de récompense (λ)",
       psGlowEta: "Décroissance du glow (η)",
-      epsilon: "Exploration (ε)"
     },
     paramHelp: {
       psGamma: (
@@ -817,13 +802,6 @@ const UI_TEXT: Record<Locale, any> = {
           </strong>
         </ul>
       ),
-      epsilon: (
-        <ul className="pl-4 space-y-1">
-          <p>Probabilité de choisir une action aléatoire au lieu d'utiliser la politique apprise.
-            <strong>
-            <li>Valeurs plus élevées = plus d'exploration et d'aléatoire.</li></strong></p>
-        </ul>
-      )
     },
     rewardCharts: {
       instant: "Récompense instantanée (R)",
@@ -856,7 +834,7 @@ const UI_TEXT: Record<Locale, any> = {
       wall: "Mur",
       empty: "Vide",
       goal: "Objectif",
-      lava: "Lave",
+      trap: "Lave",
       start: "Départ"
     }
   },
@@ -868,7 +846,7 @@ const UI_TEXT: Record<Locale, any> = {
     generalSections: [
       { title: "Reinforcement Learning (RL)", body: "Un paradigma de aprendizaje automático en el que un agente aprende interactuando con un entorno, recibiendo recompensas por sus acciones y tratando de maximizar la recompensa acumulada a lo largo del tiempo." },
       { title: "Projective Simulation (PS)", body: "Un algoritmo de aprendizaje que modela la toma de decisiones como un paseo aleatorio sobre un grafo. Las experiencias del agente se almacenan en clips y las transiciones recompensadas se vuelven más fuertes." },
-      { title: "Entorno", body: "Entrenamos a un agente PS en un mundo de cuadrícula donde debe llegar a la meta de forma eficiente evitando peligros. Según el nivel, la cuadrícula puede incluir muros, lava, llaves y puertas." },
+      { title: "Entorno", body: "Entrenamos a un agente PS en un mundo de cuadrícula donde debe llegar a la meta de forma eficiente evitando peligros. Según el nivel, la cuadrícula puede incluir muros, trap, llaves y puertas." },
       { title: "Visualización de la política", body: "El panel de memoria muestra la política aprendida en forma de flechas. Las flechas más brillantes representan acciones que el agente elegirá con mayor probabilidad." }
     ],
     psModalTitle: "Projective Simulation (PS)",
@@ -928,18 +906,17 @@ const UI_TEXT: Record<Locale, any> = {
     stepsPerSecond: "Pasos/seg",
     stepCost: "Costo por paso",
     goalReward: "Recompensa meta",
-    lavaPenalty: "Penalización lava",
+    trapPenalty: "Penalización trap",
     envSliderHelp: {
       speed: "Velocidad de la simulación. Los valores más altos ejecutan más episodios por segundo.",
       stepCost: "Penalización por cada paso. Los valores negativos animan al agente a encontrar caminos más cortos hacia la meta.",
       goalReward: "Recompensa positiva al alcanzar la meta. Los valores más altos hacen que la meta resulte más atractiva.",
-      lavaPenalty: "Recompensa negativa por entrar en la lava. Valores más negativos hacen que el agente la evite con más fuerza."
+      trapPenalty: "Recompensa negativa por entrar en la trap. Valores más negativos hacen que el agente la evite con más fuerza."
     },
     paramLabels: {
       psGamma: "Amortiguación de memoria (γ)",
       psLambda: "Acoplamiento de recompensa (λ)",
       psGlowEta: "Decaimiento del glow (η)",
-      epsilon: "Exploración (ε)"
     },
     paramHelp: {
       psGamma: (
@@ -964,13 +941,6 @@ const UI_TEXT: Record<Locale, any> = {
           </strong>
         </ul>
       ),
-      epsilon: (
-        <ul className="pl-4 space-y-1">
-          <p>Probabilidad de elegir una acción aleatoria en lugar de usar la política aprendida.
-            <strong>
-            <li>Valores más altos = más exploración y aleatoriedad.</li></strong></p>
-        </ul>
-      )
     },
     rewardCharts: {
       instant: "Recompensa instantánea (R)",
@@ -1003,7 +973,7 @@ const UI_TEXT: Record<Locale, any> = {
       wall: "Muro",
       empty: "Vacío",
       goal: "Meta",
-      lava: "Lava",
+      trap: "Falle",
       start: "Inicio"
     }
   }
@@ -1086,12 +1056,8 @@ function getLevelText(level: LevelConfig | undefined, language: Locale) {
   if (!level) {
     return { name: "", description: "", instructions: "" };
   }
-  if (language === "en") {
-    return {
-      name: level.name,
-      description: level.description,
-      instructions: level.instructions,
-    };
+  if (language === "en" || language === "de") {
+    return LAB_STORY_TEXT[language].cases[level.id - 1] ?? level;
   }
   const translated = LEVEL_TRANSLATIONS[language][level.id];
   return {
@@ -1106,9 +1072,7 @@ function getMiscText(language: Locale) {
     case "de":
       return {
         infoButtonTitle: "Allgemeine Informationen anzeigen",
-        instructionsButtonTitle: "Level-Hinweise anzeigen",
-        winConditionBody: "Erreiche in den letzten 5 Episoden jeweils einen Return größer als",
-        winConditionTail: ".",
+        instructionsButtonTitle: "Fall-Hinweise anzeigen",
         fixedAt: "Festgelegt auf",
         memoryEquationsTitle: "Speicher-Update-Gleichungen",
         memoryEquationsLead: "Diese Gleichungen zeigen, wie h-Werte und Glow-Spuren nach jedem Schritt aktualisiert werden.",
@@ -1132,8 +1096,6 @@ function getMiscText(language: Locale) {
       return {
         infoButtonTitle: "Mostra le informazioni generali",
         instructionsButtonTitle: "Mostra le istruzioni del livello",
-        winConditionBody: "Ottieni un ritorno superiore a",
-        winConditionTail: " per 5 episodi consecutivi.",
         fixedAt: "Fissato a",
         memoryEquationsTitle: "Equazioni di aggiornamento della memoria",
         memoryEquationsLead: "Queste equazioni mostrano come vengono aggiornati i valori h e le tracce glow dopo ogni passo.",
@@ -1157,8 +1119,6 @@ function getMiscText(language: Locale) {
       return {
         infoButtonTitle: "Afficher les informations générales",
         instructionsButtonTitle: "Afficher les instructions du niveau",
-        winConditionBody: "Obtiens un retour supérieur à",
-        winConditionTail: " pendant 5 épisodes consécutifs.",
         fixedAt: "Fixé à",
         memoryEquationsTitle: "Équations de mise à jour de la mémoire",
         memoryEquationsLead: "Ces équations montrent comment les valeurs h et les traces glow sont mises à jour après chaque pas.",
@@ -1182,8 +1142,6 @@ function getMiscText(language: Locale) {
       return {
         infoButtonTitle: "Ver información general",
         instructionsButtonTitle: "Ver instrucciones del nivel",
-        winConditionBody: "Consigue un retorno superior a",
-        winConditionTail: " durante 5 episodios consecutivos.",
         fixedAt: "Fijado en",
         memoryEquationsTitle: "Ecuaciones de actualización de memoria",
         memoryEquationsLead: "Estas ecuaciones muestran cómo se actualizan los valores h y las trazas glow después de cada paso.",
@@ -1206,9 +1164,7 @@ function getMiscText(language: Locale) {
     default:
       return {
         infoButtonTitle: "View general information",
-        instructionsButtonTitle: "View level instructions",
-        winConditionBody: "Achieve episode returns greater than",
-        winConditionTail: " for the last 5 consecutive episodes.",
+        instructionsButtonTitle: "View case instructions",
         fixedAt: "Fixed at",
         memoryEquationsTitle: "Memory Update Equations",
         memoryEquationsLead: "The strength of the connections between memories (clips) is stored in an h-value. For a transition from clip i to clip j, the strength is updated as follows upon receiving a reward R:",
@@ -1236,7 +1192,7 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
   if (preset === "open") {
     grid[0][w - 1] = "goal";
     grid[h - 1][0] = "start";
-    // grid[h - 1][w - 2] = "lava";
+    // grid[h - 1][w - 2] = "trap";
   } else if (preset === "corridor") {
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) grid[y][x] = y === Math.floor(h / 2) ? "empty" : "wall";
     grid[h - 1][0] = "start";
@@ -1258,8 +1214,8 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
     //   const gap = 1 + ((y * 3) % (w - 2));
     //   grid[y][gap] = "empty";
     // }
-    // grid[h-1][1] = "lava";
-    // grid[0][w-2] = "lava";
+    // grid[h-1][1] = "trap";
+    // grid[0][w-2] = "trap";
     // grid[h - 1][0] = "start";
     // grid[0][w - 1] = "goal";
     const doorY = Math.floor(h / 2);
@@ -1270,36 +1226,13 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
     }
     grid[doorY][mid] = makeClosedDoorCell("blue");
     grid[h - 1][0] = "start";
-    grid[0][0] = makeKeyCell("blue");
+    // A through-route avoids contradictory choices at a revisited key dead end.
+    grid[0][1] = makeKeyCell("blue");
     grid[1][0] = "wall";
-    grid[doorY-1][mid+1]="lava";
+    grid[doorY-1][mid+1]="trap";
     grid[0][w - 2] = "goal";
   }
   return grid;
-}
-
-class PSLayer {
-  w:number; h:number; hvals: Float32Array; gvals: Float32Array;
-  constructor(w:number,h:number){
-    this.w=w; this.h=h; this.hvals = new Float32Array(w*h*4).fill(1);
-    this.gvals = new Float32Array(w*h*4);
-  }
-  idx(x:number,y:number,a:number){ return ((y*this.w)+x)*4 + a; }
-  getH(x:number,y:number,a:number){ return this.hvals[this.idx(x,y,a)]; }
-  getG(x:number,y:number,a:number){ return this.gvals[this.idx(x,y,a)]; }
-  decayGlow(eta:number){ for (let i=0;i<this.gvals.length;i++) this.gvals[i]*=(1-eta); }
-  addGlow(x:number,y:number,a:number,amount:number){ this.gvals[this.idx(x,y,a)]+=amount; }
-  rewardUpdate(r:number,gamma:number,lambda:number){
-    for (let i=0;i<this.hvals.length;i++){
-      const h=this.hvals[i]; const g=this.gvals[i];
-      const delta=(-gamma)*h+gamma*1+g*r*lambda;
-      this.hvals[i]=h+delta;
-    }
-  }
-  normalize(){
-    for (let i=0;i<this.hvals.length;i++) this.hvals[i]=Math.max(0.1,Math.min(10,this.hvals[i]));
-    for (let i=0;i<this.gvals.length;i++) this.gvals[i]=Math.max(0,Math.min(5,this.gvals[i]));
-  }
 }
 
 function stepXY(x:number,y:number,a:Action){
@@ -1381,7 +1314,14 @@ function HelpTooltipButton({ help, title, disabled }: { help: React.ReactNode; t
   );
 }
 
-function SliderWithVal({ label, min, max, step=1, value, onChange, help, disabled }: { label: string, min: number, max: number, step?: number, value: number, onChange: (v:number)=>void, help?: React.ReactNode, disabled?: boolean }){
+function SliderWithVal({ label, min, max, step=1, value, onChange, help, disabled, scale = "linear", locale = "en" }: { label: string, min: number, max: number, step?: number, value: number, onChange: (v:number)=>void, help?: React.ReactNode, disabled?: boolean, scale?: "linear" | "log", locale?: Locale }){
+  const logarithmic = scale === "log";
+  const numberFormatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 6, maximumSignificantDigits: 4 });
+  const displayValue = numberFormatter.format(value);
+  const marks = logarithmic ? LOG_PARAMETER_MARKS.map(({ value: mark }) => ({ value: mark, position: parameterToSlider(mark) / LOG_SLIDER_MAX * 100 })) : Array.from({ length: 5 }, (_, index) => {
+    const mark = index === 0 ? min : index === 4 ? max : clamp(Math.round((min + (max - min) * index / 4) / step) * step, min, max);
+    return { value: mark, position: (mark - min) / (max - min) * 100 };
+  });
   return (
     <div className={`${disabled ? "opacity-50" : ""} min-w-0`}>
       <div className="mb-1 flex items-start justify-between gap-2 min-w-0">
@@ -1391,22 +1331,37 @@ function SliderWithVal({ label, min, max, step=1, value, onChange, help, disable
             <HelpTooltipButton help={help} title={typeof help === "string" ? help : undefined} disabled={disabled} />
           )}
         </div>
-        <span className={`shrink-0 text-xs ${!disabled ? "!text-slate-700" : "!text-slate-400"}`}>{typeof value==="number"? value.toFixed(2): value}</span>
+        <span className={`shrink-0 text-xs ${!disabled ? "!text-slate-700" : "!text-slate-400"}`}>{displayValue}</span>
       </div>
       <Slider
-        min={min}
-        max={max}
-        step={step}
-        value={[value as number]}
+        min={logarithmic ? 0 : min}
+        max={logarithmic ? LOG_SLIDER_MAX : max}
+        step={logarithmic ? 1 : step}
+        value={[logarithmic ? parameterToSlider(value) : value]}
+        aria-label={label}
+        aria-valuetext={displayValue}
         onValueChange={(v: number[]) => {
           const raw = v[0];
-          const next = Number.isFinite(raw) ? clamp(raw, min, max) : min;
+          const next = logarithmic ? sliderToParameter(raw) : Number.isFinite(raw) ? clamp(raw, min, max) : min;
           onChange(next);
         }}
         disabled={disabled}
       />
+      <div className={`parameter-slider-marks ${logarithmic ? "log-slider-marks" : ""}`} aria-hidden="true">{marks.map((mark) => <span key={mark.value} style={{ left: `${mark.position}%` }}>{numberFormatter.format(mark.value)}</span>)}</div>
     </div>
   );
+}
+
+function LabDecisionReadout({ decision, agent, gridW, text }: { decision: LabDecision | null; agent: { x: number; y: number }; gridW: number; text: typeof LAB_STORY_TEXT.en }) {
+  const percept = decision?.percept ?? agent;
+  const colors = ["#256d55", "#376bb5", "#d2764e", "#7357a6"];
+  return <aside className="lab-decision-readout" aria-live="polite">
+    <strong title={text.decisionHint}>{text.currentPercept}</strong>
+    <div className="lab-percept-preview" style={{ background: perceptColor(percept.x, percept.y) }} aria-hidden="true">{ROOM_OBJECTS[(percept.y * gridW + percept.x) % ROOM_OBJECTS.length]}</div>
+    <span className="lab-percept-position">({percept.x + 1}, {percept.y + 1})</span>
+    <strong>{text.currentAction}</strong>
+    {decision ? <div className="lab-current-action" style={{ color: colors[decision.action] }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22V3M6 9L12 3L18 9" transform={`rotate(${decision.action * 90} 12 12)`} fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" /></svg><span>{text.actions[decision.action]}</span></div> : <small>{text.noAction}</small>}
+  </aside>;
 }
 
 // Error Boundary for PSInspector
@@ -1446,245 +1401,67 @@ class PSInspectorErrorBoundary extends React.Component<
   }
 }
 
-function PSInspector({
-  grid,
-  ps,
-  cellSize,
-  text,
-}: {
-
+function PSInspector({ grid, ps, text, view, agent, greediness }: {
   grid: CellType[][];
   ps: PSLayer;
-  cellSize: number;
-  text: any;
+  text: (typeof LAB_STORY_TEXT)["en"];
+  view: MemoryView;
+  agent: { x: number; y: number };
+  greediness: number;
 }) {
-  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
-
-  // Validate grid and ps layer
-  if (!grid || grid.length === 0 || !ps || !ps.hvals || !ps.gvals) {
-    return <div className="p-2 text-xs text-slate-500">{text.noGridData}</div>;
-  }
-
-  // Compute grid data (removed memoization to ensure real-time glow updates)
-  const gridData = Array.from({ length: grid.length }).map((_, y) =>
-    Array.from({ length: grid[0]?.length ?? 0 }).map((__, x) => {
-      const c = grid[y]?.[x];
-      const isWall = c === "wall";
-
-      if (isWall) return { type: 'wall' };
-
-      const hVals = [0, 1, 2, 3].map((a) => {
-        const h = ps.getH(x, y, a) || 0;
-        return Number.isFinite(h) ? h : 0;
-      });
-      
-      const sumH = hVals.reduce((a, b) => a + b, 0) || 1;
-      const probs = hVals.map((h) => Math.max(0, Math.min(1, h / sumH)));
-      let bg = "#fbfaf3ff";
-      bg = cellBG(c as CellType);
-
-      let glow = 0;
-      for (let a = 0; a < 4; a++) {
-        const g = ps.getG(x, y, a) || 0;
-        glow = Math.max(glow, Number.isFinite(g) ? g : 0);
-      }
-      const ringOpacity = glow/2;
-      // const ringOpacity = Math.min(glow / 2, 0.7);
-
-      return { type: 'cell', probs, bg, ringOpacity, cell: c };
-    })
-  );
-
+  const memory = grid.map((row, y) => row.map((cell, x) => {
+    const h = ACTIONS.map((_, action) => {
+      const value = ps.getH(x, y, action);
+      return Number.isFinite(value) ? value : 1;
+    });
+    const glow = ACTIONS.map((_, action) => {
+      const value = ps.getG(x, y, action);
+      return Number.isFinite(value) ? value : 0;
+    });
+    return { h, glow, probabilities: labPolicy(h, greediness), blocked: cell === "wall" };
+  }));
   return (
-    <div className="overflow-auto">
-      <div className="inline-block border">
-        {gridData.length === 0 ? (
-          <div className="p-2 text-xs text-slate-500">{text.gridUnavailable}</div>
-        ) : (
-          gridData.map((row, y) => (
-            <div key={`pi-${y}`} className="flex">
-              {row.map((cellData, x) => {
-                if (cellData.type === 'wall') {
-                  return (
-                    <div
-                      key={`pi-${x}-${y}`}
-                      className="border border-neutral-300"
-                      style={{
-                        width: cellSize,
-                        height: cellSize,
-                        background: "#3b434bff",
-                      }}
-                    />
-                  );
-                }
-
-                const { probs, bg, ringOpacity, cell } = cellData as { type: 'cell'; probs: number[]; bg: string; ringOpacity: number; cell: CellType };
-
-                return (
-                  <div
-                    key={`pi-${x}-${y}`}
-                    onMouseEnter={() => setHover({ x, y })}
-                    onMouseLeave={() => setHover(null)}
-                    className="relative border border-neutral-300 flex items-center justify-center"
-                    style={{
-                      width: cellSize,
-                      height: cellSize,
-                      background: bg,
-                      position: "relative",
-                    }}
-                  >
-                    {/* SVG Policy Arrows */}
-                    <svg
-                      className="absolute inset-0"
-                      viewBox="0 0 100 100"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <defs>
-                        <marker
-                          id="arrowhead"
-                          markerWidth="6"
-                          markerHeight="6"
-                          refX="2"
-                          refY="2"
-                          orient="auto"
-                          markerUnits="strokeWidth"
-                        >
-                          <path d="M0,0 L0,4 L4,2 Z" fill="rgba(79,70,229,0.9)" />
-                        </marker>
-                      </defs>
-
-                      {(() => {
-                        const drawArrow = (dx: number, dy: number, prob: number) => {
-                          const center = 50;
-                          const len = 35;
-                          const x1 = center;
-                          const y1 = center;
-                          const x2 = center + dx * len;
-                          const y2 = center + dy * len;
-
-                          const scaledProb = Math.max(0, Math.min(1, prob));
-                          // const strokeW = 2  + scaledProb * 15;
-                          const strokeW = 4;
-                          const opacity = 0.25 + scaledProb * 0.75;
-
-                          return (
-                            <line
-                              x1={x1}
-                              y1={y1}
-                              x2={x2}
-                              y2={y2}
-                              stroke="rgba(79,70,229,0.9)"
-                              strokeWidth={strokeW}
-                              markerEnd="url(#arrowhead)"
-                              strokeLinecap="round"
-                              opacity={opacity}
-                            />
-                          );
-                        };
-
-                        return (
-                          <>
-                            {drawArrow(0, -1, probs[0])} {/* up */}
-                            {drawArrow(1, 0, probs[1])} {/* right */}
-                            {drawArrow(0, 1, probs[2])} {/* down */}
-                            {drawArrow(-1, 0, probs[3])} {/* left */}
-                          </>
-                        );
-                      })()}
-                    </svg>
-
-                    {/* Glow halo */}
-                    <div
-                      className="absolute inset-0 rounded-md pointer-events-none"
-                      style={{
-                        boxShadow: `0 0 0 3px rgba(59,130,246,${ringOpacity}) inset`,
-                      }}
-                    />
-
-                    {/* Special symbols */}
-                    {cell === "goal" && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                        <Trophy className="absolute inset-0 m-auto w-7 h-7 text-green-700" />
-                      </span>
-                    )}
-                    {cell === "lava" && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                        <Skull className="absolute inset-0 m-auto w-7 h-7 text-red-700" />
-                      </span>
-                    )}
-                    {cell === "start" && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <CirclePlay className="absolute inset-0 m-auto w-7 h-7 text-yellow-400" />
-                      </span>
-                    )}
-                    {isKeyCell(cell as CellType) && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <KeyRound className="absolute inset-0 m-auto w-7 h-7" style={{ color: keyAccentColor(cell as CellType) }} />
-                      </span>
-                    )}
-                    {isClosedDoorCell(cell as CellType) && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <DoorClosedLocked className="absolute inset-0 m-auto w-7 h-7" style={{ color: keyAccentColor(cell as CellType) }} />
-                      </span>
-                    )}
-                    {isOpenDoorCell(cell as CellType) && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                      <DoorOpen className="absolute inset-0 m-auto w-7 h-7" style={{ color: keyAccentColor(cell as CellType) }} />
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))
-        )}
-      </div>
-
-      {hover && gridData.length > 0 && (
-        <div className="mt-2 text-xs text-neutral-700">
-          <div>{text.psCell} ({hover.x},{hover.y}) — h: [↑ {fmt(ps.getH(hover.x,hover.y,0))}, → {fmt(ps.getH(hover.x,hover.y,1))}, ↓ {fmt(ps.getH(hover.x,hover.y,2))}, ← {fmt(ps.getH(hover.x,hover.y,3))}]</div>
-          <div>{text.glowMax}={fmt(Math.max(ps.getG(hover.x,hover.y,0), ps.getG(hover.x,hover.y,1), ps.getG(hover.x,hover.y,2), ps.getG(hover.x,hover.y,3)))}</div>
-        </div>
-      )}
+    <div className="academy-memory-body">
+      <MemoryGrid memory={memory} view={view} focus={agent} text={text} cellSize={84} fitToPanel emphasizeStrength colorActions={view === "policy"} showAgent />
     </div>
   );
 }
 
 function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }: { rewardTrace: PointTR[]; cumTrace: PointTC[]; episodeReturns: PointEG[]; text: any; miscText: any; }) {
   return (
-    <Card className="rounded-xl m-0 p-0 shadow-xl flow-col border-slate-100">
+    <Card className="academy-reward-charts">
       <CardContent className="space-y-2 sm:space-y-4 pt-6">
-        <div className="mb-2 sm:mb-4">
-          <div className="flex items-center gap-2 mb-3">
+        <details className="academy-instant-reward mb-2 sm:mb-4">
+          <summary className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">{text.rewardCharts.instant}</h3>
             <HelpTooltipButton help={text.rewardCharts.instantHelp} title={text.rewardCharts.instantHelp} />
-          </div>
-          <div className="w-full h-32 sm:h-54 overflow-visible">
+          </summary>
+          <div className="academy-chart w-full overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rewardTrace} margin={{ top: 10, right: 0, bottom: 20, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="t" width={60}><ChartLabel value={miscText.xTimeStep} offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-                <YAxis dataKey="R" width={80}><ChartLabel value={miscText.yReward} dx={20} dy={-75} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+                <YAxis dataKey="R" width={35} tickCount={3} tick={{ fontSize: 10 }} />
                 <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
-                <Line type="monotone" dataKey="R" strokeWidth={2} dot={false} isAnimationActive={false}/>
+                <Line type="monotone" dataKey="R" stroke="#376bb5" strokeWidth={2} dot={false} isAnimationActive={false}/>
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </details>
 
         <div className="mb-2 sm:mb-4">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">{text.rewardCharts.cumulative}</h3>
             <HelpTooltipButton help={text.rewardCharts.cumulativeHelp} title={text.rewardCharts.cumulativeHelp} />
           </div>
-          <div className="w-full h-32 sm:h-54 overflow-visible">
+          <div className="academy-chart w-full overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={cumTrace} margin={{ top: 10, right: 0, bottom: 20, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="t" width={60}><ChartLabel value={miscText.xTimeStep} offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-                <YAxis dataKey="C" width={80}><ChartLabel value={miscText.yCumulativeReward} dx={20} dy={-60} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+                <YAxis dataKey="C" width={35} tickCount={3} tick={{ fontSize: 10 }} />
                 <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`t=${l}`}/>
-                <Area type="monotone" dataKey="C" strokeWidth={2} fillOpacity={0.2}/>
+                <Area type="monotone" dataKey="C" stroke="#08734e" fill="#08734e" strokeWidth={2} fillOpacity={0.2}/>
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -1694,14 +1471,14 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }:
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">{text.rewardCharts.episode}</h3>
             <HelpTooltipButton help={text.rewardCharts.episodeHelp} title={text.rewardCharts.episodeHelp} />
           </div>
-          <div className="w-full h-32 sm:h-54 overflow-visible">
+          <div className="academy-chart w-full overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={episodeReturns} margin={{ top: 10, right: 0, bottom: 20, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="ep" width={60}><ChartLabel value={miscText.xEpisodeNumber} offset={-5} textAnchor="middle" dominantBaseline="central" position="bottom"/></XAxis>
-                <YAxis dataKey="G" width={80}><ChartLabel value={miscText.yReturn} dx={20} dy={-50} textAnchor="middle" dominantBaseline="central" position="left" angle={-90}/></YAxis>
+                <YAxis dataKey="G" width={35} tickCount={3} tick={{ fontSize: 10 }} />
                 <Tooltip formatter={(v:any)=>Number(v).toFixed(2)} labelFormatter={(l)=>`ep=${l}`}/>
-                <Line type="monotone" dataKey="G" strokeWidth={2} dot={false} isAnimationActive={false}/>
+                <Line type="monotone" dataKey="G" stroke="#7753a9" strokeWidth={2} dot={false} isAnimationActive={false}/>
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1714,9 +1491,11 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }:
 export default function InteractiveRLLab({
   language: controlledLanguage = "en",
   onLanguageChange,
+  onHome,
 }: {
   language?: AppLanguage;
   onLanguageChange?: (language: AppLanguage) => void;
+  onHome?: () => void;
 }){
   const [language, setInternalLanguage] = useState<Locale>(controlledLanguage);
 
@@ -1741,21 +1520,24 @@ export default function InteractiveRLLab({
   const [agent, setAgent] = useState<{ x: number; y: number }>(() => ({ x: 0, y: Math.max(0, gridH - 1) }));
   // const [agent,setAgent]=useState<{x:number,y:number}>({x:startPos.x,y:startPos.y});
   const [episode,setEpisode]=useState(1);
-  const [running,setRunning]=useState(true);
-  const [speed,setSpeed]=useState(6);
-  const [stepCost,setStepCost]=useState(0);
-  const [goalReward,setGoalReward]=useState(1);
-  const [lavaPenalty,setLavaPenalty]=useState(-1);
+  const [running,setRunning]=useState(false);
+  const [playbackMode, setPlaybackMode] = useState<PlaybackMode>("click");
+  const [episodeEnd, setEpisodeEnd] = useState<EpisodeEnd | null>(null);
+  const [episodeHolding, setEpisodeHolding] = useState(false);
+  const [lastDecision, setLastDecision] = useState<LabDecision | null>(null);
+  const [stepCost,setStepCost]=useState(FINAL_LAB_PARAMETERS.stepCost);
+  const [goalReward,setGoalReward]=useState(FINAL_LAB_PARAMETERS.goalReward);
+  const [trapPenalty,setTrapPenalty]=useState(FINAL_LAB_PARAMETERS.trapPenalty);
   // const [wind,setWind]=useState(false);
-  const [psLambda,setPsLambda]=useState(1);
-  const [psGamma,setPsGamma]=useState(0.01);
-  const [psGlowEta,setPsGlowEta]=useState(0.05);
-  const [epsilon,setEpsilon]=useState(0.1);
-  const [tau,setTau]=useState(1);
+  const [psLambda,setPsLambda]=useState(FINAL_LAB_PARAMETERS.psLambda);
+  const [psGamma,setPsGamma]=useState(FINAL_LAB_PARAMETERS.psGamma);
+  const [psGlowEta,setPsGlowEta]=useState(FINAL_LAB_PARAMETERS.psGlowEta);
+  const [greediness,setGreediness]=useState(FINAL_LAB_PARAMETERS.greediness);
   const [rewardTrace,setRewardTrace]=useState<PointTR[]>([]);
   const [cumTrace,setCumTrace]=useState<PointTC[]>([]);
   const [episodeReturns,setEpisodeReturns]=useState<PointEG[]>([]);
   const [currentEpReturn,setCurrentEpReturn]=useState(0);
+  const [pathAssessment, setPathAssessment] = useState<PathAssessment | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showPsInfo, setShowPsInfo] = useState(false);
@@ -1765,6 +1547,7 @@ export default function InteractiveRLLab({
   const [freePlayUnlocked, setFreePlayUnlocked] = useState(false);
   const [collectedKeys, setCollectedKeys] = useState<KeyId[]>([]);
   const [psVersion, setPsVersion] = useState(0);
+  const [memoryView, setMemoryView] = useState<MemoryView>("h");
   const tRef=useRef(0);
   const totalReturnRef=useRef(0);
   const currentEpReturnRef=useRef(0);
@@ -1778,6 +1561,13 @@ export default function InteractiveRLLab({
   const gridWRef=useRef(gridW);
   const gridHRef=useRef(gridH);
   const psRef=useRef<PSLayer>(new PSLayer(gridW,gridH));
+  const [displayMemory, setDisplayMemory] = useState(() => psRef.current.copy());
+  const episodeNumberRef = useRef(1);
+  const episodeStepsRef = useRef(0);
+  const episodeEndRef = useRef<{ reason: EpisodeEnd; resumeAt: number } | null>(null);
+  const decisionRef = useRef<LabDecision | null>(null);
+  const rewardTraceRef = useRef<PointTR[]>([]);
+  const cumTraceRef = useRef<PointTC[]>([]);
   const baseGridRef=useRef<CellType[][]>(cloneGrid(grid));
   const gridRef=useRef(grid); useEffect(()=>{gridRef.current=grid},[grid]);
   const agentRef=useRef(agent); useEffect(()=>{agentRef.current=agent},[agent]);
@@ -1786,11 +1576,10 @@ export default function InteractiveRLLab({
   const psLambdaRef=useRef(psLambda); useEffect(()=>{psLambdaRef.current=psLambda},[psLambda]);
   const psGammaRef=useRef(psGamma); useEffect(()=>{psGammaRef.current=psGamma},[psGamma]);
   const psGlowEtaRef=useRef(psGlowEta); useEffect(()=>{psGlowEtaRef.current=psGlowEta},[psGlowEta]);
-  const epsilonRef=useRef(epsilon); useEffect(()=>{epsilonRef.current=epsilon},[epsilon]);
-  const tauRef=useRef(tau); useEffect(()=>{tauRef.current=tau},[tau]);
+  const greedinessRef=useRef(greediness); useEffect(()=>{greedinessRef.current=greediness},[greediness]);
   const stepCostRef=useRef(stepCost); useEffect(()=>{stepCostRef.current=stepCost},[stepCost]);
   const goalRewardRef=useRef(goalReward); useEffect(()=>{goalRewardRef.current=goalReward},[goalReward]);
-  const lavaPenaltyRef=useRef(lavaPenalty); useEffect(()=>{lavaPenaltyRef.current=lavaPenalty},[lavaPenalty]);
+  const trapPenaltyRef=useRef(trapPenalty); useEffect(()=>{trapPenaltyRef.current=trapPenalty},[trapPenalty]);
   const applyGridSize = (wInput: string, hInput: string) => {
     const wParsed = parseInt(wInput, 10);
     const hParsed = parseInt(hInput, 10);
@@ -1802,10 +1591,11 @@ export default function InteractiveRLLab({
     setGridHInput(String(nextH));
     setGameWon(false);
     gameWonRef.current = false;
-    setRunning(true);
+    setRunning(playbackMode !== "click");
   };
 
   const text = UI_TEXT[language];
+  const storyText = LAB_STORY_TEXT[language === "de" ? "de" : "en"];
   const miscText = getMiscText(language);
   const isEnglish = language === "en";
   const currentLevelConfig = LEVELS.find(l => l.id === currentLevel);
@@ -1846,9 +1636,19 @@ export default function InteractiveRLLab({
   const resetSimulationState = (nextStart: { x: number; y: number }, nextW: number, nextH: number) => {
     clearLevelTransition();
     setEpisode(1);
+    episodeNumberRef.current = 1;
+    episodeStepsRef.current = 0;
+    episodeEndRef.current = null;
+    decisionRef.current = null;
+    rewardTraceRef.current = [];
+    cumTraceRef.current = [];
+    setEpisodeEnd(null);
+    setEpisodeHolding(false);
+    setLastDecision(null);
     setRewardTrace([]);
     setCumTrace([]);
     setEpisodeReturns([]);
+    setPathAssessment(null);
     episodeReturnsRef.current = [];
     setCurrentEpReturn(0);
     setCollectedKeys([]);
@@ -1864,6 +1664,7 @@ export default function InteractiveRLLab({
     setAgent(nextStart);
     agentRef.current = nextStart;
     psRef.current = new PSLayer(nextW, nextH);
+    setDisplayMemory(psRef.current.copy());
     setPsVersion((v) => v + 1);
   };
 
@@ -1904,13 +1705,9 @@ export default function InteractiveRLLab({
       setPsGlowEta(level.lockedParams.psGlowEta);
       psGlowEtaRef.current = level.lockedParams.psGlowEta;
     }
-    if (level.lockedParams.epsilon !== undefined) {
-      setEpsilon(level.lockedParams.epsilon);
-      epsilonRef.current = level.lockedParams.epsilon;
-    }
-    if (level.lockedParams.tau !== undefined) {
-      setTau(level.lockedParams.tau);
-      tauRef.current = level.lockedParams.tau;
+    if (level.lockedParams.greediness !== undefined) {
+      setGreediness(level.lockedParams.greediness);
+      greedinessRef.current = level.lockedParams.greediness;
     }
     if (level.lockedParams.stepCost !== undefined) {
       setStepCost(level.lockedParams.stepCost);
@@ -1920,9 +1717,9 @@ export default function InteractiveRLLab({
       setGoalReward(level.lockedParams.goalReward);
       goalRewardRef.current = level.lockedParams.goalReward;
     }
-    if (level.lockedParams.lavaPenalty !== undefined) {
-      setLavaPenalty(level.lockedParams.lavaPenalty);
-      lavaPenaltyRef.current = level.lockedParams.lavaPenalty;
+    if (level.lockedParams.trapPenalty !== undefined) {
+      setTrapPenalty(level.lockedParams.trapPenalty);
+      trapPenaltyRef.current = level.lockedParams.trapPenalty;
     }
 
     // Reset game state
@@ -1996,18 +1793,34 @@ export default function InteractiveRLLab({
     setGridHInput(String(gridH));
   }, [gridH]);
 
-  useEffect(()=>{
-    if(!running) return;
-    const interval=setInterval(()=>{
-      try {
-        tick();
-      } catch (error) {
-        console.error("Error in simulation tick:", error);
-        setRunning(false); // Stop the simulation on critical error
+  useEffect(() => {
+    if (!running || playbackMode === "click") return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const pump = () => {
+      if (cancelled || gameWonRef.current) return;
+      const ending = episodeEndRef.current;
+      if (ending && performance.now() < ending.resumeAt) {
+        timer = setTimeout(pump, Math.min(100, ending.resumeAt - performance.now()));
+        return;
       }
-    },Math.max(20,1000/Math.max(1,speed)));
-    return()=>clearInterval(interval);
-  },[running,speed]);
+      if (ending) beginNextEpisode();
+      if (playbackMode === "immediate") {
+        // Yield between chunks so long episodes cannot freeze the controls.
+        for (let i = 0; i < 200 && !episodeEndRef.current && !gameWonRef.current; i++) tick(false);
+      } else tick();
+      timer = setTimeout(pump, playbackMode === "slow" ? 850 : playbackMode === "fast" ? 80 : 0);
+    };
+    timer = setTimeout(pump, playbackMode === "slow" ? 850 : playbackMode === "fast" ? 80 : 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [running, playbackMode]);
+
+  useEffect(() => {
+    const ending = episodeEndRef.current;
+    if (!episodeEnd || !ending) return;
+    const timer = setTimeout(() => setEpisodeHolding(false), Math.max(0, ending.resumeAt - performance.now()));
+    return () => clearTimeout(timer);
+  }, [episodeEnd, episode]);
 
   function envReward(x:number,y:number){
     // Guard against out-of-bounds
@@ -2019,22 +1832,18 @@ export default function InteractiveRLLab({
     if(c==="goal") {
       return goalRewardRef.current;
     }
-    if(c==="lava")return lavaPenaltyRef.current;
+    if(c==="trap")return trapPenaltyRef.current;
     if(c==="wall")return -0.2;
     if(isKeyCell(c)) {
       const keyId = getKeyIdFromCell(c);
       if (keyId && !collectedKeysRef.current.includes(keyId)) {
         const nextKeys = [...collectedKeysRef.current, keyId];
-        setCollectedKeys(nextKeys);
         collectedKeysRef.current = nextKeys;
       }
       // Change the cell to empty after collecting key
-      setGrid(g => {
-        const newG = cloneGrid(g);
-        newG[y][x] = "empty";
-        gridRef.current = newG;
-        return newG;
-      });
+      const newG = cloneGrid(gridRef.current);
+      newG[y][x] = "empty";
+      gridRef.current = newG;
       return 0; // No extra reward for key, just collect it
     }
     return stepCostRef.current;
@@ -2045,7 +1854,7 @@ export default function InteractiveRLLab({
       return false;
     }
     const c=gridRef.current[y]?.[x];
-    return c==="goal"||c==="lava";
+    return c==="goal"||c==="trap";
   }
 
   function legal(x:number,y:number){
@@ -2067,33 +1876,19 @@ export default function InteractiveRLLab({
     return a;
   }
 
-  function pickAction(x:number,y:number){
-    // Guard against invalid inputs
+  function pickAction(x: number, y: number) {
     if (x < 0 || y < 0 || x >= gridWRef.current || y >= gridHRef.current) {
       return Math.floor(Math.random() * 4);
     }
-    
-    if (Math.random() < epsilonRef.current) return Math.floor(Math.random()*4);
-    
-    let hs:number[] = new Array(4).fill(0);
-    for (let a=0;a<4;a++) {
-      const h = psRef.current.getH(x,y,a) || 0;
-      hs[a] = Number.isFinite(h) ? h : 0;
+    const weights = ACTIONS.map((_, action) => psRef.current.getH(x, y, action));
+    const probabilities = labPolicy(weights, greedinessRef.current);
+    const draw = Math.random();
+    let cumulative = 0;
+    for (let action = 0; action < probabilities.length; action++) {
+      cumulative += probabilities[action];
+      if (draw <= cumulative) return action;
     }
-    
-    const t=Math.max(0.01, tauRef.current);
-    const maxH=Math.max(...hs, 0.01); // Ensure maxH is never 0
-    const exps=hs.map(h=>Math.exp((h-maxH)/t));
-    const sum=exps.reduce((a,b)=>a+b,0);
-    
-    if (!Number.isFinite(sum) || sum === 0) return Math.floor(Math.random()*4);
-    
-    let r=Math.random(); let acc=0;
-    for(let a=0;a<4;a++){
-      acc+=exps[a]/sum; 
-      if(r<=acc)return a;
-    }
-    return 0;
+    return probabilities.length - 1;
   }
 
   function attemptMove(x:number,y:number,a:number){
@@ -2109,35 +1904,33 @@ export default function InteractiveRLLab({
       if (!keyId || !collectedKeysRef.current.includes(keyId)) {
         return {x, y};
       }
-      setGrid(g => {
-        const newG = cloneGrid(g);
-        newG[next.y][next.x] = makeOpenDoorCell(keyId);
-        gridRef.current = newG;
-        return newG;
-      });
+      const newG = cloneGrid(gridRef.current);
+      newG[next.y][next.x] = makeOpenDoorCell(keyId);
+      gridRef.current = newG;
       return {x: next.x, y: next.y, reward: goalRewardRef.current / 2};
     }
     return {x: next.x, y: next.y};
   }
 
-  function restartEpisode(lastReward:number){
+  function finishEpisode(lastReward: number, reason: EpisodeEnd){
     if (!Number.isFinite(lastReward)) {
       console.error("Invalid terminal reward encountered:", lastReward);
       setRunning(false);
       return;
     }
-    const G=lastReward;
+    const G=currentEpReturnRef.current;
+    episodeEndRef.current = { reason, resumeAt: performance.now() + EPISODE_PAUSE_MS };
     const prevReturns = episodeReturnsRef.current;
-    const activeLevelConfig = LEVELS.find((level) => level.id === currentLevelRef.current);
     const nextReturns = [...prevReturns, { ep: (prevReturns.length ? prevReturns[prevReturns.length - 1].ep + 1 : 1), G }];
     setEpisodeReturns(nextReturns);
     episodeReturnsRef.current = nextReturns;
 
-    const winThreshold = activeLevelConfig?.winThreshold || 5;
+    const assessment = shortestPathProbability(baseGridRef.current, startPosRef.current,
+      (x, y) => ACTIONS.map((_, action) => psRef.current.getH(x, y, action)), greedinessRef.current);
+    setPathAssessment(assessment);
     const hasCampaignWin =
       !freePlayModeRef.current &&
-      nextReturns.length >= 5 &&
-      nextReturns.slice(-5).every((entry) => entry.G >= winThreshold * goalRewardRef.current * 0.75) &&
+      assessment.minimumSteps !== null && assessment.probability >= 0.75 &&
       !gameWonRef.current;
 
     if (hasCampaignWin) {
@@ -2152,29 +1945,56 @@ export default function InteractiveRLLab({
         setFreePlayMode(false);
         freePlayModeRef.current = false;
         setFreePlayUnlocked(true);
-        setCurrentEpReturn(G);
-        currentEpReturnRef.current = G;
-        return;
       }
     }
-    
+  }
+
+  function beginNextEpisode() {
+    episodeEndRef.current = null;
+    episodeStepsRef.current = 0;
+    decisionRef.current = null;
     // Reset episode grid from the scenario template so keys and doors are restored correctly.
-    setCollectedKeys([]);
     collectedKeysRef.current = [];
     const resetGrid = cloneGrid(baseGridRef.current);
-    setGrid(resetGrid);
     gridRef.current = resetGrid;
     
     // Reset for next episode (but don't reset game won state here)
-    setEpisode(e=>e+1);
-    setCurrentEpReturn(0);
+    episodeNumberRef.current += 1;
     currentEpReturnRef.current=0;
-    setAgent(startPosRef.current);
     agentRef.current=startPosRef.current;
     psRef.current.gvals.fill(0);
   }
 
-  function tick(){
+  function publishSimulationSnapshot() {
+    setGrid(gridRef.current);
+    setAgent({ ...agentRef.current });
+    setCollectedKeys([...collectedKeysRef.current]);
+    setEpisode(episodeNumberRef.current);
+    setCurrentEpReturn(currentEpReturnRef.current);
+    setEpisodeEnd(episodeEndRef.current?.reason ?? null);
+    setEpisodeHolding(Boolean(episodeEndRef.current && performance.now() < episodeEndRef.current.resumeAt));
+    setLastDecision(decisionRef.current);
+    setRewardTrace([...rewardTraceRef.current]);
+    setCumTrace([...cumTraceRef.current]);
+    setDisplayMemory(psRef.current.copy());
+    setPsVersion((v) => v + 1);
+  }
+
+  function selectPlaybackMode(mode: PlaybackMode) {
+    if (mode === playbackMode) return;
+    if (playbackMode === "immediate" && mode !== "immediate") publishSimulationSnapshot();
+    setPlaybackMode(mode);
+    setRunning(mode !== "click" && !gameWonRef.current);
+  }
+
+  function takeManualStep() {
+    if (gameWonRef.current) return;
+    if (episodeEndRef.current && performance.now() < episodeEndRef.current.resumeAt) return;
+    if (episodeEndRef.current) beginNextEpisode();
+    tick();
+  }
+
+  function tick(displayStep = true){
     // Check game won using ref to avoid stale state issues
     if (gameWonRef.current) return;
     
@@ -2195,8 +2015,8 @@ export default function InteractiveRLLab({
       }
       
       const a=pickAction(x,y);
-      psRef.current.decayGlow(psGlowEtaRef.current);
-      psRef.current.addGlow(x,y,a,1);
+      decisionRef.current = { percept: { x, y }, action: a };
+      psRef.current.updateGlow(x, y, a, psGlowEtaRef.current);
       const s1=attemptMove(x,y,a);
       
       // Validate new position
@@ -2208,15 +2028,18 @@ export default function InteractiveRLLab({
       const r = (s1.reward || 0) + envReward(s1.x,s1.y);
       psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
       psRef.current.normalize();
-      setPsVersion(v => v + 1);
       tRef.current+=1;
-	      totalReturnRef.current+=r;
-	      setRewardTrace(tr=>{const nxt=[...tr,{t:tRef.current,R:r}]; return nxt.length>50?nxt.slice(-50):nxt;}); // Limit to 50 points
-	      setCumTrace(ct=>{const nxt=[...ct,{t:tRef.current,C:totalReturnRef.current}]; return nxt.length>500?nxt.slice(-500):nxt;}); // Limit to 500 points
-	      setCurrentEpReturn(v=>v+r);
-	      setAgent(s1);
-	      agentRef.current=s1;
-	      if(isTerminal(s1.x,s1.y)) restartEpisode(r);
+      totalReturnRef.current+=r;
+      rewardTraceRef.current.push({ t: tRef.current, R: r });
+      if (rewardTraceRef.current.length > 50) rewardTraceRef.current.shift();
+      cumTraceRef.current.push({ t: tRef.current, C: totalReturnRef.current });
+      if (cumTraceRef.current.length > 500) cumTraceRef.current.shift();
+      currentEpReturnRef.current += r;
+      agentRef.current = { x: s1.x, y: s1.y };
+      episodeStepsRef.current += 1;
+      if (isTerminal(s1.x, s1.y)) finishEpisode(r, gridRef.current[s1.y][s1.x] === "goal" ? "goal" : "trap");
+      else if (episodeStepsRef.current >= Math.max(200, gridWRef.current * gridHRef.current * 40)) finishEpisode(r, "limit");
+      if (displayStep || episodeEndRef.current) publishSimulationSnapshot();
 	    } catch (error) {
       console.error("Error during tick:", error);
       setRunning(false);
@@ -2224,8 +2047,15 @@ export default function InteractiveRLLab({
     }
   }
 
-  const cellSize=50;
-  const [inspectorSize,setInspectorSize]=useState(60);
+  const roomRef = useRef<HTMLDivElement>(null);
+  const [cellSize, setCellSize] = useState(46);
+  useEffect(() => {
+    const element = roomRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setCellSize(Math.max(28, Math.min(46, Math.floor((element.clientWidth - 18) / gridW)))));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [gridW]);
   const canvasW=gridW*cellSize;
   const canvasH=gridH*cellSize;
   const [tool,setTool]=useState<"draw"|"pick"|"erase">("draw");
@@ -2274,11 +2104,22 @@ export default function InteractiveRLLab({
     setRewardTrace([]);
     setCumTrace([]);
     setEpisodeReturns([]);
+    setPathAssessment(null);
     setCurrentEpReturn(0);
     tRef.current = 0;
     totalReturnRef.current = 0;
     currentEpReturnRef.current = 0;
     psRef.current = new PSLayer(gridW, gridH);
+    episodeNumberRef.current = 1;
+    episodeStepsRef.current = 0;
+    episodeEndRef.current = null;
+    decisionRef.current = null;
+    rewardTraceRef.current = [];
+    cumTraceRef.current = [];
+    setEpisodeEnd(null);
+    setEpisodeHolding(false);
+    setLastDecision(null);
+    setDisplayMemory(psRef.current.copy());
     setPsVersion((v) => v + 1);
     
     // if(b==="start"){ setStartPos({x,y}); setAgent({x,y}); agentRef.current={x,y}; }
@@ -2291,13 +2132,15 @@ const StaticGrid = React.memo(function StaticGrid({
   cellSize,
   // cellBG,
   onCellClick,
+  cellLabel,
 }: {
-  grid: string[][],
+  grid: CellType[][],
   gridW: number,
   gridH: number,
   cellSize: number,
   // cellBG: (cell: CellType) => string,
   onCellClick: (x: number, y: number) => void,
+  cellLabel: (cell: CellType) => string,
 }) {
   return (
     <div
@@ -2315,30 +2158,40 @@ const StaticGrid = React.memo(function StaticGrid({
             return (
               <div
                 key={`${x}-${y}`}
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
                   onCellClick(x, y);
                 }}
-                onMouseEnter={(e) => {
+                onPointerEnter={(e) => {
                   if (e.buttons === 1) onCellClick(x, y);
                 }}
-                className="border border-neutral-300 flex items-center justify-center relative"
+                role="button"
+                tabIndex={0}
+                aria-label={`${cellLabel(cell)} (${x + 1}, ${y + 1})`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onCellClick(x, y);
+                  }
+                }}
+                className="adventure-cell academy-lab-cell"
                 style={{
                   width: cellSize,
                   height: cellSize,
-                  background: cellBG((grid[y]?.[x] ?? "empty") as CellType),
+                  background: cell === "empty" || cell === "start" || cell === "goal" ? perceptColor(x, y) : cellBG(cell),
                 }}
                 title={`(${x},${y})`}
               >
-                {/* 🧱 Environment Icons */}
-                {cell === "goal" && (
-                  <Trophy className="w-5 h-5 text-emerald-600" strokeWidth={2.5} />
+                {(cell === "empty" || cell === "start" || cell === "goal") && (
+                  <span className="cell-object" aria-hidden="true" style={{ background: perceptColor(x, y) }}>
+                    {cell === "goal" ? "⌚" : ROOM_OBJECTS[(y * gridW + x) % ROOM_OBJECTS.length]}
+                  </span>
                 )}
-                {cell === "lava" && (
+                {cell === "trap" && (
                   <Skull className="w-5 h-5 text-red-500" strokeWidth={2.5} />
                 )}
                 {cell === "start" && (
-                  <CirclePlay className="w-5 h-5 text-yellow-500" strokeWidth={2.5} />
+                  <CirclePlay className="academy-start-marker" strokeWidth={2.5} />
                 )}
                 {cell === "wall" && (
                   <Ban className="w-5 h-5 text-gray-500 opacity-60" strokeWidth={2.5} />
@@ -2363,12 +2216,7 @@ const StaticGrid = React.memo(function StaticGrid({
   );
 });
 
-  const recentReturns = episodeReturns.slice(-5);
-  const recentAverage = recentReturns.length
-    ? recentReturns.reduce((sum, entry) => sum + entry.G, 0) / recentReturns.length
-    : 0;
-  const targetReturn = (currentLevelConfig?.winThreshold ?? 1) * goalReward;
-  const isStruggling = recentReturns.length >= 5 && episode >= 8 && recentAverage < targetReturn * 0.6;
+  const isStruggling = episode >= 8 && (pathAssessment?.probability ?? 0) < 0.6;
 
   const tips: string[] = [];
   if (stepCost >= -0.01) {
@@ -2378,12 +2226,9 @@ const StaticGrid = React.memo(function StaticGrid({
       language === "es" ? "Usa un pequeño costo negativo para favorecer rutas más cortas." :
       "Use a small negative step cost so shorter paths look better.");
   }
-  if (epsilon > 0.35) {
-    tips.push(language === "de" ? "Die Exploration ist hoch. Senke ε, sobald der Agent das Ziel findet." :
-      language === "it" ? "L'esplorazione è alta. Riduci ε quando l'agente inizia a trovare l'obiettivo." :
-      language === "fr" ? "L'exploration est élevée. Réduis ε quand l'agent commence à trouver l'objectif." :
-      language === "es" ? "La exploración es alta. Baja ε cuando el agente ya encuentre la meta." :
-      "Exploration is high. Lower e once the agent starts finding the goal.");
+  if (greediness < 0.5) {
+    tips.push(language === "de" ? "Eine kleine inverse Temperatur verteilt die Auswahl gleichmäßiger. Erhöhe β vorsichtig, sobald Nova nützliche Wege gelernt hat." :
+      "Low inverse temperature spreads choices more evenly. Increase β cautiously once Nova has learned useful routes.");
   }
   if (psGlowEta > 0.25) {
     tips.push(language === "de" ? "Senke η bei verzögerten Belohnungen, damit frühere Schritte länger berücksichtigt werden." :
@@ -2406,12 +2251,12 @@ const StaticGrid = React.memo(function StaticGrid({
       language === "es" ? "En niveles con puerta el agente debe coger antes la llave. Coloca al menos una llave y una puerta cerrada." :
       "On door levels the agent must collect a key first. Place at least one key and one closed door.");
   }
-  if (gridHasCell(grid, "lava") && lavaPenalty > -1) {
-    tips.push(language === "de" ? "Wenn Lava kaum bestraft wird, wirken riskante Wege zu attraktiv. Erhöhe die Lava-Strafe." :
-      language === "it" ? "Se la lava punisce poco, i percorsi rischiosi sembrano convenienti. Aumenta la penalità." :
+  if (gridHasCell(grid, "trap") && trapPenalty > -1) {
+    tips.push(language === "de" ? "Wenn eine Falle kaum bestraft wird, wirken riskante Wege zu attraktiv. Erhöhe die Fallenstrafe." :
+      language === "it" ? "Se la trap punisce poco, i percorsi rischiosi sembrano convenienti. Aumenta la penalità." :
       language === "fr" ? "Si la lave pénalise peu, les chemins dangereux paraissent trop avantageux. Augmente la pénalité." :
-      language === "es" ? "Si la lava castiga poco, las rutas peligrosas parecen demasiado buenas. Aumenta la penalización." :
-      "If lava is barely punished, risky routes look too good. Increase the lava penalty.");
+      language === "es" ? "Si la trap castiga poco, las rutas peligrosas parecen demasiado buenas. Aumenta la penalización." :
+      "If trap is barely punished, risky routes look too good. Increase the trap penalty.");
   }
   if (tips.length === 0) {
     tips.push(language === "de" ? "Wenn du mehrere Parameter stark veränderst, setze das Level zurück und beobachte eine neue Lernphase." :
@@ -2422,26 +2267,23 @@ const StaticGrid = React.memo(function StaticGrid({
   }
 
   const optimalParameterNotes = [
-    language === "de" ? "γ (Gedächtnisdämpfung): 0,005 bis 0,03 ist meist ein guter Startbereich." :
+    language === "de" ? "γ (Vergessen): 0,005 bis 0,03 ist meist ein guter Startbereich." :
       language === "it" ? "γ (smorzamento memoria): 0,005-0,03 è spesso un buon intervallo iniziale." :
       language === "fr" ? "γ (amortissement de mémoire) : 0,005 à 0,03 est souvent une bonne plage de départ." :
       language === "es" ? "γ (amortiguación de memoria): 0,005 a 0,03 suele ser un buen rango inicial." :
-      "γ (memory damping): 0.005 to 0.03 is usually a strong starting range.",
-    language === "de" ? "λ (Belohnungskopplung): 1 bis 3 verstärkt gute Wege, ohne das Lernen zu destabilisieren." :
+      "γ (forgetting): 0.005 to 0.03 is usually a strong starting range.",
+    language === "de" ? "λ (Belohnungssensitivität): 1 bis 3 verstärkt gute Wege, ohne das Lernen zu destabilisieren." :
       language === "it" ? "λ (accoppiamento ricompensa): 1-3 rafforza i percorsi buoni senza rendere instabile l'apprendimento." :
       language === "fr" ? "λ (couplage de récompense) : 1 à 3 renforce les bons chemins sans rendre l'apprentissage instable." :
       language === "es" ? "λ (acoplamiento de recompensa): 1 a 3 suele reforzar buenas rutas sin volver inestable el aprendizaje." :
-      "λ (reward coupling): 1 to 3 often reinforces good routes without making learning unstable.",
+      "λ (reward sensitivity): 1 to 3 often reinforces good routes without making learning unstable.",
     language === "de" ? "η (Glow-Abbau): 0,02 bis 0,15 hilft in Mehrschritt-Aufgaben, weil frühere Aktionen länger relevant bleiben." :
       language === "it" ? "η (decadimento glow): 0,02-0,15 aiuta nei compiti a più passi perché le azioni passate restano rilevanti più a lungo." :
       language === "fr" ? "η (décroissance du glow) : 0,02 à 0,15 aide sur les tâches à plusieurs étapes." :
       language === "es" ? "η (decaimiento del glow): 0,02 a 0,15 ayuda en tareas de varios pasos." :
       "η (glow decay): 0.02 to 0.15 helps on multi-step tasks because past actions stay relevant.",
-    language === "de" ? "ε (Exploration): 0,05 bis 0,20 ist oft optimal, nachdem der Agent erste erfolgreiche Wege gefunden hat." :
-      language === "it" ? "ε (esplorazione): 0,05-0,20 è spesso ottimale dopo che l'agente ha trovato i primi percorsi utili." :
-      language === "fr" ? "ε (exploration) : 0,05 à 0,20 est souvent optimal après les premiers chemins réussis." :
-      language === "es" ? "ε (exploración): 0,05 a 0,20 suele ser óptimo después de que el agente encuentre rutas útiles." :
-      "ε (exploration): 0.05 to 0.20 is often near-optimal once the agent has found some successful routes.",
+    language === "de" ? "β (inverse Temperatur): Starte bei 1. Ein kleineres β ermöglicht mehr Exploration; ein größeres β bevorzugt gelernte Entscheidungen stärker." :
+      "β (inverse temperature): Start at 1. Lower β allows more exploration; higher β favors learned decisions more strongly.",
   ];
   const strategyNotes = [
     language === "de" ? "Beobachte zuerst die Episoden-Returns. Wenn sie flach bleiben, fehlen meist klarere Belohnungssignale oder weniger Exploration." :
@@ -2449,11 +2291,8 @@ const StaticGrid = React.memo(function StaticGrid({
       language === "fr" ? "Observe d'abord les retours par épisode. S'ils restent plats, il faut souvent de meilleurs signaux de récompense ou moins d'exploration." :
       language === "es" ? "Mira primero los retornos por episodio. Si se quedan planos, normalmente faltan mejores señales de recompensa o menos exploración." :
       "Start by watching episode returns. If they stay flat, the agent usually needs clearer rewards or less exploration.",
-    language === "de" ? "Wenn der Agent das Ziel manchmal findet, aber nicht stabil, senke ε schrittweise statt mehrere Parameter gleichzeitig stark zu ändern." :
-      language === "it" ? "Se l'agente trova ogni tanto l'obiettivo ma non è stabile, riduci ε gradualmente invece di cambiare molti parametri insieme." :
-      language === "fr" ? "Si l'agent atteint parfois l'objectif sans stabilité, réduis ε progressivement au lieu de modifier beaucoup de paramètres d'un coup." :
-      language === "es" ? "Si el agente llega a la meta a veces pero no de forma estable, baja ε poco a poco en lugar de cambiar muchos parámetros a la vez." :
-      "If the agent sometimes reaches the goal but stays inconsistent, reduce ε gradually instead of changing many parameters at once.",
+    language === "de" ? "Wenn Nova die Uhr findet, erhöhe β vorsichtig und prüfe die Kürzeste-Wege-Wahrscheinlichkeit am Ende der Episode." :
+      "Once Nova finds the watch, increase β cautiously and check the shortest-path probability at the end of the episode.",
     language === "de" ? "Bei Tür-Leveln lohnt es sich, den Schlüsselpfad erst attraktiv zu machen und erst danach die Ziellinie zu optimieren." :
       language === "it" ? "Nei livelli con porte conviene prima rendere attraente il percorso verso la chiave e solo dopo ottimizzare la corsa finale." :
       language === "fr" ? "Sur les niveaux avec portes, rends d'abord le chemin vers la clé attractif avant d'optimiser l'arrivée finale." :
@@ -2471,7 +2310,7 @@ const StaticGrid = React.memo(function StaticGrid({
         "wall",
         "empty",
         "goal",
-        "lava",
+        "trap",
         "start",
         makeKeyCell("blue"),
         makeKeyCell("red"),
@@ -2480,7 +2319,7 @@ const StaticGrid = React.memo(function StaticGrid({
         makeClosedDoorCell("red"),
         makeClosedDoorCell("green"),
       ]
-    : ["wall", "empty", "goal", "lava", "start"];
+    : ["wall", "empty", "goal", "trap", "start"];
   const availablePresets = supportsDoorMechanics ? ["open", "corridor", "two-rooms", "maze"] : ["open", "corridor"];
 
   const continueFreePlay = () => {
@@ -2490,17 +2329,9 @@ const StaticGrid = React.memo(function StaticGrid({
     setFreePlayUnlocked(false);
     setGameWon(false);
     gameWonRef.current = false;
-    const resetGrid = cloneGrid(baseGridRef.current);
-    setGrid(resetGrid);
-    gridRef.current = resetGrid;
-    setCollectedKeys([]);
-    collectedKeysRef.current = [];
-    setCurrentEpReturn(0);
-    currentEpReturnRef.current = 0;
-    setAgent(startPosRef.current);
-    agentRef.current = startPosRef.current;
-    psRef.current.gvals.fill(0);
-    setRunning(true);
+    beginNextEpisode();
+    publishSimulationSnapshot();
+    setRunning(playbackMode !== "click");
   };
 
   const goToNextLevel = () => {
@@ -2515,7 +2346,17 @@ const StaticGrid = React.memo(function StaticGrid({
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-purple-900 overflow-x-hidden">
+    <div className="adventure-shell academy-lab">
+      <header className="adventure-header academy-lab-header">
+        <button className="academy-brand" onClick={onHome} aria-label={storyText.returnModes}>
+          <span><Search /></span><div><strong>{storyText.brand}</strong><small>{storyText.subtitle}</small></div>
+        </button>
+        <span className="academy-lab-header-label">{storyText.title}</span>
+        <div className="adventure-header-actions">
+          <button className="header-home" onClick={onHome}><Home /><span>{storyText.modes}</span></button>
+          <LanguageToggle language={language as AppLanguage} onChange={setLanguage} className="adventure-language-toggle" />
+        </div>
+      </header>
     {/* Instructions Modal */}
     {showInstructions && (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -2537,7 +2378,7 @@ const StaticGrid = React.memo(function StaticGrid({
             </div>
             <div>
               <h4 className="font-semibold mb-2">{text.winCondition}:</h4>
-              <p>{miscText.winConditionBody} {currentLevelConfig?.winThreshold}{miscText.winConditionTail}</p>
+<p>{storyText.successExplanation} ≥ 75%.</p>
             </div>
             {currentLevelConfig?.lockedParams && Object.keys(currentLevelConfig?.lockedParams || {}).length > 0 && (
               <div>
@@ -2559,9 +2400,7 @@ const StaticGrid = React.memo(function StaticGrid({
                     <li key={item}>{item}</li>
                   ) : (
                     <li key={item.label}>
-                      <strong>{item.label}</strong> {item.label.startsWith("Achieve the win condition")
-                        ? `Get 5 consecutive episodes with returns > ${currentLevelConfig?.winThreshold}`
-                        : item.body}
+<strong>{item.label}</strong> {item.body}
                     </li>
                   )
                 ))}
@@ -2585,47 +2424,7 @@ const StaticGrid = React.memo(function StaticGrid({
             </button>
           </CardHeader>
           <CardContent className="space-y-4 text-slate-700 text-sm p-6">
-            {isEnglish ? (
-              <>
-                <div>
-                  <h3 className="font-bold mb-2">Reinforcement Learning (RL)</h3>
-                  <p>
-                    A machine learning paradigm where an agent learns by interacting with an environment, receiving rewards for actions, and learning to maximize cumulative reward over time.
-                    It is used in many fields, ranging from robotics to game playing, and is inspired by how animals learn from their environment.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-bold mb-2">Projective Simulation (PS)</h3>
-                  <p>
-                    A learning algorithm that models decision-making as a random walk on a graph.
-                    The memory of the agent is represented as a network of memories, called "clips", that represent experiences the agent had in its environment.
-                    These clips are connected in a network, and the more an agent reexperiences a particular transition between clips and gets a positive reward for it,
-                    the stronger the connection between these events becomes. To decide which action to take, the agent revisits memories randomly, where a memory is more
-                    likely to be revisited if it has a strong connection to the clip the agent is currently in. This allows the agent to learn which sequences of actions lead to rewards and to make decisions based on past experiences.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-bold mb-2">Environment</h3>
-                  <p>
-                    We propose to train a PS agent in a simple grid environment, where the agent has to learn to navigate to a goal efficiently while avoiding hazards. The environment consists of a grid with different types of cells, each providing different rewards or penalties.
-                  </p>
-                  <ul className="space-y-2 ml-4">
-                    <li><strong>Agent (🤠):</strong> The learner that navigates the environment</li>
-                    <li><strong>Goal (🏁):</strong> The target location where the agent receives positive reward</li>
-                    <li><strong>Lava (💀):</strong> A penalty zone that the agent learns to avoid</li>
-                    <li><strong>Walls:</strong> Obstacles the agent cannot pass through</li>
-                    <li><strong>Reward:</strong> Feedback signal that guides learning</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-bold mb-2">Policy Visualization</h3>
-                  <p>
-                    The middle panel (Memory Inspector) shows the learned policy as arrows. Brighter arrows represent actions the agent is more likely to take, learned through experience with rewards.
-                  </p>
-                </div>
-              </>
-            ) : (
-              text.generalSections.map((section: { title: string; body: string; items?: Array<string | { label: string; body?: string }> }) => (
+            {text.generalSections.map((section: { title: string; body: string; items?: Array<string | { label: string; body?: string }> }) => (
                 <div key={section.title}>
                   <h3 className="font-bold mb-2">{section.title}</h3>
                   <p>{section.body}</p>
@@ -2643,8 +2442,7 @@ const StaticGrid = React.memo(function StaticGrid({
                     </ul>
                   )}
                 </div>
-              ))
-            )}
+              ))}
           </CardContent>
         </Card>
       </div>
@@ -2684,8 +2482,8 @@ const StaticGrid = React.memo(function StaticGrid({
                 <div>
                   <h3 className="font-bold mb-2">Memory Parameters</h3>
                   <ul className="space-y-2 ml-4">
-                    <li><strong>Memory damping (γ):</strong> How quickly the agent forgets past experiences.</li>
-                    <li><strong>Reward coupling (λ):</strong> How strongly rewards reinforce connections between memories.</li>
+                    <li><strong>Forgetting (γ):</strong> How quickly the agent forgets past experiences.</li>
+                    <li><strong>Reward sensitivity (λ):</strong> How strongly rewards reinforce connections between memories.</li>
                     <li><strong>Glow decay (η):</strong> How fast the memory of recent transition fades. It enables the agent to learn in environments with sparse rewards.</li>
                   </ul>
                 </div>
@@ -2808,52 +2606,41 @@ const StaticGrid = React.memo(function StaticGrid({
       </div>
     )}
     
-    <Card className="border-slate-100 p-1 m-1" style={{ background: "rgb(146, 226, 219)" }}>
-    <CardHeader className="relative flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
-      <img src={qrCode} alt="QR code" className="absolute top-0 left-1 w-18 h-18 rounded border border-slate-200 shadow-sm" />
-      <div className="text-center sm:text-left pl-16 sm:pl-20">
-        <CardTitle className="text-2xl sm:text-3xl items-center flex justify-center gap-2 text-slate-700"><Bot className="w-8 h-8 sm:w-10 sm:h-10"/> {text.appTitle}</CardTitle>
-        <p className="text-lg sm:text-xl text-slate-500 mt-1"> {text.appSubtitle}</p>
-    {gameWon && currentLevel < LEVELS.length && (
-      <div className="mt-2 p-3 bg-green-100 border border-green-300 rounded-lg text-center">
-        <h2 className="text-xl sm:text-2xl font-bold text-green-800">
-          {isEnglish ? `🎉 Level ${currentLevel} Complete! 🎉` : `🎉 ${text.level} ${currentLevel} ${text.levelComplete}! 🎉`}
-        </h2>
-        <p className="text-green-700">{text.advancingTo} {text.level} {currentLevel + 1}: {getLevelText(LEVELS.find(l => l.id === currentLevel + 1), language).name}</p>
-        <Button className="mt-3" size="sm" onClick={goToNextLevel}>
-          {text.nextLevelButton}
-        </Button>
-      </div>
-    )}
-    {gameWon && currentLevel === LEVELS.length && (
-      <div className="mt-2 p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-center">
-        <h2 className="text-xl sm:text-2xl font-bold text-yellow-800">🏆 {text.congratulations}! 🏆</h2>
-        <p className="text-yellow-700">{isEnglish ? "You've completed all levels! You are now an RL Master!" : text.rlMaster}</p>
-        {freePlayUnlocked && (
-          <Button className="mt-3" size="sm" onClick={continueFreePlay}>
-            {text.continueFreePlay}
-          </Button>
+    <div className="academy-lab-content">
+      <section className="lesson-intro lesson-intro-row academy-lab-intro">
+        <div>
+          <p>{storyText.summary}</p>
+        </div>
+        <div className="nova-face-medal" aria-label={storyText.novaPortrait}><img src={NovaFace} alt="Nova" /></div>
+      </section>
+    <Card className="academy-lab-toolbar">
+    <CardHeader className="academy-lab-toolbar-inner">
+      <div className="academy-lab-toolbar-status">
+        <strong>{storyText.case} {currentLevel} · {currentLevelText.name}</strong>
+    {gameWon && (
+      <div className="academy-case-result">
+        <span title={currentLevel === LEVELS.length ? text.rlMaster : text.levelComplete}><Trophy /> {currentLevel === LEVELS.length ? text.congratulations : text.levelComplete}</span>
+        {currentLevel < LEVELS.length ? (
+          <Button size="sm" onClick={goToNextLevel} title={getLevelText(LEVELS.find(l => l.id === currentLevel + 1), language).name}>{text.nextLevelButton}</Button>
+        ) : freePlayUnlocked && (
+          <Button size="sm" onClick={continueFreePlay}>{text.continueFreePlay}</Button>
         )}
       </div>
     )}
-    {freePlayMode && (
-      <div className="mt-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-center">
-        <p className="text-blue-700">{text.freePlayActive}</p>
-      </div>
-    )}
+    {freePlayMode && <span className="academy-free-play" title={text.freePlayActive}>{text.freePlayMenu}</span>}
     </div>
-    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 w-full sm:w-auto">
-    <LanguageToggle language={language as AppLanguage} onChange={setLanguage} className="lab-language-toggle" />
+    <div className="academy-lab-controls">
     <button onClick={() => setShowInfo(true)} title={miscText.infoButtonTitle} className="text-slate-500 hover:text-slate-700 transition-colors">
       <Info className="w-5 h-5 sm:w-6 sm:h-6" />
     </button>
     <Button
           variant={running ? "secondary" : "default"}
           size="sm"
-          onClick={() => setRunning(r => !r)}
-          className="text-slate-500 hover:text-slate-700 transition-colors"
+          onClick={() => playbackMode === "click" ? takeManualStep() : setRunning(r => !r)}
+          disabled={gameWon || (playbackMode === "click" && episodeHolding)}
+          className={running ? "button-secondary" : "button-primary"}
         >
-          {running ? (
+          {playbackMode === "click" ? <><Footprints className="w-4 h-4 mr-1" />{episodeEnd ? storyText.nextStep : storyText.step}</> : running ? (
             <>
               <Pause className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> {text.pause}
             </>
@@ -2868,7 +2655,7 @@ const StaticGrid = React.memo(function StaticGrid({
         variant="outline"
         size="sm"
         onClick={() => loadLevel(currentLevel)}
-        className="text-slate-500 hover:text-slate-700 transition-colors"
+        className="button-secondary"
       >
         <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> {text.resetLevel}
     </Button>
@@ -2879,7 +2666,7 @@ const StaticGrid = React.memo(function StaticGrid({
           setCurrentLevel(1);
           loadLevel(1);
         }}
-        className="text-slate-500 hover:text-slate-700 transition-colors"
+        className="button-secondary"
       >
         <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> {text.resetGame}
     </Button>
@@ -2887,14 +2674,12 @@ const StaticGrid = React.memo(function StaticGrid({
     </CardHeader>
     </Card>
 
-      <div className="w-full max-w-[1800px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 px-2 sm:px-3">
-         <Card className="shadow-xl rounded-2xl col-span-1 min-w-0 m-1 sm:m-2 p-2 order-1 lg:order-1" style={{ background: "#f5f5f5ff"}}>
-          <CardHeader className="flex items-center justify-center pb-2">
-            <CardTitle className="text-2xl text-slate-700 flex items-center justify-between gap-2"><Sprout className="w-10 h-10"/> {text.buildEnvironment}</CardTitle>
-          </CardHeader>
+      <div className="academy-lab-panels">
+         <Card className="lesson-panel environment-panel academy-lab-panel">
+          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{storyText.trainingRoom}</strong><small>{storyText.environmentHint}</small></div><div className="card-counter"><strong>{episode}</strong><small>{storyText.trajectories}</small></div></div>
           <CardContent className="space-y-3">
               <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
-                <Label className="text-sm !text-slate-700">{text.level}:</Label>
+                <Label className="text-sm !text-slate-700">{storyText.case}:</Label>
 	                <Select 
 	                  value={freePlayMode ? "free-play" : currentLevel.toString()} 
 	                  onValueChange={(value) => {
@@ -2946,9 +2731,11 @@ const StaticGrid = React.memo(function StaticGrid({
                 <Label className="text-sm !text-slate-700">{text.keyStatus}:</Label>
                 <span className="text-sm text-slate-700 break-words">{keyStatus}</span>
               </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-2 sm:gap-4">
-              <div className="overflow-x-auto lg:overflow-auto">
-                <div className="relative select-none inline-block" style={{ width: canvasW, height: canvasH }}>
+              <fieldset className="lab-playback-modes"><legend>{storyText.playback}</legend><div>{(["click", "slow", "fast", "immediate"] as PlaybackMode[]).map((mode) => <button type="button" key={mode} aria-pressed={playbackMode === mode} title={storyText.playbackHints[mode]} onClick={() => selectPlaybackMode(mode)}>{storyText.playbackModes[mode]}</button>)}</div></fieldset>
+              {episodeEnd && <div className={`lab-episode-ending ${episodeEnd}`} role="status"><strong>{storyText.episodeFinished}</strong><span>{storyText.episodeOutcomes[episodeEnd]}</span></div>}
+            <div className="academy-environment-body">
+              <div ref={roomRef} className="academy-grid-scroll">
+                <div className="academy-training-grid" style={{ width: canvasW, height: canvasH }}>
                 {/* Static grid layer */}
                 <StaticGrid
                   grid={grid}
@@ -2957,30 +2744,30 @@ const StaticGrid = React.memo(function StaticGrid({
                   cellSize={cellSize}
                   // cellBG={cellBG}
                   onCellClick={onCellClick}
+                  cellLabel={getCellLabel}
                 />
 
                 {/* Agent overlay */}
                 <motion.div
                   layoutId="agent"
-                  className="absolute w-10 h-10 flex items-center justify-center text-3xl"
+                  className="academy-lab-agent"
+                  aria-label={storyText.agentLabel}
                   initial={false}
                   animate={{
                     left: agent.x * cellSize + (cellSize - 40) / 2,
                     top: agent.y * cellSize + (cellSize - 40) / 2,
                     scale: 1,
                   }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  transition={{ type: "tween", duration: playbackMode === "immediate" ? 0 : playbackMode === "fast" ? 0.055 : 0.25 }}
                 >
-                  🤠
+                  <span className={`student-token ${running ? "student-active" : ""}`}><Search /></span>
                 </motion.div>
                   </div>
               </div>
 
-              <div className="flex flex-col rounded-2xl m-2 p-0 items-stretch justify-start">
+              <details className="academy-room-controls academy-parameter-settings">
                 {/* <Card className="rounded-xl"> */}
-                  <CardHeader>
-                    <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">{text.addChallenges}</CardTitle>
-                  </CardHeader>
+                  <summary>{storyText.roomEditor}</summary>
                   {/* <CardContent className="space-y-1"> */}
 
                     <div className="grid w-full grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-end gap-2">
@@ -3045,10 +2832,9 @@ const StaticGrid = React.memo(function StaticGrid({
                     </div> */}
 
                   <div className="flex-row items-center justify-between space-y-4 w-full">
-                    <SliderWithVal label={text.stepsPerSecond} min={1} max={40} step={1} value={speed} onChange={setSpeed} help={text.envSliderHelp.speed}/>
-                    <SliderWithVal label={text.stepCost} min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} help={text.envSliderHelp.stepCost} disabled={!currentLevelConfig?.adjustableParams.includes('stepCost')}/>
-                    <SliderWithVal label={text.goalReward} min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} help={text.envSliderHelp.goalReward} disabled={!currentLevelConfig?.adjustableParams.includes('goalReward')}/>
-                    <SliderWithVal label={text.lavaPenalty} min={-10} max={-0.1} step={0.1} value={lavaPenalty} onChange={setLavaPenalty} help={text.envSliderHelp.lavaPenalty} disabled={!currentLevelConfig?.adjustableParams.includes('lavaPenalty')}/>
+                    <SliderWithVal locale={language} label={text.stepCost} min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} help={text.envSliderHelp.stepCost} disabled={!currentLevelConfig?.adjustableParams.includes('stepCost')}/>
+                    <SliderWithVal locale={language} label={text.goalReward} min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} help={text.envSliderHelp.goalReward} disabled={!currentLevelConfig?.adjustableParams.includes('goalReward')}/>
+                    <SliderWithVal locale={language} label={text.trapPenalty} min={-10} max={-0.1} step={0.1} value={trapPenalty} onChange={setTrapPenalty} help={text.envSliderHelp.trapPenalty} disabled={!currentLevelConfig?.adjustableParams.includes('trapPenalty')}/>
                   </div>
                   {/* </CardContent> */}
                 {/* </Card> */}
@@ -3058,60 +2844,53 @@ const StaticGrid = React.memo(function StaticGrid({
                     <CardTitle className="text-lg">PS Parameters</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <SliderWithVal label="Memory damping (γ)" min={0.01} max={1} step={0.01} value={psGamma} onChange={setPsGamma}/>
-                    <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
+                    <SliderWithVal label="Forgetting (γ)" min={0.01} max={1} step={0.01} value={psGamma} onChange={setPsGamma}/>
+                    <SliderWithVal label="Reward sensitivity (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda}/>
                     <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.01} value={psGlowEta} onChange={setPsGlowEta}/>
-                    <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon}/>
-                    <SliderWithVal label="Softmax temperature (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau}/>
+                    <SliderWithVal label="Softmax temperature (β)" min={0.05} max={5} step={0.05} value={greediness} onChange={setGreediness}/>
                     <div className="text-sm text-neutral-600">Episode: {episode} · Current G: {fmt(currentEpReturn)}</div>
                     <div className="text-xs text-neutral-500">Total return: {fmt(totalReturnRef.current)}</div>
                   </CardContent>
                 </Card> */}
 
                 {/* <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} /> */}
-              </div>
+              </details>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-xl rounded-2xl xl:col-span-1 min-w-0 m-1 sm:m-2 p-2 order-2 lg:order-2 overflow-x-hidden" style={{ background: "#f5f5f5ff"}}>
-          <CardHeader className="pb-2 min-w-0">
-            <CardTitle className="text-xl sm:text-2xl text-slate-700 flex items-center justify-center gap-2"><Brain className="w-8 h-8 sm:w-10 sm:h-10"/> {text.memoryTitle}</CardTitle>
-            <div className="mt-1 flex w-full min-w-0 justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowPsInfo(true)}
-                className="h-auto w-full max-w-full whitespace-normal break-words px-2 text-center leading-snug text-indigo-900 underline underline-offset-4 hover:text-indigo-950 sm:w-auto sm:max-w-[18rem] lg:max-w-full"
-              >
-                {text.learnMorePS}
-              </Button>
-            </div>
-          </CardHeader>
+        <Card className="lesson-panel memory-panel-wide academy-lab-panel">
+          <div className="panel-heading"><span><Brain /></span><div><strong>{storyText.memoryTitle}</strong><small>{storyText.memoryHint}</small></div><button className="memory-info-button" onClick={() => setShowPsInfo(true)} title={text.learnMorePS} aria-label={text.learnMorePS}><Info /></button></div>
           <CardContent className="min-w-0 overflow-x-hidden">
-            <div className="space-y-4">
-              <div className="w-full max-w-[21rem] min-w-0"><SliderWithVal label={miscText.gridSizeLabel} min={24} max={72} step={2} value={inspectorSize} onChange={setInspectorSize} help={miscText.gridSizeHelp}/></div>
-              <PSInspectorErrorBoundary text={miscText}>
-                <PSInspector key={psVersion} grid={grid} ps={psRef.current} cellSize={inspectorSize} text={miscText} />
-              </PSInspectorErrorBoundary>
+            <MemoryTabs value={memoryView} onChange={setMemoryView} text={storyText} />
+            <div className="lab-memory-workspace">
+              <LabDecisionReadout decision={lastDecision} agent={agent} gridW={gridW} text={storyText} />
+              <div data-memory-revision={psVersion}>
+                <PSInspectorErrorBoundary text={miscText}>
+                  <PSInspector grid={grid} ps={displayMemory} text={storyText} view={memoryView} agent={agent} greediness={greediness} />
+                </PSInspectorErrorBoundary>
+              </div>
             </div>
+            <details className="view-explanation"><summary>{storyText.memoryRepresentation}</summary><p>{memoryView === "glow" ? storyText.glowExplanation : memoryView === "h" ? storyText.hExplanation : storyText.policyExplanation}</p></details>
           </CardContent>
           {/* <Card className="rounded-xl"> */}
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-center justify-center text-lg font-bold text-blue-800">{text.tuneAgent}</CardTitle>
-                  </CardHeader>
+                  <details className="academy-parameter-settings">
+                    <summary>{storyText.tuneMemory}</summary>
                   <CardContent className="space-y-3">
+                    <SliderWithVal locale={language} label={text.paramLabels.psGlowEta} min={0} max={0.3} scale="log" value={psGlowEta} onChange={setPsGlowEta} help={text.paramHelp.psGlowEta} disabled={!currentLevelConfig?.adjustableParams.includes('psGlowEta')} />
                     <SliderWithVal
                         label={text.paramLabels.psGamma}
+                        locale={language}
                         min={0}
-                        max={0.2}
-                        step={0.001}
+                        max={0.3}
+                        scale="log"
                         value={psGamma}
                         onChange={setPsGamma}
                         help={text.paramHelp.psGamma}
                       />
                     <SliderWithVal
                         label={text.paramLabels.psLambda}
+                        locale={language}
                         min={0}
                         max={10}
                         step={0.5}
@@ -3119,45 +2898,30 @@ const StaticGrid = React.memo(function StaticGrid({
                         onChange={setPsLambda}
                         help={text.paramHelp.psLambda}
                       />
-                    <SliderWithVal 
-                        label={text.paramLabels.psGlowEta} 
-                        min={0} 
-                        max={1} 
-                        step={0.001} 
-                        value={psGlowEta} 
-                        onChange={setPsGlowEta} 
-                        help={text.paramHelp.psGlowEta}
-                        disabled={!currentLevelConfig?.adjustableParams.includes('psGlowEta')}/>
+                    <SliderWithVal locale={language} label={storyText.temperatureLabel} min={0} max={5} step={0.05} value={greediness} onChange={setGreediness} help={storyText.temperatureHelp} disabled={!currentLevelConfig?.adjustableParams.includes('greediness')} />
 
-                    <SliderWithVal
-                        label={text.paramLabels.epsilon} 
-                        min={0} 
-                        max={1} 
-                        step={0.01} 
-                        value={epsilon} 
-                        onChange={setEpsilon} 
-                        help={text.paramHelp.epsilon}
-                        disabled={!currentLevelConfig?.adjustableParams.includes('epsilon')}/>
-
-                    {/* <SliderWithVal label="Memory damping (γ)" min={0} max={0.2} step={0.001} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/> */}
-                    {/* <SliderWithVal label="Reward coupling (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/> */}
+                    {/* <SliderWithVal label="Forgetting (γ)" min={0} max={0.2} step={0.001} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/> */}
+                    {/* <SliderWithVal label="Reward sensitivity (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/> */}
                     {/* <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.001} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/> */}
-                    {/* <SliderWithVal label="Exploration (ε)" min={0} max={1} step={0.01} value={epsilon} onChange={setEpsilon} help="Probability of taking a random action instead of using learned policy. Higher values = more exploration and randomness." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('epsilon')}/> */}
-                    {/* <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={tau} onChange={setTau} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('tau')}/> */}
+                    {/* <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={greediness} onChange={setGreediness} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('greediness')}/> */}
                   </CardContent>
+                  </details>
                 {/* </Card> */}
         </Card>
-        <Card className="xl:col-span-1 shadow-xl rounded-2xl min-w-0 m-1 sm:m-2 p-2 flex flex-col order-3 lg:order-3" style={{ background: "#f5f5f5ff"  }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl sm:text-2xl text-slate-700 flex items-center justify-center gap-2"><Trophy className="w-8 h-8 sm:w-10 sm:h-10"/>  {text.rewardsTitle}</CardTitle>
-          </CardHeader>   
+        <Card className="lesson-panel forgetting-panel practice-progress academy-lab-panel">
+          <div className="panel-heading"><span><Trophy /></span><div><strong>{storyText.progressTitle}</strong><small>{storyText.progressHint}</small></div></div>
           <CardContent className="space-y-2">
+            <div className="academy-success-criterion">
+              <strong>{storyText.successCriterion} <HelpTooltipButton help={storyText.successExplanation} title={storyText.successExplanation} /></strong>
+              <span>{pathAssessment ? pathAssessment.minimumSteps === null ? storyText.noRoute : `${(pathAssessment.probability * 100).toFixed(1)}% · ${pathAssessment.minimumSteps} ${storyText.minimumSteps}` : storyText.awaitEpisode}</span>
+            </div>
               <p className="text-sm text-neutral-600">{text.stats.episode}: {episode} · {text.stats.currentReturn}: {fmt(currentEpReturn)} · {text.stats.totalReturn}: {fmt(totalReturnRef.current)}</p>
             <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} text={text} miscText={miscText} />
+            <details className="academy-tip practice-coach"><summary><Lightbulb /> {storyText.coachObservation}</summary><p>{storyText.observation}</p></details>
           </CardContent>
         </Card>
       </div>
-      <div className="flex justify-center pb-6 pt-2">
+      <div className="academy-lab-footer">
         <Button
           variant={isStruggling ? "default" : "outline"}
           onClick={() => setShowTips(true)}
@@ -3166,6 +2930,8 @@ const StaticGrid = React.memo(function StaticGrid({
           <Lightbulb className="w-4 h-4" />
           {isStruggling ? text.strugglingTitle : text.tipsButton}
         </Button>
+        <div className="academy-share"><img src={qrCode} alt="QR code" /><span>{storyText.share}</span></div>
+      </div>
       </div>
     </div>
   );
@@ -3218,7 +2984,7 @@ function cellBG(c: CellType){
   switch (c){
     case "wall": return "#cbd5e1";
     case "goal": return "#a7f3d0";
-    case "lava": return "#fecaca";
+    case "trap": return "#fecaca";
     case "start": return "#fde68a";
     default: return "#ffffff";
   }

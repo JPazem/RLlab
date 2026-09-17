@@ -307,13 +307,17 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
 .memory-grid { display: grid; width: min(100%, 410px); aspect-ratio: 1; margin: 0 auto; grid-template-columns: repeat(5, 1fr); overflow: hidden; border: 5px solid white; border-radius: 13px; background: white; box-shadow: 0 0 0 1px #d5dfda; }
 .memory-cell { position: relative; aspect-ratio: 1; border: 1px solid #e4e9e6; background: #f8faf9; transition: background .2s, box-shadow .2s; }
 .memory-cell.memory-focus { z-index: 1; background: #fff7df; box-shadow: inset 0 0 0 2px var(--gold); }
-.memory-arrow { position: absolute; display: flex; flex-direction: column; align-items: center; color: #286b57; font-size: clamp(10px, 1.2vw, 15px); font-weight: 900; line-height: .7; }
-.memory-arrow-glyph { -webkit-text-stroke: var(--arrow-stroke, 0) currentColor; }
-.memory-arrow small { margin-top: 3px; font-size: clamp(5px, .62vw, 8px); font-weight: 700; }
-.memory-arrow-0 { top: 3px; left: 50%; transform: translateX(-50%); }
-.memory-arrow-1 { top: 50%; right: 3px; transform: translateY(-50%); }
-.memory-arrow-2 { bottom: 3px; left: 50%; transform: translateX(-50%); }
-.memory-arrow-3 { top: 50%; left: 3px; transform: translateY(-50%); }
+.memory-arrow { position: absolute; inset: 0; color: #286b57; font-weight: 900; pointer-events: none; }
+.memory-arrow-glyph { position: absolute; font-size: var(--memory-arrow-size, 26px); line-height: 1; opacity: var(--arrow-opacity, 1); -webkit-text-stroke: var(--arrow-stroke, 0) currentColor; }
+.memory-arrow small { position: absolute; margin: 0; color: var(--memory-value-color, currentColor); font-size: var(--memory-value-size, 16px); font-weight: 600; line-height: 1.2; white-space: nowrap; transform: translate(-50%, -50%); -webkit-text-stroke: 0; }
+.memory-arrow-0 .memory-arrow-glyph { top: 4px; left: 50%; transform: translateX(-50%); }
+.memory-arrow-1 .memory-arrow-glyph { right: 4px; top: 50%; transform: translateY(-50%); }
+.memory-arrow-2 .memory-arrow-glyph { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.memory-arrow-3 .memory-arrow-glyph { left: 4px; top: 50%; transform: translateY(-50%); }
+.memory-arrow-0 small { left: 21%; top: 25%; }
+.memory-arrow-1 small { left: 79%; top: 25%; }
+.memory-arrow-2 small { left: 79%; top: 75%; }
+.memory-arrow-3 small { left: 21%; top: 75%; }
 .memory-agent-marker { position: absolute; top: 50%; left: 50%; z-index: 4; width: 36%; aspect-ratio: 1; border: 2px solid white; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 5px rgba(22,48,39,.3); transform: translate(-50%, -50%); }
 .memory-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 14px; padding: 4px; border-radius: 11px; background: #e9f0ec; }
 .memory-tabs button { padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-ink); font-size: 12px; font-weight: 700; }
@@ -358,9 +362,9 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
 .academy-tip svg { flex: 0 0 21px; }
 .finish-hint { color: var(--muted-ink); font-size: 12px; }
 
-.quiz-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 22px; background: rgba(20,40,34,.66); backdrop-filter: blur(8px); animation: fade-in .2s; }
+.quiz-backdrop { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; padding: 88px 22px 70px; background: rgba(20,40,34,.66); backdrop-filter: blur(8px); animation: fade-in .2s; }
 @keyframes fade-in { from { opacity: 0; } }
-.quiz-card { width: min(620px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 34px; border: 1px solid rgba(255,255,255,.5); border-radius: 25px; background: var(--paper); box-shadow: 0 30px 80px rgba(9,32,24,.3); }
+.quiz-card { width: min(620px, 100%); max-height: calc(100vh - 158px); overflow: auto; padding: 34px; border: 1px solid rgba(255,255,255,.5); border-radius: 25px; background: var(--paper); box-shadow: 0 30px 80px rgba(9,32,24,.3); }
 .quiz-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .quiz-badge svg { width: 19px; }
 .quiz-card h2 { margin: 13px 0 22px; font-family: inherit; font-size: clamp(25px, 4vw, 35px); line-height: 1.2; }
@@ -431,7 +435,8 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
   box-shadow: inset 0 0 0 calc(var(--cell-glow, 0) * 3px) rgba(var(--glow-rgb, 29, 165, 111), calc(var(--cell-glow, 0) * .85));
 }
 .memory-cell.memory-updated { background: #fff2bd; box-shadow: inset 0 0 0 2px #da9d22; }
-.memory-arrow.updated-edge { z-index: 2; padding: 2px; border-radius: 4px; background: #f5bd45; color: #3d2a06; opacity: 1 !important; }
+.memory-arrow.updated-edge { z-index: 2; color: #3d2a06; }
+.memory-arrow.updated-edge .memory-arrow-glyph { border-radius: 4px; background: #f5bd45; opacity: 1; }
 
 /* Three-panel final lesson */
 .practice-layout { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
@@ -522,11 +527,13 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
   .mode-options, .story-page, .learning-layout, .practice-layout { grid-template-columns: 1fr; }
   .mode-card { min-height: 280px; }
   .adventure-header { grid-template-columns: 1fr auto; padding: 10px 18px; }
-  .adventure-progress { position: fixed; right: 0; bottom: 0; left: 0; z-index: 35; justify-content: space-around; padding: 7px; border-top: 1px solid #d9e4df; background: rgba(255,253,248,.96); }
+  .adventure-header-actions { grid-column: 2; grid-row: 1; }
+  .adventure-progress { position: static; grid-column: 1 / -1; grid-row: 2; justify-content: space-around; margin-top: 8px; padding: 7px; border-top: 1px solid #d9e4df; background: rgba(255,253,248,.96); }
   .adventure-progress button { flex-direction: column; gap: 1px; padding: 4px 12px; font-size: 10px; }
   .adventure-progress button::after { display: none; }
   .adventure-progress button.current::before { inset: 0 auto auto 50%; width: 26px; height: 26px; transform: translateX(-50%); }
-  .adventure-content { padding-bottom: 110px; }
+  .adventure-content { padding-bottom: 35px; }
+  .quiz-backdrop { padding-top: 140px; padding-bottom: 18px; }
   .story-page { gap: 34px; }
   .character-slot { min-height: 390px; }
   .character-art.nova-standing-art { height: 360px; }
@@ -657,7 +664,8 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
 .memory-cell.memory-focus { background: #ffef9c; box-shadow: inset 0 0 0 3px #d28b00; }
 .memory-arrow { color: #173f82; font-weight: 950; }
 .memory-cell.memory-updated { background: #ffd873; box-shadow: inset 0 0 0 3px #b96e00; }
-.memory-arrow.updated-edge { background: #ff9f1a; color: #271700; box-shadow: 0 0 0 1px #7c4500; }
+.memory-arrow.updated-edge { color: #271700; }
+.memory-arrow.updated-edge .memory-arrow-glyph { background: #ffcc69; box-shadow: 0 0 0 1px #7c4500; }
 .memory-tabs { background: #cfdcf1; }
 .memory-tabs button { color: #29496f; }
 .memory-tabs button.active { background: #255aa5; color: #fff; box-shadow: 0 3px 0 #123d7a; }
@@ -675,4 +683,358 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
 
 @media (max-width: 900px) {
   .adventure-progress { border-top: 3px solid #f4bd36; background: rgba(5,67,47,.98); }
+}
+
+/* The research lab extends the same Academy visual language as the guided lessons. */
+.academy-lab-content { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 24px 0 40px; }
+.academy-lab-header-label { color: #d3eee3; text-align: center; font-size: 13px; font-weight: 700; }
+.academy-lab-intro { align-items: center; gap: 24px; margin-bottom: 20px; }
+.academy-lab-intro > div:first-child { min-width: 0; max-width: none; }
+.academy-lab-intro h1 { font-size: clamp(28px, 3.2vw, 42px); }
+.academy-lab-intro p { margin: 10px 0 0; font-size: 15px; line-height: 1.6; }
+.academy-lab-intro .nova-face-medal { flex: 0 0 130px; width: 130px; height: 130px; place-items: center; grid-template-rows: minmax(0, 1fr); }
+.academy-lab-intro .nova-face-medal img { min-height: 0; object-fit: contain; }
+.academy-lab-toolbar[data-slot="card"] { gap: 0; padding: 14px 18px; margin-bottom: 20px; border: 2px solid #bd7600; border-radius: 16px; background: #ffe28a; color: #3e2a00; box-shadow: 0 4px 0 rgba(132,79,0,.15); }
+.academy-lab-toolbar-inner[data-slot="card-header"] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 0; }
+.academy-lab-toolbar-status { min-width: 0; flex: 1 1 220px; font-size: 14px; }
+.academy-lab-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.academy-lab-controls .button-primary, .academy-lab-controls .button-secondary { min-height: 38px; padding: 8px 12px; font-size: 12px; }
+.academy-lab-panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 18px; }
+.academy-lab-panel[data-slot="card"] { min-width: 0; gap: 14px; padding: 18px; border-radius: 22px; background: #fff; }
+.academy-lab-panel > .panel-heading { margin-bottom: 0; min-height: 48px; }
+.academy-lab-panel > [data-slot="card-content"], .academy-parameter-settings > [data-slot="card-content"] { padding: 0; }
+.academy-lab-panel .panel-heading > span { flex-basis: 36px; width: 36px; height: 36px; }
+.academy-lab-panel .panel-heading strong { font-size: 17px; }
+.academy-lab-panel .panel-heading small { font-size: 11px; }
+.academy-grid-scroll { width: 100%; min-width: 0; overflow: auto; padding: 12px 5px 14px; }
+.academy-training-grid { position: relative; flex-shrink: 0; margin: 4px auto; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 5px white, 0 0 0 8px #145d47, 0 8px 16px rgba(19,67,52,.15); }
+.academy-lab-cell { cursor: crosshair; touch-action: none; }
+.academy-lab-cell:focus-visible { z-index: 5; outline: 3px solid #255aa5; outline-offset: -3px; }
+.academy-lab-cell .cell-object { font-size: 24px; }
+.academy-start-marker { position: absolute; bottom: 3px; left: 3px; width: 15px; height: 15px; color: #765900; }
+.academy-lab-agent { position: absolute; z-index: 3; display: grid; width: 40px; height: 40px; place-items: center; pointer-events: none; }
+.academy-lab-agent .student-token { position: static; width: 80%; height: 80%; }
+.fixed-memory-grid { max-width: none; flex-shrink: 0; }
+.memory-cell.memory-wall { background: repeating-linear-gradient(135deg, #344e44, #344e44 5px, #405c50 5px, #405c50 10px); border-color: #2a4237; }
+.adventure-room-grid, .memory-room-grid { border-color: transparent; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+.adventure-room-grid > .adventure-cell { border: 2px solid #4d927b; }
+.adventure-room-grid .cell-object { font-size: clamp(14px, 1.8vw, 25px); }
+.memory-room-grid > .memory-cell { border-color: #9fb7dc; }
+.adventure-room-gap, .memory-room-gap { aspect-ratio: 1; pointer-events: none; }
+.percept-actions-card { margin-top: 12px; padding: 12px; border: 1px solid #a3c8b7; border-radius: 12px; background: #eef7f1; color: #284b3d; font-size: 11px; line-height: 1.45; }
+.percept-actions-card > strong { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.percept-actions-card > strong svg { width: 15px; height: 15px; }
+.percept-contents { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 12px; margin-top: 7px; }
+.percept-contents > span { display: inline-flex; align-items: center; gap: 4px; }
+.percept-contents i { width: 15px; height: 15px; border: 1px solid #799c8b; border-radius: 4px; }
+.percept-object { font-size: 19px; line-height: 1; }
+.percept-actions-card p { margin: 5px 0 8px; }
+.percept-action-list { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0; padding: 0; list-style: none; }
+.percept-action-list li { display: flex; align-items: center; gap: 4px; padding: 4px 7px; border: 1px solid #c0d5c9; border-radius: 7px; background: white; font-weight: 700; }
+.percept-action-list li > span { font-size: 19px; line-height: 1; -webkit-text-stroke: .7px currentColor; }
+.percept-actions-card .percept-route-note { margin-bottom: 0; padding-top: 7px; border-top: 1px solid #cadfd2; }
+.academy-room-controls { padding-top: 10px; border-top: 1px solid #dce5e0; }
+.academy-room-controls > [data-slot="card-header"] { padding: 0; margin-bottom: 12px; }
+.academy-controls-title { color: #075c3c; font-size: 15px; }
+.academy-room-note { margin: 0 0 12px; color: var(--muted-ink); font-size: 11px; line-height: 1.5; }
+.academy-parameter-settings { margin-top: 2px; padding-top: 14px; border-top: 1px solid #dce5e0; }
+.academy-parameter-settings > summary { margin-bottom: 14px; color: #173f78; font-size: 15px; font-weight: 800; cursor: pointer; }
+.academy-reward-charts[data-slot="card"] { gap: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.academy-reward-charts > [data-slot="card-content"] { padding: 0; }
+.academy-reward-charts .academy-chart { height: 160px; }
+.academy-lab .practice-progress .academy-tip { display: flex; margin-top: 16px; }
+.academy-lab .practice-progress .panel-heading > span { background: #e2d5f5; color: #68429d; box-shadow: inset 0 0 0 1px #a184c8; }
+.academy-lab-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #bdcec4; }
+.academy-share { display: flex; align-items: center; gap: 9px; color: var(--muted-ink); font-size: 12px; }
+.academy-share img { width: 55px; height: 55px; border: 1px solid #bdcec4; border-radius: 8px; }
+@media (max-width: 1050px) {
+  .academy-lab-panels { grid-template-columns: 1fr; }
+  .academy-lab-content { max-width: 720px; }
+  .academy-lab-header-label { display: none; }
+  .academy-lab-header { grid-template-columns: 1fr auto; }
+  .academy-lab-intro { flex-direction: row; }
+}
+@media (max-width: 600px) {
+  .academy-lab-content { width: calc(100% - 24px); padding-top: 20px; }
+  .academy-lab-panel[data-slot="card"] { padding: 15px; }
+  .academy-lab-intro { gap: 12px; align-items: flex-start; }
+  .academy-lab-intro .nova-face-medal { flex-basis: 68px; width: 68px; height: 65px; }
+  .academy-lab-intro h1 { font-size: 28px; }
+  .academy-lab-intro p { font-size: 13px; }
+  .academy-lab-toolbar[data-slot="card"] { padding: 13px; }
+}
+
+/* Readable, fixed-size memory cells: arrows at the edges, values in quadrants. */
+.memory-grid-scroll { min-width: 0; max-width: 100%; width: 100%; overflow: auto; padding: 12px 8px 18px; }
+.memory-grid { position: relative; box-sizing: border-box; }
+.memory-cell { z-index: 1; min-width: 0; overflow: hidden; }
+.memory-chain-links { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.memory-chain-links line { stroke: #557eae; stroke-width: 4; stroke-linecap: round; }
+.memory-percept-marker { position: absolute; left: 50%; top: 50%; display: grid; width: 32%; height: 32%; place-items: center; font-size: 28px; line-height: 1; transform: translate(-50%, -50%); }
+.memory-agent-marker { width: 28%; }
+.adventure-room-grid > .adventure-start-cell { border: 4px solid #b16e00; box-shadow: inset 0 0 0 2px #ffe08b; }
+.percept-header { display: flex; align-items: center; gap: 8px; }
+.percept-header > strong { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.percept-header > strong svg { width: 17px; height: 17px; }
+.percept-header .percept-contents { flex-wrap: nowrap; gap: 7px; margin: 0; }
+.percept-header .percept-contents > span { white-space: nowrap; }
+.initial-memory-association { min-width: 0; }
+.percept-policy-association { display: flex; justify-content: center; align-items: center; gap: 12px; }
+.starting-percept-node { display: flex; flex: 0 0 88px; flex-direction: column; align-items: center; gap: 8px; }
+.starting-percept-node strong { font-size: 14px; text-align: center; }
+.starting-percept-color { width: 72px; height: 72px; border: 2px solid #658c7e; border-radius: 8px; }
+.starting-percept-object { font-size: 38px; line-height: 1; }
+.percept-policy-link { flex: 0 0 22px; width: 22px; color: #3565b3; }
+.percept-policy-association > .memory-grid-scroll { flex: 0 1 174px; padding-inline: 8px; }
+.initial-memory-note, .memory-chain-explanation { color: var(--muted-ink); font-size: 16px; line-height: 1.6; }
+.memory-discovery-count { margin: 12px 0 4px; color: #255aa5; font-size: 16px; font-weight: 700; }
+
+/* Readable Adventure explanations; the compact workspace overrides follow below. */
+.adventure-content { width: min(1400px, calc(100% - 40px)); height: auto; overflow: visible; padding: 24px 0 45px; }
+.adventure-content .lesson-page { height: auto; }
+.adventure-content .lesson-summary { max-width: 1120px; margin: 8px 0 24px; font-size: 18px; line-height: 1.65; }
+.adventure-content .panel-heading small { font-size: 15px; line-height: 1.5; }
+.adventure-content .instruction-strip, .adventure-content .interaction-bar { font-size: 16px; line-height: 1.5; }
+.adventure-content .interaction-bar > span strong { font-size: 13px; }
+.adventure-content .view-explanation { font-size: 16px; line-height: 1.6; padding: 12px; }
+.adventure-content .memory-setting-label { font-size: 14px; }
+.adventure-content .loop-key { font-size: 14px; }
+.adventure-content .percept-actions-card { font-size: 15px; line-height: 1.5; padding: 12px; }
+.adventure-content .percept-actions-card > strong { font-size: 15px; }
+.adventure-content .percept-actions-card .percept-header { font-size: 14px; }
+.adventure-content .percept-action-list { gap: 7px; }
+.adventure-content .loop-layout { grid-template-columns: minmax(0, .7fr) 50px minmax(0, 1.3fr); }
+.adventure-content .memory-and-probability { grid-template-columns: minmax(0, 1fr) minmax(245px, 1fr); }
+.adventure-content .learning-layout, .adventure-content .practice-layout { grid-template-columns: minmax(0, .62fr) minmax(0, 1.38fr); gap: 20px; align-items: start; }
+.adventure-content .lesson-panel { min-width: 0; }
+.adventure-content .adventure-grid { width: min(100%, 410px); }
+.adventure-content .practice-progress { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.adventure-content .practice-progress > .comparison-title, .adventure-content .practice-progress > p, .adventure-content .practice-progress > .model-trajectory-counters, .adventure-content .practice-progress > .academy-tip { grid-column: 1 / -1; }
+.adventure-content .practice-progress > p, .adventure-content .practice-progress .memory-meter small { font-size: 15px; line-height: 1.5; }
+.adventure-content .practice-progress .academy-tip { display: flex; font-size: 15px; line-height: 1.5; }
+.adventure-content .comparison-card > p, .adventure-content .decay-row small { font-size: 15px; line-height: 1.5; }
+.adventure-content .probability-heading strong, .adventure-content .sample-histogram-heading strong { font-size: 16px; }
+.adventure-content .probability-heading small, .adventure-content .sample-histogram-heading span { font-size: 14px; }
+.adventure-content .probability-bar, .adventure-content .sample-histogram-row { grid-template-columns: 76px minmax(0, 1fr) 40px; font-size: 14px; }
+.adventure-content .bead-view p, .adventure-content .success-note { font-size: 16px; line-height: 1.6; }
+.adventure-content .action-legend span { font-size: 13px; }
+.adventure-content .memory-locked p { font-size: 17px; line-height: 1.6; }
+.adventure-content .reward-readout > span { font-size: 13px; }
+.adventure-content .reward-readout > strong { font-size: 16px; }
+.adventure-content .practice-progress .memory-meter b { font-size: 16px; }
+.academy-lab-panels { grid-template-columns: minmax(0, .8fr) minmax(0, 1.35fr) minmax(0, .85fr); }
+@media (max-width: 1100px) {
+  .adventure-content .memory-and-probability { grid-template-columns: 1fr; }
+}
+@media (max-width: 1050px) {
+  .academy-lab-panels { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .adventure-content .loop-layout, .adventure-content .learning-layout, .adventure-content .practice-layout { grid-template-columns: 1fr; }
+  .adventure-content .practice-progress { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .adventure-content { width: calc(100% - 24px); }
+  .adventure-content .percept-header { gap: 6px; font-size: 13px; }
+  .adventure-content .loop-key { font-size: 12px; }
+.percept-policy-association { gap: 8px; }
+}
+
+/* Compact academy workspace: the room, memory and results stay side by side. */
+.adventure-header { grid-template-columns: max-content minmax(0, 1fr) auto; min-height: 64px; padding-block: 8px; gap: 16px; }
+.academy-brand strong, .academy-brand small { white-space: nowrap; }
+.academy-brand > span { flex-shrink: 0; }
+.adventure-progress button { padding-inline: 12px 18px; }
+.adventure-content, .academy-lab-content { padding-top: 12px; }
+.compact-lesson-intro { display: flex; flex-direction: row; align-items: flex-start; gap: 20px; margin: 0 0 14px; }
+.compact-lesson-intro > div:first-child { min-width: 0; max-width: 1100px; }
+.compact-lesson-intro .story-eyebrow { display: flex; margin: 0 0 3px; font-size: 12px; line-height: 1.2; }
+.compact-lesson-intro .story-eyebrow svg { width: 18px; height: 18px; }
+.compact-lesson-intro h1 { margin: 0; font-size: clamp(26px, 2.5vw, 32px); line-height: 1.12; }
+.adventure-content .compact-lesson-intro .lesson-summary { margin: 6px 0 0; font-size: 16px; line-height: 1.35; }
+.lesson-portrait { flex-shrink: 0; }
+.lesson-portrait .nova-face-medal { width: 100%; height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.lesson-portrait img { min-height: 0; object-fit: contain; }
+.starting-percept-color { display: grid; width: 104px; height: 104px; place-items: center; }
+.starting-percept-node { flex-basis: 112px; gap: 12px; }
+.starting-behavior-node { flex: 0 1 174px; min-width: 0; text-align: center; }
+.starting-behavior-node > strong { font-size: 14px; }
+.percept-policy-association { padding-block: 24px 18px; align-items: center; }
+.initial-memory-note { margin: 12px 0 24px; }
+.memory-percept-marker { font-size: var(--memory-percept-size, 28px); }
+.compact-memory { padding: 6px; }
+.adventure-content .practice-layout { grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr) minmax(0, .8fr); gap: 14px; }
+.adventure-content .practice-progress { grid-column: auto; display: block; padding: 16px; }
+.adventure-content .practice-layout .panel-heading small { font-size: 13px; line-height: 1.35; }
+.adventure-content .practice-layout .interaction-bar { font-size: 14px; line-height: 1.35; }
+.adventure-content .practice-layout .view-explanation { font-size: 14px; line-height: 1.4; padding: 8px; }
+.adventure-content .practice-progress > p, .adventure-content .practice-progress .memory-meter small { font-size: 13px; line-height: 1.4; }
+.adventure-content .practice-progress .memory-meter b { font-size: 13px; }
+.adventure-content .practice-progress .memory-meter { margin-block: 8px; padding: 8px; }
+.adventure-content .practice-progress .academy-tip { font-size: 13px; line-height: 1.4; padding: 10px; }
+.adventure-content .practice-layout .memory-setting-label { font-size: 12px; }
+.adventure-content .learning-layout .memory-chain-explanation { margin-block: 6px; font-size: 14px; line-height: 1.4; }
+.adventure-content .learning-layout .panel-heading small { font-size: 14px; line-height: 1.35; }
+.memory-discovery-count { margin: 6px 0 2px; font-size: 14px; }
+.academy-lab-header-label { color: white; font-size: clamp(22px, 2.3vw, 32px); line-height: 1.15; }
+.academy-lab-intro { margin-bottom: 10px; gap: 14px; }
+.academy-lab-intro .story-eyebrow { margin: 0; font-size: 12px; }
+.academy-lab-intro p { margin-top: 4px; font-size: 14px; line-height: 1.35; }
+.academy-lab-intro .nova-face-medal { flex-basis: 40px; width: 40px; height: 40px; }
+.academy-lab-toolbar[data-slot="card"] { margin-bottom: 12px; padding: 6px 12px; border-radius: 12px; }
+.academy-lab-panels { grid-template-columns: minmax(0, .75fr) minmax(0, 1.5fr) minmax(0, .75fr); gap: 12px; }
+.academy-lab-panel[data-slot="card"] { padding: 10px; gap: 4px; border-radius: 16px; }
+.academy-lab-panel .academy-grid-scroll { padding: 8px 0; }
+.academy-lab-panel .academy-parameter-settings { padding-top: 8px; }
+.academy-parameter-settings > summary { margin-bottom: 8px; font-size: 14px; }
+.academy-parameter-settings:not([open]) > summary { margin-bottom: 0; }
+.academy-room-controls[open] > summary { margin-bottom: 12px; }
+.academy-lab .academy-reward-charts .academy-chart { height: clamp(100px, 12vh, 120px); }
+.academy-lab .academy-reward-charts h3 { font-size: 12px; }
+.academy-lab .academy-reward-charts .mb-3 { margin-bottom: 3px; }
+.academy-lab .academy-reward-charts .sm\:space-y-4 > :not(:last-child) { margin-block-end: 8px; }
+.academy-lab .practice-progress .academy-tip { margin-top: 8px; padding: 8px; font-size: 12px; line-height: 1.35; }
+.academy-success-criterion { padding: 8px; border: 1px solid #9ac8b2; border-radius: 8px; background: #edf7f1; font-size: 12px; line-height: 1.35; }
+.academy-success-criterion p { margin: 4px 0; }
+.academy-success-criterion span { display: block; color: #145c42; font-weight: 700; }
+.academy-lab-footer { margin-top: 12px; padding-top: 10px; }
+.memory-functions { margin-block: 6px; color: var(--muted-ink); font-size: 14px; line-height: 1.4; }
+.memory-functions summary { cursor: pointer; color: #255aa5; font-weight: 700; }
+.adventure-content .practice-layout .card-counter small { font-size: 9px; line-height: 1.2; }
+.adventure-content .practice-layout .reward-readout > span { font-size: 10px; white-space: nowrap; }
+.adventure-content .practice-layout .reward-readout > strong { gap: 4px; font-size: 13px; }
+.adventure-content .practice-layout .reward-readout b { min-width: 40px; }
+.adventure-content .practice-layout > .lesson-panel, .adventure-content .practice-layout > .forgetting-panel { padding: 12px; }
+.adventure-content .practice-layout .panel-heading strong { font-size: 15px; line-height: 1.2; }
+.adventure-content .practice-layout .panel-heading small { font-size: 12px; line-height: 1.3; }
+.adventure-content .practice-layout .card-counter small { font-size: 9px; }
+.adventure-content .practice-layout .memory-tabs { padding: 3px; margin-bottom: 6px; }
+.adventure-content .practice-layout .memory-tabs button { padding: 6px; line-height: 1.2; }
+.adventure-content .practice-layout .practice-view-help { padding: 6px 8px; font-size: 13px; line-height: 1.3; }
+.practice-view-help summary, .practice-coach summary { cursor: pointer; font-weight: 700; }
+.adventure-content .practice-progress .practice-coach { display: block; padding: 8px; }
+.practice-coach summary { display: flex; gap: 8px; align-items: center; }
+.practice-coach p { margin: 8px 0 0; }
+.adventure-content .practice-progress .memory-meter { margin-block: 6px; }
+.adventure-content .practice-progress .memory-meter strong { font-size: 14px; line-height: 1.3; }
+.adventure-content .practice-progress .model-trajectory-counters { margin-top: 10px; }
+.memory-info-button { display: grid; flex-shrink: 0; width: 28px; height: 28px; margin-left: auto; padding: 4px; border: 0; background: transparent; color: #255aa5; }
+.memory-info-button svg { width: 20px; height: 20px; }
+.academy-lab-panel > .panel-heading { min-height: 36px; }
+.academy-lab-panel .memory-tabs { padding: 3px; margin-bottom: 6px; }
+.academy-lab-panel .memory-tabs button { padding: 6px; line-height: 1.2; }
+.academy-lab-panel .view-explanation { margin-top: 6px; padding: 6px; font-size: 13px; line-height: 1.3; }
+.academy-lab-panel .view-explanation summary { cursor: pointer; font-weight: 700; }
+.academy-lab-panel .view-explanation p { margin: 6px 0 0; }
+.academy-lab .practice-progress .practice-coach { display: block; }
+.academy-lab .academy-reward-charts [data-slot="card-content"] > div { margin-bottom: 6px; }
+.academy-instant-reward summary { cursor: pointer; }
+.academy-instant-reward:not([open]) summary { margin-bottom: 0; }
+.academy-instant-reward summary::before { content: "▸"; color: #255aa5; }
+.academy-instant-reward[open] summary::before { content: "▾"; }
+.adventure-content .learning-layout .memory-tabs { padding: 3px; margin-bottom: 6px; }
+.adventure-content .learning-layout .memory-tabs button { padding: 6px; line-height: 1.2; }
+.academy-lab-intro { min-height: 40px; }
+.academy-lab-controls > button:first-child { display: grid; width: 32px; height: 32px; padding: 4px; place-items: center; border: 0; background: transparent; }
+.academy-lab-panel .panel-heading strong { font-size: 16px; line-height: 1.2; }
+.academy-lab-panel .panel-heading small { line-height: 1.3; }
+.memory-arrow small { font-family: Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: -.2px; line-height: 1.1; transform: none; }
+.memory-arrow-glyph { width: var(--memory-arrow-size); height: var(--memory-arrow-size); overflow: visible; -webkit-text-stroke: 0; }
+.memory-arrow-0 small { left: auto; right: 52%; top: 17%; }
+.memory-arrow-1 small { left: auto; right: 3%; top: 17%; }
+.memory-arrow-2 small { left: 52%; top: auto; bottom: 17%; }
+.memory-arrow-3 small { left: 3%; top: auto; bottom: 17%; }
+.compact-memory .memory-arrow-0 small { right: 55%; top: 14%; }
+.compact-memory .memory-arrow-1 small { top: 14%; }
+.compact-memory .memory-arrow-2 small { left: 55%; bottom: 14%; }
+.compact-memory .memory-arrow-3 small { bottom: 14%; }
+.compact-memory .memory-percept-marker { width: 26%; height: 26%; }
+.compact-memory .memory-agent-marker { width: 32%; }
+.adventure-content .glow-learning-layout { grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr) minmax(0, .8fr); gap: 14px; }
+.glow-learning-layout > * { min-width: 0; }
+.adventure-content .glow-learning-layout > .lesson-panel { padding: 12px; }
+.adventure-content .glow-learning-layout .panel-heading strong { font-size: 15px; line-height: 1.2; }
+.adventure-content .glow-learning-layout .panel-heading small { font-size: 12px; line-height: 1.3; }
+.glow-learning-layout .step-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-top: 0; }
+.glow-learning-layout .step-controls > span { grid-column: 1 / -1; }
+.adventure-content .glow-learning-layout .interaction-bar { font-size: 14px; line-height: 1.35; }
+.adventure-content .glow-learning-layout .memory-chain-explanation { font-size: 13px; line-height: 1.35; }
+.adventure-content .glow-learning-layout .view-explanation { padding: 6px 8px; font-size: 13px; line-height: 1.35; }
+.glow-view-help summary { cursor: pointer; font-weight: 700; }
+.glow-view-help p { margin: 6px 0 0; }
+.adventure-content .glow-comparison-panel { margin-top: 0; padding: 14px; }
+.glow-comparison-panel .comparison-title { line-height: 1.3; font-size: 16px; }
+.glow-comparison-panel .comparison-title svg { flex-shrink: 0; }
+.glow-comparison-panel .decay-row { grid-template-columns: 1fr; padding: 10px; gap: 9px; }
+.glow-comparison-panel .decay-row > span:first-child { gap: 4px; font-size: 15px; }
+.glow-comparison-panel .decay-row small { font-size: 13px; line-height: 1.4; }
+.adventure-content .glow-comparison-panel > p { font-size: 14px; line-height: 1.45; }
+.memory-heading-with-help { position: relative; flex-wrap: wrap; }
+.memory-explanation { position: relative; margin-left: auto; align-self: flex-start; }
+.memory-explanation > button { display: flex; align-items: center; gap: 4px; padding: 3px 0; border: 0; background: transparent; color: #255aa5; font-size: 12px; font-weight: 600; cursor: pointer; }
+.memory-explanation > button svg { flex-shrink: 0; }
+.memory-explanation-popover { display: none; position: absolute; z-index: 20; right: 0; top: 100%; width: min(360px, calc(100vw - 48px)); padding: 12px 14px; border: 1px solid #ccdcd2; border-radius: 12px; background: #fff; color: #294738; box-shadow: 0 8px 24px #17382b26; font-size: 14px; line-height: 1.5; }
+.memory-explanation:hover .memory-explanation-popover, .memory-explanation:focus-within .memory-explanation-popover, .memory-explanation.is-open .memory-explanation-popover { display: block; }
+.memory-explanation-popover ul { margin: 0; padding-left: 18px; list-style: disc; }
+.memory-explanation-popover li + li { margin-top: 8px; }
+.parameter-slider-marks { position: relative; height: 26px; margin: 3px 8px 0; color: #475569; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+.parameter-slider-marks span { position: absolute; padding-top: 7px; white-space: nowrap; transform: translateX(-50%); }
+.parameter-slider-marks span::before { content: ""; position: absolute; top: 0; left: 50%; height: 5px; border-left: 1px solid #64748b; }
+.parameter-slider-marks span:first-child { transform: none; }
+.parameter-slider-marks span:last-child { transform: translateX(-100%); }
+.log-slider-marks { font-size: 10px; }
+.lab-playback-modes { min-width: 0; margin: 0; padding: 0; border: 0; }
+.lab-playback-modes legend { margin-bottom: 4px; color: #33554a; font-size: 12px; font-weight: 700; }
+.lab-playback-modes > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 9px; background: #e6eeeb; }
+.lab-playback-modes button { padding: 6px 2px; border: 0; border-radius: 7px; background: transparent; color: #284c40; font-size: 11px; font-weight: 700; }
+.lab-playback-modes button[aria-pressed="true"] { background: #3565b3; color: white; }
+.lab-memory-workspace { display: grid; grid-template-columns: 78px minmax(0, 1fr); align-items: start; gap: 8px; }
+.lab-memory-workspace > div { min-width: 0; }
+.lab-decision-readout { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 3px; border-radius: 10px; background: #eef5f1; color: #284c40; text-align: center; }
+.lab-decision-readout > strong { font-size: 12px; line-height: 1.3; }
+.lab-decision-readout > strong:not(:first-child) { margin-top: 10px; }
+.lab-percept-preview { display: grid; width: 50px; height: 50px; place-items: center; border: 2px solid #7aa08e; border-radius: 7px; font-size: 27px; }
+.lab-percept-position { font: 600 13px Arial, Helvetica, sans-serif; }
+.lab-current-action { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 13px; font-weight: 700; }
+.lab-current-action svg { width: 32px; height: 32px; }
+.lab-decision-readout small { font-size: 11px; line-height: 1.3; }
+.lab-episode-ending { display: flex; flex-wrap: wrap; gap: 3px 7px; padding: 5px 7px; border-radius: 8px; background: #e0f1e8; color: #285140; font-size: 12px; }
+.lab-episode-ending.trap, .lab-episode-ending.limit { background: #fff0dc; color: #775027; }
+.welcome-share { display: flex; align-items: center; gap: 16px; width: fit-content; max-width: 100%; margin-top: 22px; padding: 12px 16px; border: 1px solid #d7e4dc; border-radius: 16px; background: #ffffffb8; text-align: left; }
+.welcome-share img { flex-shrink: 0; width: 108px; height: 108px; object-fit: contain; }
+.welcome-share strong { font-size: 16px; }
+.welcome-share p { margin: 5px 0 10px; font-size: 14px; line-height: 1.4; }
+.mode-hero > .welcome-share { margin-inline: auto; }
+.academy-lab-toolbar-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.academy-case-result { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.academy-case-result > span { display: flex; align-items: center; gap: 4px; color: #145c42; font-size: 12px; font-weight: 700; }
+.academy-case-result svg { width: 16px; height: 16px; }
+.academy-case-result button { height: 32px; min-height: 32px; padding: 4px 8px; border: 1px solid #145c42; border-radius: 8px; background: #e5f4ea; color: #145c42; font-size: 12px; }
+.academy-free-play { padding: 4px 8px; border-radius: 8px; background: #dfebff; color: #254f91; font-size: 12px; font-weight: 700; }
+@media (min-width: 1051px) {
+  .adventure-header { height: 64px; }
+  .adventure-progress { height: 40px; }
+  .adventure-progress button { height: 40px; padding-block: 6px; }
+  .academy-brand, .header-home { padding: 0; }
+}
+
+@media (max-width: 1050px) {
+  .adventure-header { grid-template-columns: 1fr auto; }
+  .adventure-content .practice-layout, .adventure-content .glow-learning-layout, .academy-lab-panels { grid-template-columns: 1fr; }
+  .academy-lab-header-label { display: block; grid-row: 2; grid-column: 1 / -1; text-align: left; font-size: 26px; }
+  .academy-lab .academy-reward-charts .academy-chart { height: 130px; }
+}
+@media (max-width: 600px) {
+  .adventure-header { padding-inline: 12px; gap: 8px; }
+  .academy-brand strong { font-size: 13px; }
+  .academy-brand small { display: block; font-size: 8px; }
+  .academy-brand { gap: 6px; }
+  .academy-brand > span { width: 30px; height: 30px; }
+  .compact-lesson-intro { gap: 10px; }
+  .lesson-portrait { max-width: 65px; max-height: 100px; }
+  .adventure-content .compact-lesson-intro .lesson-summary { font-size: 15px; }
+  .starting-percept-node { flex-basis: 88px; }
+  .starting-percept-color { width: 80px; height: 80px; }
+  .academy-lab-intro .nova-face-medal { flex-basis: 52px; width: 52px; height: 60px; }
+  .academy-lab-toolbar[data-slot="card"] { padding: 8px; }
 }
