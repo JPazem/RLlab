@@ -17,7 +17,7 @@ import { LAB_STORY_TEXT } from "./academyLabText";
 import { CELL_OBJECTS, perceptColor } from "./academyGraphics";
 import { labPolicy } from "./labPolicy";
 import { shortestPathProbability, type PathAssessment } from "./shortestPathProbability";
-import NovaFace from "./assets/Nova_Face.png";
+import NovaFace from "./assets/Nova_Portrait.png";
 import { LOG_PARAMETER_MARKS, LOG_SLIDER_MAX, parameterToSlider, sliderToParameter } from "./logParameterScale";
 import { PSLayer } from "./psMemory";
 
@@ -66,7 +66,7 @@ type LevelConfig = {
 
 // The final case has no locked memory parameters: its unchanged baseline is
 // shared by the initial lab session (later edits are retained between cases).
-const FINAL_LAB_PARAMETERS = { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, greediness: 1, stepCost: -0.05, goalReward: 1, trapPenalty: -1 };
+const FINAL_LAB_PARAMETERS = { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, greediness: 1, stepCost: -0.05, goalReward: 10, trapPenalty: -1 };
 type PlaybackMode = "click" | "slow" | "fast" | "immediate";
 type EpisodeEnd = "goal" | "trap" | "limit";
 type LabDecision = { percept: { x: number; y: number }; action: number };
@@ -91,7 +91,7 @@ const LEVELS: LevelConfig[] = [
     preset: "open",
     gridW: 4,
     gridH: 4,
-    lockedParams: {stepCost: -0.05, goalReward: 1},
+    lockedParams: {stepCost: -0.05, goalReward: 10},
     adjustableParams: ["psLambda", "psGamma", "psGlowEta", "greediness"],
     instructions: "Now you need to tune the memory parameters! Try different combinations to help the agent learn faster."
   },
@@ -102,7 +102,7 @@ const LEVELS: LevelConfig[] = [
     preset: "corridor",
     gridW: 7,
     gridH: 5,
-    lockedParams: {stepCost: -0.05, goalReward:1, trapPenalty:-1},
+    lockedParams: {stepCost: -0.05, goalReward:10, trapPenalty:-1},
     adjustableParams: ["psGamma", "psLambda", "psGlowEta", "greediness", "stepCost", "goalReward", "trapPenalty"],
     instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Focus on adjusting the available parameters to help the agent find the optimal path."
   },
@@ -113,7 +113,7 @@ const LEVELS: LevelConfig[] = [
     preset: "two-rooms",
     gridW: 7,
     gridH: 5,
-    lockedParams: {stepCost: -0.05, goalReward:1, trapPenalty:-1 },
+    lockedParams: {stepCost: -0.05, goalReward:10, trapPenalty:-1 },
     adjustableParams: ["greediness", "psGamma", "psGlowEta", "psLambda"],
     instructions: "Even more challenging! The agent must navigate between two rooms connected by a locked door. First, collect the key (🔑) in the left room to unlock the door (🚪). Reaching the goal without the key gives only 1/3 of the full reward. Adjust the available parameters to help the agent learn this key-door mechanic."
   },
@@ -258,10 +258,10 @@ const UI_TEXT: Record<Locale, any> = {
       },
       {
         title: "Environment",
-        body: "You are Nova’s coach at the Detective Academy. Build a training room where she learns to recover a lost watch while avoiding hazards. Nova’s percept is her grid position: colored objects decorate the room but do not change the input to her policy.",
+        body: "You are Nova’s coach at the Detective Academy. Build a training room where she learns to recover a lost watch while avoiding hazards. The watch reward starts at 10 points. Nova’s percept is her grid position: colored objects decorate the room but do not change the input to her policy.",
         items: [
           { label: "Nova:", body: "The detective student who learns by exploring" },
-          { label: "Lost watch (⌚):", body: "The goal where Nova receives a positive reward" },
+          { label: "Lost watch (⌚):", body: "The goal where Nova receives a reward, initially 10" },
           { label: "Trap (💀):", body: "A penalty zone that the agent learns to avoid" },
           { label: "Walls:", body: "Obstacles the agent cannot pass through" },
           { label: "Reward:", body: "Feedback signal that guides learning" }
@@ -2676,7 +2676,7 @@ const StaticGrid = React.memo(function StaticGrid({
 
       <div className="academy-lab-panels">
          <Card className="lesson-panel environment-panel academy-lab-panel">
-          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{storyText.trainingRoom}</strong><small>{storyText.environmentHint}</small></div><div className="card-counter"><strong>{episode}</strong><small>{storyText.trajectories}</small></div></div>
+          <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{storyText.trainingRoom}</strong><small>{storyText.environmentHint.replace("{reward}", String(goalReward))}</small></div><div className="card-counter"><strong>{episode}</strong><small>{storyText.trajectories}</small></div></div>
           <CardContent className="space-y-3">
               <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
                 <Label className="text-sm !text-slate-700">{storyText.case}:</Label>
@@ -2760,7 +2760,7 @@ const StaticGrid = React.memo(function StaticGrid({
                   }}
                   transition={{ type: "tween", duration: playbackMode === "immediate" ? 0 : playbackMode === "fast" ? 0.055 : 0.25 }}
                 >
-                  <span className={`student-token ${running ? "student-active" : ""}`}><Search /></span>
+                  <span className={`student-token ${running ? "student-active" : ""}`}><img src={NovaFace} alt={storyText.novaPortrait} /></span>
                 </motion.div>
                   </div>
               </div>

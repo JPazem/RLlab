@@ -1,5 +1,5 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-import NovaFace from "./assets/Nova_Face.png";
+import NovaFace from "./assets/Nova_Portrait.png";
 
 export type MemoryView = "glow" | "h" | "policy";
 export type MemoryCell = { h: number[]; glow: number[]; probabilities?: number[]; blocked?: boolean; known?: boolean; percept?: { color: string; object: string } };
