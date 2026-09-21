@@ -10,7 +10,6 @@ import {
   Compass,
   Eye,
   Footprints,
-  GraduationCap,
   Home,
   Info,
   Lightbulb,
@@ -21,15 +20,18 @@ import {
   Sparkles,
   Trophy,
 } from "lucide-react";
+import Nova_portrait from "./assets/Nova_Portrait.png";
 import Nova_standing from "./assets/Nova_Standing_noBackground.png";
-import Nova_face from "./assets/Nova_Face.png";
+import Coach_standing from "./assets/Coach_Standing.png";
+import Coach_portrait from "./assets/Coach_Face.png";
 import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
 import WelcomeShare from "./WelcomeShare";
 import { updateGlowValue } from "./glow";
 import { MemoryGrid, MemoryTabs, type Memory, type MemoryView } from "./AcademyMemory";
-import { GUIDE_ACTIONS, ROOM_CELLS, ROOM_HEIGHT, ROOM_WIDTH, START, WATCH, initialRoomWeights, isRoomCell, move, roomPercept, type Point, type Action } from "./adventureRoom";
-const FINAL_REWARD = 5;
-const PRACTICE_GLOW_RETENTION = 0.9;
+import { GUIDE_ACTIONS, ROOM_CELLS, ROOM_HEIGHT, ROOM_WIDTH, START, WATCH, WATCH_ROUTE, initialRoomWeights, isRoomCell, move, roomPercept, type Point, type Action } from "./adventureRoom";
+const FINAL_REWARD = 10;
+const PRACTICE_GLOW_DECAY = 0.08;
+const PRACTICE_SLOW_FORGETTING = 0.005;
 const ACTIONS: Action[] = ["up", "right", "down", "left"];
 const ARROWS = ["↑", "→", "↓", "←"];
 const ACTION_COLORS = ["#256d55", "#376bb5", "#d2764e", "#7357a6"];
@@ -80,6 +82,7 @@ const ADVENTURE_TEXT = {
     exactly: "Exactly!",
     notQuite: "Not quite yet.",
     previousLesson: "Previous lesson",
+    reviewLesson: "Review this lesson",
     nextLesson: "Next lesson",
     openLabMode: "Open Lab mode",
     quizzes: [
@@ -106,18 +109,25 @@ const ADVENTURE_TEXT = {
       },
     ],
     newCase: "A new case has arrived",
-    welcomeTitle: "Welcome to the Detective Academy, Coach!",
+    welcomeTitle: "Welcome to the Detective Academy!",
     welcomeLead: "You are in charge of a new student of the Detective Academy, Nova. Guide her in the acquisition of her first detective skill: recovering lost objects.",
     yourTask: "Your task:",
     taskDescription: "Train Nova and give her her first detective lesson!",
     welcomeStory: "Today’s mystery is a lost watch hidden in a place Nova has never seen. You won’t tell Nova where to find it. Instead, you’ll help her discover it through trial and error, and reward her every time she finds the watch.",
     meetNova: "Meet Nova",
-    skipStory: "Skip the story",
+    coachName: "Academy coach",
+    briefingMaze: "The training maze",
+    briefingStart: "Nova starts here",
+    briefingObjects: "Look at the objects",
+    briefingGoal: "Find the lost watch",
+    briefingEncouragement: "You are Nova's new detective teacher! Guide her through her first practice case and help her learn to recover the lost watch.",
+    novaEncouragement: "Let's go!",
+    compareSettings: "Try both settings. What changes for Nova?",
     lesson1Eyebrow: "Lesson 1 · See and Act",
     lesson1Title: "The percept–action loop",
     lesson1Summary: "This is a mess! Help Nova find the watch in this chaos. Nova can see the color and contents of each cell, and decide where to move next. Everything Nova sees is called a percept. Based on the current percept, Nova chooses an action. After she moves, she has access to the next percept: its color and object.",
     trainingRoom: "Training room",
-    environmentDescription: "The environment: what Nova can see and affect.",
+    environmentDescription: "Explore the maze. Finding the watch gives Nova +10 reward.",
     lookFirst: "Look first:",
     lookInstruction: "find Nova and the watch.",
     studentBottomLeft: "Student at bottom-left",
@@ -142,7 +152,7 @@ const ADVENTURE_TEXT = {
     lesson2Eyebrow: "Lesson 2 · Follow the trace",
     lesson2Title: "How does a move change the memory?",
     lesson2Summary: "Follow a guided trip with Nova, one step at a time. Each move reveals the next percept and extends her memory. Recent choices leave a temporary glow that fades with time. When the watch is recovered, reward strengthens the associations along that glowing trail.",
-    followNova: "Follow Nova in her environment.",
+    followNova: "Follow Nova. The watch gives +10 reward.",
     steps: "steps",
     watchRecovered: "The watch is recovered.",
     advanceDecision: "Advance Nova by one decision.",
@@ -166,7 +176,7 @@ const ADVENTURE_TEXT = {
     lesson3Eyebrow: "Lesson 3 · Consolidate with repetitions",
     lesson3Title: "Practice makes perfect!",
     lesson3Summary: "Run multiple trajectories and see how forgetting affects Nova’s memory. Select either setting below to inspect its matching decisions, position, and three memory attributes.",
-    observeTrajectories: "Observe trajectories Nova can take.",
+    observeTrajectories: "Watch Nova explore. Recovering the watch gives +10 reward.",
     trajectories: "trajectories",
     slowForgetting: "Slow forgetting",
     fastForgetting: "Fast forgetting",
@@ -250,6 +260,7 @@ const ADVENTURE_TEXT = {
     exactly: "Genau!",
     notQuite: "Noch nicht ganz.",
     previousLesson: "Vorherige Lektion",
+    reviewLesson: "Diese Lektion ansehen",
     nextLesson: "Nächste Lektion",
     openLabMode: "Labormodus öffnen",
     quizzes: [
@@ -282,12 +293,19 @@ const ADVENTURE_TEXT = {
     taskDescription: "Trainiere Nova und erteile ihr die erste Detektivlektion!",
     welcomeStory: "Im heutigen Fall geht es um eine verlorene Uhr, die an einem für Nova unbekannten Ort versteckt ist. Du verrätst ihr nicht, wo sie liegt. Stattdessen hilfst du ihr, die Uhr durch Versuch und Irrtum zu entdecken, und belohnst sie jedes Mal, wenn sie sie findet.",
     meetNova: "Nova kennenlernen",
-    skipStory: "Geschichte überspringen",
+    coachName: "Akademie-Coach",
+    briefingMaze: "Das Trainingslabyrinth",
+    briefingStart: "Nova startet hier",
+    briefingObjects: "Achte auf die Gegenstände",
+    briefingGoal: "Finde die verlorene Uhr",
+    briefingEncouragement: "Du bist Novas neue Detektivlehrkraft! Begleite sie bei ihrem ersten Übungsfall und hilf ihr zu lernen, die verlorene Uhr wiederzufinden.",
+    novaEncouragement: "Los geht's!",
+    compareSettings: "Probiere beide Einstellungen aus. Was ändert sich für Nova?",
     lesson1Eyebrow: "Lektion 1 · Sehen und handeln",
     lesson1Title: "Die Wahrnehmungs-Aktions-Schleife",
     lesson1Summary: "Was für ein Durcheinander! Hilf Nova, in diesem Chaos die Uhr zu finden. Nova sieht die Farbe und den Inhalt jeder Zelle und entscheidet, wohin sie als Nächstes geht. Alles, was Nova sieht, nennt man Wahrnehmung oder Perzept. Ausgehend vom aktuellen Perzept wählt Nova eine Aktion. Nach der Bewegung nimmt sie die nächste Farbe und den nächsten Gegenstand wahr.",
     trainingRoom: "Trainingsraum",
-    environmentDescription: "Die Umgebung: was Nova sehen und beeinflussen kann.",
+    environmentDescription: "Erkunde das Labyrinth. Für die Uhr erhält Nova +10 Belohnung.",
     lookFirst: "Schau zuerst:",
     lookInstruction: "Finde Nova und die Uhr.",
     studentBottomLeft: "Schülerin unten links",
@@ -312,7 +330,7 @@ const ADVENTURE_TEXT = {
     lesson2Eyebrow: "Lektion 2 · Der Spur folgen",
     lesson2Title: "Wie verändert ein Schritt das Gedächtnis?",
     lesson2Summary: "Begleite Nova Schritt für Schritt auf einem geführten Weg. Jede Bewegung erschließt das nächste Perzept und erweitert ihr Gedächtnis. Kürzlich gewählte Aktionen hinterlassen einen vorübergehenden Glow, der mit der Zeit verblasst. Wird die Uhr gefunden, verstärkt die Belohnung die Verbindungen entlang dieser leuchtenden Spur.",
-    followNova: "Folge Nova in ihrer Umgebung.",
+    followNova: "Folge Nova. Die Uhr bringt +10 Belohnung.",
     steps: "Schritte",
     watchRecovered: "Die Uhr wurde gefunden.",
     advanceDecision: "Lass Nova eine weitere Entscheidung treffen.",
@@ -336,7 +354,7 @@ const ADVENTURE_TEXT = {
     lesson3Eyebrow: "Lektion 3 · Durch Wiederholung festigen",
     lesson3Title: "Übung macht den Meister!",
     lesson3Summary: "Starte mehrere Trajektorien und beobachte, wie das Vergessen Novas Gedächtnis beeinflusst. Wähle unten eine Einstellung, um die zugehörigen Entscheidungen, die Position und alle drei Gedächtniseigenschaften zu untersuchen.",
-    observeTrajectories: "Beobachte die Trajektorien, die Nova nehmen kann.",
+    observeTrajectories: "Beobachte Nova. Für die Uhr erhält sie +10 Belohnung.",
     trajectories: "Trajektorien",
     slowForgetting: "Langsames Vergessen",
     fastForgetting: "Schnelles Vergessen",
@@ -403,28 +421,16 @@ function policy(values: number[]) {
 }
 
 
-function CharacterSlot({ text, kind = "student", compact = false }: { text: AdventureText; kind?: "guide" | "student"; compact?: boolean }) {
+function NovaFaceMedal({ text }: { text: AdventureText }) {
   return (
-    <div className={`character-slot ${compact ? "character-slot-compact" : ""}`} aria-label={kind === "guide" ? text.characterStanding : text.detectiveStudent}>
-      <div className={`character-art ${kind === "guide" ? "nova-standing-art" : ""}`}>
-        {kind === "student" ? <GraduationCap /> : <img src={Nova_standing} alt={text.characterStanding} />}
-      </div>
-      {!compact && (
-        <div className="character-caption">
-          <span>{text.detectiveStudentNova}</span>
-          <small>{kind === "guide" ? text.newStudent : text.detectiveTraining}</small>
-        </div>
-      )}
+    <div className="nova-face-medal" aria-label={text.novaPortrait}>
+      <img src={Nova_portrait} alt="Nova" />
     </div>
   );
 }
 
-function NovaFaceMedal({ text }: { text: AdventureText }) {
-  return (
-    <div className="nova-face-medal" aria-label={text.novaPortrait}>
-      <img src={Nova_face} alt="Nova" />
-    </div>
-  );
+function CoachPrompt({ text }: { text: AdventureText }) {
+  return <div className="coach-prompt"><img src={Coach_portrait} alt={text.coachName} /><p>{text.compareSettings}</p></div>;
 }
 
 function LessonIntro({ eyebrow, title, summary, text }: { eyebrow: string; title: string; summary: string; text: AdventureText }) {
@@ -439,7 +445,7 @@ function LessonIntro({ eyebrow, title, summary, text }: { eyebrow: string; title
   }, []);
   return <div className="lesson-intro lesson-intro-row compact-lesson-intro">
     <div ref={textRef}><span className="story-eyebrow"><Footprints /> {eyebrow}</span><h1>{title}</h1><p className="lesson-summary">{summary}</p></div>
-    <div className="lesson-portrait" style={{ height, width: height * .75 }}><NovaFaceMedal text={text} /></div>
+    <div className="lesson-portrait" style={{ height, width: height }}><NovaFaceMedal text={text} /></div>
   </div>;
 }
 
@@ -487,7 +493,7 @@ function AdventureGrid({
             </span>
             {isAgent && (
               <span className={`student-token ${active ? "student-active" : ""}`} title={text.detectiveStudentNova}>
-                <Search />
+                <img src={Nova_portrait} alt={text.detectiveStudentNova} />
               </span>
             )}
           </div>
@@ -642,7 +648,7 @@ function QuizModal({
           </div>
         )}
         <div className="quiz-actions">
-          <button className="button-secondary" onClick={onBack}><ArrowLeft /> {text.previousLesson}</button>
+          <button className="button-secondary" onClick={onBack}><ArrowLeft /> {text.reviewLesson}</button>
           <button className="button-primary" onClick={onContinue} disabled={!correct}>
             {final ? text.openLabMode : text.nextLesson} <ArrowRight />
           </button>
@@ -652,25 +658,36 @@ function QuizModal({
   );
 }
 
-function WelcomeLevel({ onNext, onSkip, text, language }: { onNext: () => void; onSkip: () => void; text: AdventureText; language: AppLanguage }) {
+function WelcomeLevel({ onNext, text, language }: { onNext: () => void; text: AdventureText; language: AppLanguage }) {
   return (
-    <section className="story-page">
-      <div className="story-copy">
+    <section className="story-page visual-briefing">
+      <div className="briefing-heading">
         <span className="story-eyebrow"><Compass /> {text.newCase}</span>
         <h1>{text.welcomeTitle}</h1>
-        <p className="story-lead">{text.welcomeLead}</p>
-        <div className="story-note">
-          <Sparkles />
-          <p><strong>{text.yourTask}</strong> {text.taskDescription}</p>
+      </div>
+      <div className="briefing-scene">
+        <div className="briefing-character briefing-coach">
+          <div className="briefing-bubble"><strong>{text.coachName}</strong><p>{text.briefingEncouragement}</p></div>
+          <img src={Coach_standing} alt={text.coachName} />
         </div>
-        <p>{text.welcomeStory}</p>
-        <div className="story-actions">
-          <button className="button-primary" onClick={onNext}>{text.meetNova} <ArrowRight /></button>
-          <button className="button-text" onClick={onSkip}>{text.skipStory}</button>
+        <div className="briefing-map-card">
+          <div className="briefing-map-title"><Compass /> <strong>{text.briefingMaze}</strong></div>
+          <AdventureGrid agent={START} text={text} active={false} />
+          <div className="briefing-map-legend">
+            <span><img src={Nova_portrait} alt="" />{text.briefingStart}</span>
+            <span><span aria-hidden="true">🧵 🔑</span>{text.briefingObjects}</span>
+            <span><span aria-hidden="true">⌚ +10</span>{text.briefingGoal}</span>
+          </div>
         </div>
+        <div className="briefing-character briefing-nova">
+          <div className="briefing-bubble"><strong>Nova</strong><p>{text.novaEncouragement}</p></div>
+          <img src={Nova_standing} alt={text.detectiveStudentNova} />
+        </div>
+      </div>
+      <div className="briefing-bottom">
+        <button className="button-primary attention-halo" onClick={onNext}>{text.meetNova} <ArrowRight /></button>
         <WelcomeShare language={language} />
       </div>
-      <CharacterSlot kind="guide" text={text} />
     </section>
   );
 }
@@ -680,6 +697,7 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
   const [sampled, setSampled] = useState<number | null>(null);
   const [sampleCounts, setSampleCounts] = useState<number[]>([0, 0, 0, 0]);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [hasOpenedQuiz, setHasOpenedQuiz] = useState(false);
   const memory = useMemo<Memory>(() => [[{ h: initialRoomWeights(START), glow: [0, 0, 0, 0] }]], []);
   const startPolicy = policy(memory[0][0].h);
   const agent = sampled === null ? START : move(START, ACTIONS[sampled]);
@@ -710,7 +728,7 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
           <div className="panel-heading"><span>1</span><div><strong>{text.trainingRoom} </strong><small>{text.environmentDescription}</small></div></div>
           <div className="instruction-strip"><Eye /><span><strong>{text.lookFirst}</strong> {text.lookInstruction}</span></div>
           <AdventureGrid agent={agent} text={text} />
-          <div className="loop-key"><span className="mini-student"><Search /></span> {text.studentBottomLeft} <ChevronRight /> <Clock3 /> {text.watchTopRight}</div>
+          <div className="loop-key"><span className="mini-student"><img src={Nova_portrait} alt="" /></span> {text.studentBottomLeft} <ChevronRight /> <Clock3 /> {text.watchTopRight}</div>
           <PerceptActionsCard agent={agent} text={text} />
         </div>
 
@@ -721,9 +739,9 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
           <div className="interaction-bar">
             <span><strong>{text.yourAction}</strong>{phase === "environment" ? text.openMemoryPrompt : text.drawActionPrompt}</span>
             {phase === "environment" ? (
-              <button className="button-primary" onClick={() => setPhase("memory")}>{text.openMemory} <ArrowRight /></button>
+              <button className="button-primary attention-halo" onClick={() => setPhase("memory")}>{text.openMemory} <ArrowRight /></button>
             ) : (
-              <button className="button-primary" onClick={sampleAction}><Sparkles /> {text.sampleAction}</button>
+              <button className={`button-primary ${sampled === null ? "attention-halo" : ""}`} onClick={sampleAction}><Sparkles /> {text.sampleAction}</button>
             )}
           </div>
           {phase === "environment" ? (
@@ -757,9 +775,9 @@ function LoopLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
 
       <div className="lesson-footer">
         <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.back}</button>
-        <button className="button-primary" disabled={sampled === null} onClick={() => setShowQuiz(true)}>{text.checkUnderstanding} <ArrowRight /></button>
+        <button className={`button-primary ${sampled !== null && !hasOpenedQuiz ? "attention-halo" : ""}`} disabled={sampled === null} onClick={() => { setHasOpenedQuiz(true); setShowQuiz(true); }}>{text.checkUnderstanding} <ArrowRight /></button>
       </div>
-      {showQuiz && <QuizModal config={text.quizzes[0]} text={text} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} />}
+      {showQuiz && <QuizModal config={text.quizzes[0]} text={text} onBack={() => setShowQuiz(false)} onContinue={onComplete} />}
     </section>
   );
 }
@@ -786,18 +804,20 @@ function GlowComparison({
   onSelect: (mode: ComparisonMode) => void;
   text: AdventureText;
 }) {
+  const [hasSelected, setHasSelected] = useState(false);
   const samples = Array.from({ length: Math.min(7, steps + 1) }, (_, index) => index);
   const age = Math.max(0, steps - 1);
-  const slowCredit = Math.pow(0.9, age) * 1.4;
-  const fastCredit = Math.pow(0.3, age) * 1.4;
+  const slowCredit = Math.pow(0.9, age) * FINAL_REWARD;
+  const fastCredit = Math.pow(0.3, age) * FINAL_REWARD;
   return (
     <div className="lesson-panel comparison-card glow-comparison-panel">
       <div className="comparison-title"><Footprints /> {text.comparisonTitle}</div>
-      <button className={`decay-row ${selected === "slow" ? "selected" : ""}`} onClick={() => onSelect("slow")} aria-pressed={selected === "slow"}>
+      <CoachPrompt text={text} />
+      <button className={`decay-row ${!hasSelected ? "attention-halo" : ""} ${selected === "slow" ? "selected" : ""}`} onClick={() => { setHasSelected(true); onSelect("slow"); }} aria-pressed={selected === "slow"}>
         <span><strong>η = 0.10</strong><small>{text.slowDecay} · {text.firstStepUpdate} +{slowCredit.toFixed(2)}</small></span>
         <span className="decay-dots">{samples.map((sampleAge) => <i style={{ opacity: Math.pow(0.9, samples.length - sampleAge - 1) }} key={sampleAge} />)}<em aria-hidden /></span>
       </button>
-      <button className={`decay-row ${selected === "fast" ? "selected" : ""}`} onClick={() => onSelect("fast")} aria-pressed={selected === "fast"}>
+      <button className={`decay-row ${!hasSelected ? "attention-halo" : ""} ${selected === "fast" ? "selected" : ""}`} onClick={() => { setHasSelected(true); onSelect("fast"); }} aria-pressed={selected === "fast"}>
         <span><strong>η = 0.70</strong><small>{text.fastDecay} · {text.firstStepUpdate} +{fastCredit.toFixed(2)}</small></span>
         <span className="decay-dots fast">{samples.map((sampleAge) => <i style={{ opacity: Math.max(0.08, Math.pow(0.3, samples.length - sampleAge - 1)) }} key={sampleAge} />)}<em aria-hidden /></span>
       </button>
@@ -816,9 +836,12 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
   const [steps, setSteps] = useState(0);
   const [reached, setReached] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [hasOpenedQuiz, setHasOpenedQuiz] = useState(false);
+  const [hasTakenStep, setHasTakenStep] = useState(false);
 
   function takeStep() {
     if (reached) return;
+    setHasTakenStep(true);
     // Lesson 2 demonstrates the unique route; Lesson 3 samples all four actions.
     const action = GUIDE_ACTIONS[steps];
     if (!action) return;
@@ -837,7 +860,7 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
         updated[next.y][next.x].known = true;
         if (found) {
           updated.forEach((row) => row.forEach((cell) => {
-            cell.h = cell.h.map((value, index) => value + cell.glow[index] * 1.4);
+            cell.h = cell.h.map((value, index) => value + cell.glow[index] * FINAL_REWARD);
           }));
         }
         return updated;
@@ -876,7 +899,7 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
           <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{text.trainingRoom}</strong><small>{text.followNova}</small></div><div className="card-counter"><strong>{steps}</strong><small>{text.steps}</small></div></div>
           <div className="interaction-bar step-controls">
             <span><strong>{text.yourAction}</strong>{reached ? text.watchRecovered : text.advanceDecision}</span>
-            <button className="button-primary" onClick={takeStep} disabled={reached}><Footprints /> {text.takeStep}</button>
+            <button className={`button-primary ${!hasTakenStep ? "attention-halo" : ""}`} onClick={takeStep} disabled={reached}><Footprints /> {text.takeStep}</button>
             <button className="icon-button" onClick={reset} title={text.resetTrip}><RotateCcw /></button>
           </div>
           <AdventureGrid agent={agent} trail={trail} active={!reached} text={text} />
@@ -901,9 +924,9 @@ function GlowLevel({ onPrevious, onComplete, text }: { onPrevious: () => void; o
       </div>
       <div className="lesson-footer">
         <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.previousLesson}</button>
-        <button className="button-primary" disabled={!reached} onClick={() => setShowQuiz(true)}>{text.finishLesson} <ArrowRight /></button>
+        <button className={`button-primary ${reached && !hasOpenedQuiz ? "attention-halo" : ""}`} disabled={!reached} onClick={() => { setHasOpenedQuiz(true); setShowQuiz(true); }}>{text.finishLesson} <ArrowRight /></button>
       </div>
-      {showQuiz && <QuizModal config={text.quizzes[1]} text={text} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} />}
+      {showQuiz && <QuizModal config={text.quizzes[1]} text={text} onBack={() => setShowQuiz(false)} onContinue={onComplete} />}
     </section>
   );
 }
@@ -924,13 +947,20 @@ type PracticeRun = {
 type PracticeState = Record<ComparisonMode, PracticeRun>;
 
 function makePracticeRun(): PracticeRun {
+  const memory = makeMemory();
+  WATCH_ROUTE.slice(0, -1).forEach((point, index) => {
+    const next = WATCH_ROUTE[index + 1];
+    const action: Action = next.x > point.x ? "right" : next.x < point.x ? "left" : next.y > point.y ? "down" : "up";
+    const actionIndex = ACTIONS.indexOf(action);
+    memory[point.y][point.x].h[actionIndex] = Math.max(memory[point.y][point.x].h[actionIndex], 4);
+  });
   return {
     agent: START,
     trail: [START],
     memoryConnections: [START],
     step: 0,
     recovered: 0,
-    memory: makeMemory(),
+    memory,
     lastAction: null,
     instantReward: 0,
     cumulativeReward: 0,
@@ -977,11 +1007,11 @@ function advancePracticeRun(current: PracticeRun, forgetting: ComparisonMode, ta
   const next = move(current.agent, action);
   const found = next.x === WATCH.x && next.y === WATCH.y;
   const instantReward = found ? FINAL_REWARD : -0.02;
-  const gamma = forgetting === "slow" ? 0.0001 : 0.1;
+  const gamma = forgetting === "slow" ? PRACTICE_SLOW_FORGETTING : 0.1;
   const updatedMemory = copyMemory(current.memory);
 
   updatedMemory.forEach((row) => row.forEach((cell) => {
-    cell.glow = cell.glow.map((value) => updateGlowValue(value, 1 - PRACTICE_GLOW_RETENTION));
+    cell.glow = cell.glow.map((value) => updateGlowValue(value, PRACTICE_GLOW_DECAY));
     cell.h = cell.h.map((value) => 1 + (value - 1) * (1 - gamma));
   }));
   updatedMemory[current.agent.y][current.agent.x].glow[actionIndex] = 1;
@@ -1015,6 +1045,9 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
   const [forgettingMode, setForgettingMode] = useState<ComparisonMode>("slow");
   const [practice, setPractice] = useState<PracticeState>(() => ({ slow: makePracticeRun(), fast: makePracticeRun() }));
   const [completedModels, setCompletedModels] = useState<Record<ComparisonMode, boolean>>({ slow: false, fast: false });
+  const [hasStarted, setHasStarted] = useState(false);
+  const [hasSelectedForgetting, setHasSelectedForgetting] = useState(false);
+  const [hasOpenedQuiz, setHasOpenedQuiz] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -1037,6 +1070,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
   }, [forgettingMode, practice, running]);
 
   function selectForgettingMode(mode: ComparisonMode) {
+    setHasSelectedForgetting(true);
     if (mode === forgettingMode) return;
     setRunning(false);
     setForgettingMode(mode);
@@ -1069,6 +1103,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
 
   function stopAndCheckUnderstanding() {
     setRunning(false);
+    setHasOpenedQuiz(true);
     setShowQuiz(true);
   }
 
@@ -1079,7 +1114,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
       <div className="practice-layout">
         <div className="lesson-panel practice-environment">
           <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{text.trainingRoom} </strong><small>{text.observeTrajectories}</small></div><div className="card-counter"><strong>{activePractice.recovered}/{targetRecoveries}</strong><small>{text.trajectories}</small></div></div>
-          <div className={`memory-setting-label ${forgettingMode}`}>{forgettingMode === "slow" ? `${text.slowForgetting} · γ = 0.0001` : `${text.fastForgetting} · γ = 0.1`} · η = {(1 - PRACTICE_GLOW_RETENTION).toFixed(2)}</div>
+          <div className={`memory-setting-label ${forgettingMode}`}>{forgettingMode === "slow" ? `${text.slowForgetting} · γ = ${PRACTICE_SLOW_FORGETTING}` : `${text.fastForgetting} · γ = 0.1`} · η = {PRACTICE_GLOW_DECAY.toFixed(2)}</div>
           <div className="reward-readout">
             <span>{text.instantReward}</span>
             <strong className={activePractice.instantReward > 0 ? "positive" : ""}>
@@ -1090,7 +1125,7 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
           <div className="interaction-bar practice-controls">
             <span><strong>{text.yourAction}</strong>{running ? text.watchDecisions : text.startPauseTraining}</span>
             <div>
-              <button className="button-primary" onClick={() => setRunning((value) => !value)} disabled={activeFinished}>
+              <button className={`button-primary ${!hasStarted ? "attention-halo" : ""}`} onClick={() => { setHasStarted(true); setRunning((value) => !value); }} disabled={activeFinished}>
                 {running ? <><Pause /> {text.pause}</> : <><Play /> {activePractice.recovered ? text.continue : text.start}</>}
               </button>
               <button className="icon-button" onClick={reset} title={text.resetTrip}><RotateCcw /></button>
@@ -1113,12 +1148,13 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
         <div className="forgetting-panel practice-progress">
           <div className="comparison-title"><Trophy /> {text.learningProgress}</div>
           <p>{text.progressExplanation}</p>
-          <button className={`memory-meter slow-meter ${forgettingMode === "slow" ? "selected" : ""}`} onClick={() => selectForgettingMode("slow")} aria-pressed={forgettingMode === "slow"}>
-            <div><span><strong>{text.slowForgetting}</strong><small>γ = 0.0001 {completedModels.slow ? `· ${text.complete}` : ""}</small></span><b>Σ {text.reward} {practice.slow.cumulativeReward.toFixed(2)}</b></div>
+          <CoachPrompt text={text} />
+          <button className={`memory-meter ${!hasSelectedForgetting ? "attention-halo" : ""} slow-meter ${forgettingMode === "slow" ? "selected" : ""}`} onClick={() => selectForgettingMode("slow")} aria-pressed={forgettingMode === "slow"}>
+            <div><span><strong>{text.slowForgetting}</strong><small>γ = {PRACTICE_SLOW_FORGETTING} {completedModels.slow ? `· ${text.complete}` : ""}</small></span><b>Σ {text.reward} {practice.slow.cumulativeReward.toFixed(2)}</b></div>
             <div className="meter-track reward-track"><i style={{ left: `${Math.min(50, slowPosition)}%`, width: `${Math.abs(slowPosition - 50)}%` }}><em className={slowPosition < 50 ? "negative" : ""} /></i></div>
             <small>{text.slowRouteNote}</small>
           </button>
-          <button className={`memory-meter fast-meter ${forgettingMode === "fast" ? "selected" : ""}`} onClick={() => selectForgettingMode("fast")} aria-pressed={forgettingMode === "fast"}>
+          <button className={`memory-meter ${!hasSelectedForgetting ? "attention-halo" : ""} fast-meter ${forgettingMode === "fast" ? "selected" : ""}`} onClick={() => selectForgettingMode("fast")} aria-pressed={forgettingMode === "fast"}>
             <div><span><strong>{text.fastForgetting}</strong><small>γ = 0.1 {completedModels.fast ? `· ${text.complete}` : ""}</small></span><b>Σ {text.reward} {practice.fast.cumulativeReward.toFixed(2)}</b></div>
             <div className="meter-track reward-track"><i style={{ left: `${Math.min(50, fastPosition)}%`, width: `${Math.abs(fastPosition - 50)}%` }}><em className={fastPosition < 50 ? "negative" : ""} /></i></div>
             <small>{text.fastRouteNote}</small>
@@ -1145,19 +1181,19 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
         <button className="button-text" onClick={onPrevious}><ArrowLeft /> {text.previousLesson}</button>
         {!finished ? (
           hasPracticeStarted ? (
-            <button className="button-secondary" onClick={stopAndCheckUnderstanding}>
+            <button className={`button-secondary ${!hasOpenedQuiz ? "attention-halo" : ""}`} onClick={stopAndCheckUnderstanding}>
               <Pause /> {text.stopAndCheck}
             </button>
           ) : (
             <span className="finish-hint">{text.startHint}</span>
           )
         ) : (
-          <button className="button-primary" onClick={() => setShowQuiz(true)}>
+          <button className={`button-primary ${!hasOpenedQuiz ? "attention-halo" : ""}`} onClick={() => { setHasOpenedQuiz(true); setShowQuiz(true); }}>
             {text.finalQuestion} <ArrowRight />
           </button>
         )}
       </div>
-      {showQuiz && <QuizModal config={text.quizzes[2]} text={text} onBack={() => { setShowQuiz(false); onPrevious(); }} onContinue={onComplete} final />}
+      {showQuiz && <QuizModal config={text.quizzes[2]} text={text} onBack={() => setShowQuiz(false)} onContinue={onComplete} final />}
     </section>
   );
 }
@@ -1210,7 +1246,7 @@ export default function AdventureMode({
       </header>
 
       <div className="adventure-content">
-        {level === 0 && <WelcomeLevel key={navigationRevision} onNext={() => completeLesson(0, 1)} onSkip={() => completeLesson(0, 1)} text={text} language={language} />}
+        {level === 0 && <WelcomeLevel key={navigationRevision} onNext={() => completeLesson(0, 1)} text={text} language={language} />}
         {level === 1 && <LoopLevel key={navigationRevision} onPrevious={() => goTo(0)} onComplete={() => completeLesson(1, 2)} text={text} />}
         {level === 2 && <GlowLevel key={navigationRevision} onPrevious={() => goTo(1)} onComplete={() => completeLesson(2, 3)} text={text} />}
         {level === 3 && <PracticeLevel key={navigationRevision} onPrevious={() => goTo(2)} onComplete={onOpenLab} text={text} />}
