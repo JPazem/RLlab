@@ -34,7 +34,11 @@ export function MemoryGrid({
   roomShape = false,
   revealKnown = false,
   showPercepts = false,
+  hideUnknown = false,
   connections = [],
+  visitCounts,
+  heatmap = false,
+  showGlowHalo = true,
 }: {
   memory: Memory;
   text: MemoryText;
@@ -52,7 +56,11 @@ export function MemoryGrid({
   roomShape?: boolean;
   revealKnown?: boolean;
   showPercepts?: boolean;
+  hideUnknown?: boolean;
   connections?: { x: number; y: number }[];
+  visitCounts?: number[][];
+  heatmap?: boolean;
+  showGlowHalo?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [cellSize, setCellSize] = useState(preferredSize);
@@ -95,6 +103,7 @@ export function MemoryGrid({
     links.set(key, { from, to });
   });
   const viewLabel = view === "glow" ? text.glow : view === "h" ? text.hValues : text.policy;
+  const mostVisits = Math.max(1, ...(visitCounts?.flat() ?? [0]));
   return (
     <div ref={scrollRef} className={`memory-grid-scroll ${fitToPanel ? "compact-memory" : ""}`}>
     <div
@@ -124,11 +133,16 @@ export function MemoryGrid({
         const x = left + columnIndex;
         const y = top + rowIndex;
         if (cell.blocked || (revealKnown && cell.known === false)) return <div className={roomShape ? "memory-room-gap" : "memory-cell memory-wall"} key={`${x}-${y}`} aria-hidden="true" />;
+        if (hideUnknown && cell.known === false) return <div className="memory-cell memory-unseen" key={`${x}-${y}`} style={{ background: showPercepts ? cell.percept?.color : undefined }} aria-label="Percept not yet encountered" />;
         const total = cell.h.reduce((sum, value) => sum + value, 0) || 1;
         const values = view === "policy" ? cell.probabilities ?? cell.h.map((value) => value / total) : view === "h" ? cell.h : cell.glow;
-        const max = Math.max(...values);
+        // Negative h-values remain visible numerically, but carry the same visual
+        // weight as zero. A punished edge should never look stronger merely
+        // because its magnitude is large.
+        const visualValues = values.map((value) => view === "h" ? Math.max(0, value) : Math.abs(value));
+        const maxMagnitude = Math.max(1e-9, ...visualValues);
         const focused = focus?.x === x && focus?.y === y;
-        const cellGlow = Math.max(...cell.glow);
+        const cellGlow = showGlowHalo ? Math.max(...cell.glow) : 0;
         const updatedCell = highlightUpdates && view === "h" && cellGlow > 0.02;
         return (
           <div
@@ -138,14 +152,17 @@ export function MemoryGrid({
             style={{
               "--cell-glow": Math.min(1, cellGlow),
               "--glow-rgb": glowColor === "green" ? "29, 165, 111" : "220, 92, 63",
-              background: showPercepts ? cell.percept?.color : undefined,
+              background: showPercepts ? heatmap && visitCounts
+                ? `color-mix(in srgb, ${cell.percept?.color ?? "#ffffff"} ${Math.round(15 + 85 * (visitCounts[y]?.[x] ?? 0) / mostVisits)}%, white)`
+                : cell.percept?.color : undefined,
             } as CSSProperties}
             key={`${x}-${y}`}
           >
             {values.map((value, action) => {
-              const opacity = view === "glow" ? Math.max(0.16, Math.min(1, value)) : 0.35 + value / (max || 1) * 0.65;
+              const visualValue = view === "h" ? Math.max(0, value) : Math.abs(value);
+              const opacity = view === "glow" ? Math.max(0.16, Math.min(1, value)) : 0.35 + visualValue / maxMagnitude * 0.65;
               const arrowColor = colorActions ? ACTION_COLORS[action] : view === "glow" ? glowColor === "green" ? "#1da56f" : "#dc5c3f" : undefined;
-              const strength = value / (max || 1);
+              const strength = visualValue / maxMagnitude;
               return (
                 <span
                   className={`memory-arrow memory-arrow-${action} ${updatedCell && cell.glow[action] > 0.02 ? "updated-edge" : ""}`}
@@ -156,12 +173,15 @@ export function MemoryGrid({
                   <svg className="memory-arrow-glyph" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 22V3M7 8L12 3L17 8" transform={`rotate(${action * 90} 12 12)`} fill="none" stroke="currentColor" strokeWidth={emphasizeStrength ? 1 + 4 * strength ** 2 : 2} strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  {showValues && <small>{view === "policy" ? `${Math.round(value * 100)}%` : fitToPanel && value >= 100 ? COMPACT_NUMBERS.format(value).toLowerCase() : value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(1)}</small>}
+                  {showValues && <small>{view === "policy" ? `${Math.round(value * 100)}%`
+                    : fitToPanel && Math.abs(value) >= 100 ? `${value < 0 ? "−" : ""}${COMPACT_NUMBERS.format(Math.abs(value)).toLowerCase()}`
+                    : Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(1)}</small>}
                 </span>
               );
             })}
             {showAgent && focused && <img className="memory-agent-marker" src={NovaFace} alt={text.novaPosition} />}
-            {showPercepts && cell.percept && <span className="memory-percept-marker" aria-label={cell.percept.object}>{cell.percept.object}</span>}
+            {visitCounts && <span className="memory-visit-count" title={`${visitCounts[y]?.[x] ?? 0} visits in five trajectories`}>{visitCounts[y]?.[x] ?? 0}</span>}
+            {showPercepts && cell.percept?.object && <span className="memory-percept-marker" aria-label={cell.percept.object}>{cell.percept.object}</span>}
           </div>
         );
       }))}
