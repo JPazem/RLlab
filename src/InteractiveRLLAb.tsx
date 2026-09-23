@@ -8,23 +8,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area, Label as ChartLabel } from "recharts";
-import { Play, Pause, RotateCcw, Brain, Trophy, Skull, CirclePlay, Ban, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen, Lightbulb, Search, Home, Footprints } from "lucide-react";
+import { Play, Pause, RotateCcw, Brain, Trophy, CirclePlay, HelpCircle, BookOpen, Info, X, KeyRound, DoorClosedLocked, DoorOpen, Lightbulb, Search, Home, Footprints } from "lucide-react";
 import { motion } from "framer-motion";
 import qrCode from "./assets/QR_Code_RLGame_Outreach.png";
 import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
 import { MemoryGrid, MemoryTabs, type MemoryView } from "./AcademyMemory";
 import { LAB_STORY_TEXT } from "./academyLabText";
-import { CELL_OBJECTS, perceptColor } from "./academyGraphics";
 import { labPolicy } from "./labPolicy";
-import { shortestPathProbability, type PathAssessment } from "./shortestPathProbability";
+import { timelyPathProbability, type PathAssessment } from "./shortestPathProbability";
+import { LAB_COLORS, LAB_OBJECTS, makeLabMemory, makeLabPercepts, makeLevelTwoComparisonMemory, perceptId, perceptObject, replacePerceptValue, type LabPercepts } from "./labPercepts";
 import NovaFace from "./assets/Nova_Portrait.png";
+import NovaStanding from "./assets/Nova_Standing_noBackground.png";
+import CoachStanding from "./assets/Coach_Standing.png";
+import CoachPortrait from "./assets/Coach_Portrait.png";
 import { LOG_PARAMETER_MARKS, LOG_SLIDER_MAX, parameterToSlider, sliderToParameter } from "./logParameterScale";
 import { PSLayer } from "./psMemory";
 
 console.log("InteractiveRLLab render", Date.now());
 
 const ACTIONS = ["up", "right", "down", "left"] as const;
-const ROOM_OBJECTS = CELL_OBJECTS.filter((object) => object !== "⌚" && object !== "🔑");
 type Action = typeof ACTIONS[number];
 type Locale = "en" | "de" | "it" | "fr" | "es";
 const KEY_IDS = ["blue", "red", "green"] as const;
@@ -64,182 +66,64 @@ type LevelConfig = {
   instructions: string;
 };
 
-// The final case has no locked memory parameters: its unchanged baseline is
-// shared by the initial lab session (later edits are retained between cases).
-const FINAL_LAB_PARAMETERS = { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, greediness: 1, stepCost: -0.05, goalReward: 10, trapPenalty: -1 };
+// Each case starts from a predictable baseline; the visible controls determine
+// which parameters students can tune in that case.
+const FINAL_LAB_PARAMETERS = { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, greediness: 0.75, stepCost: -0.02, goalReward: 10, trapPenalty: -1 };
+const BETA_SETTINGS = [0.01, 0.75, 5] as const;
 type PlaybackMode = "click" | "slow" | "fast" | "immediate";
 type EpisodeEnd = "goal" | "trap" | "limit";
 type LabDecision = { percept: { x: number; y: number }; action: number };
+type RewardBreakdown = { steps: number; watch: number; key: number; door: number };
+type CaseThreeAssessments = { key: PathAssessment; door: PathAssessment; watch: PathAssessment };
 const EPISODE_PAUSE_MS = 1000;
+const EMPTY_REWARD_BREAKDOWN: RewardBreakdown = { steps: 0, watch: 0, key: 0, door: 0 };
 
 const LEVELS: LevelConfig[] = [
   {
     id: 1,
-    name: "Demo",
-    description: "Learn the basics with a small grid",
+    name: "Tune the memory yourself!",
+    description: "Use glow and forgetting to help Nova recover the watch quickly.",
     preset: "open",
     gridW: 4,
     gridH: 4,
-    lockedParams: {},
-    adjustableParams: ["psLambda", "psGamma", "psGlowEta", "greediness", "stepCost", "goalReward", "trapPenalty"],
-    instructions: "Welcome to the RL Lab! This is a simple open field where the agent needs to learn to reach the goal (🏁). Try running the simulation and watch how the agent learns through trial and error. The agent starts at the bottom-left and the goal is at the top-right."
+    lockedParams: { psLambda: 1, psGamma: 0.02, greediness: 0.75, stepCost: -0.02, goalReward: 10, trapPenalty: -1 },
+    adjustableParams: ["psGamma", "psGlowEta"],
+    instructions: "Nova is in a larger training room. Tune glow and forgetting for Nova to find the watch as fast as possible."
   },
   {
     id: 2,
-    name: "Memory Tuning",
-    description: "It's your turn! Tune memory parameters yourself to help the agent reach the goal!",
+    name: "Nova sees the world differently!",
+    description: "Repeated colors share one memory, even at different positions.",
     preset: "open",
     gridW: 4,
     gridH: 4,
-    lockedParams: {stepCost: -0.05, goalReward: 10},
-    adjustableParams: ["psLambda", "psGamma", "psGlowEta", "greediness"],
-    instructions: "Now you need to tune the memory parameters! Try different combinations to help the agent learn faster."
+    lockedParams: { psLambda: 1, psGamma: 0.005, psGlowEta: 0.08, greediness: 0.75, stepCost: -0.05, goalReward: 10, trapPenalty: -1 },
+    adjustableParams: [],
+    instructions: "Nova sees only a few colors, and several cells look identical to her. Watch the shared percept-action graph and map. After five trajectories, compare exploration settings."
   },
   {
     id: 3,
-    name: "Corridor Challenge",
-    description: "Navigate through a narrow corridor",
-    preset: "corridor",
-    gridW: 7,
-    gridH: 5,
-    lockedParams: {stepCost: -0.05, goalReward:10, trapPenalty:-1},
-    adjustableParams: ["psGamma", "psLambda", "psGlowEta", "greediness", "stepCost", "goalReward", "trapPenalty"],
-    instructions: "The environment is now more challenging! The agent must navigate through a narrow corridor. Focus on adjusting the available parameters to help the agent find the optimal path."
-  },
-  {
-    id: 4,
-    name: "Two Rooms Challenge",
-    description: "Learn to navigate between two rooms, but beware of the locked door!",
+    name: "You are the boss! Tune all memory parameters in one go!",
+    description: "Find the key, open the door, and recover the watch.",
     preset: "two-rooms",
     gridW: 7,
     gridH: 5,
-    lockedParams: {stepCost: -0.05, goalReward:10, trapPenalty:-1 },
-    adjustableParams: ["greediness", "psGamma", "psGlowEta", "psLambda"],
-    instructions: "Even more challenging! The agent must navigate between two rooms connected by a locked door. First, collect the key (🔑) in the left room to unlock the door (🚪). Reaching the goal without the key gives only 1/3 of the full reward. Adjust the available parameters to help the agent learn this key-door mechanic."
+    lockedParams: { psLambda: 1, psGamma: 0.01, psGlowEta: 0.05, greediness: 0.75, stepCost: -0.05, goalReward: 10, trapPenalty: -1 },
+    adjustableParams: ["psGamma", "psGlowEta", "greediness"],
+    instructions: "You are the boss! Tune all memory parameters in one go! Nova sees colors, objects, and whether she has the key. Help her reach the key with at least 75% probability within two steps of the shortest route, then open the door to find the watch."
   },
   {
-    id: 5,
-    name: "Maze Master",
-    description: "Unlock the door and get to the trophy without falling in the trap!",
-    preset: "maze",
-    gridW: 7,
-    gridH: 5,
-    lockedParams: {},
-    adjustableParams: ["stepCost", "goalReward", "trapPenalty", "psLambda", "psGamma", "psGlowEta", "greediness"],
-    instructions: "The ultimate challenge! Navigate through a complex maze with many walls and dead ends. Can you find the perfect reward structure to guide the agent through this maze?"
+    id: 4,
+    name: "Create new challenges to test Nova's capabilities",
+    description: "Design a room, then train Nova to solve it efficiently.",
+    preset: "open",
+    gridW: 4,
+    gridH: 4,
+    lockedParams: { ...FINAL_LAB_PARAMETERS },
+    adjustableParams: ["stepCost", "goalReward", "trapPenalty", "psGamma", "psGlowEta", "greediness"],
+    instructions: "Create new challenges to test Nova's capabilities. Change the room size, walls, percepts, keys, doors, watch, trap, and rewards. Then tune Nova's memory until the chance of reaching the watch within two steps of the shortest route is at least 75%."
   }
 ];
-
-const LEVEL_TRANSLATIONS: Record<Exclude<Locale, "en">, Record<number, { name: string; description: string; instructions: string }>> = {
-  de: {
-    1: {
-      name: "Demo",
-      description: "Lerne die Grundlagen in einem kleinen Raster",
-      instructions: "Willkommen im RL-Labor. In diesem offenen Feld soll der Agent das Ziel erreichen. Starte die Simulation und beobachte, wie der Agent durch Versuch und Irrtum lernt. Der Agent startet unten links, das Ziel liegt oben rechts."
-    },
-    2: {
-      name: "Speicher abstimmen",
-      description: "Jetzt stellst du die Speicherparameter selbst ein",
-      instructions: "Passe die Speicherparameter an und finde Kombinationen, mit denen der Agent schneller lernt."
-    },
-    3: {
-      name: "Korridor-Herausforderung",
-      description: "Navigiere durch einen engen Korridor",
-      instructions: "Die Umgebung ist enger geworden. Hilf dem Agenten mit den Parametern, den besten Weg durch den Korridor zu lernen."
-    },
-    4: {
-      name: "Zwei Räume",
-      description: "Lerne zwischen zwei Räumen zu navigieren und beachte die verschlossene Tür",
-      instructions: "Der Agent muss zuerst den Schlüssel einsammeln, um die Tür zu öffnen. Stimme die Parameter so ab, dass er diese Schlüssel-Tür-Mechanik lernt."
-    },
-    5: {
-      name: "Labyrinth-Meister",
-      description: "Öffne die Tür, erreiche die Trophäe und meide die Falle",
-      instructions: "Die letzte Herausforderung ist ein verwinkeltes Labyrinth. Finde eine gute Belohnungsstruktur, damit der Agent den richtigen Weg lernt."
-    }
-  },
-  it: {
-    1: {
-      name: "Demo",
-      description: "Impara le basi in una piccola griglia",
-      instructions: "Benvenuto nel laboratorio RL. In questo campo aperto l'agente deve raggiungere il traguardo. Avvia la simulazione e osserva come impara per tentativi. L'agente parte in basso a sinistra e il traguardo è in alto a destra."
-    },
-    2: {
-      name: "Regola la memoria",
-      description: "Ora tocca a te ottimizzare i parametri di memoria",
-      instructions: "Prova diverse combinazioni dei parametri di memoria per aiutare l'agente a imparare più rapidamente."
-    },
-    3: {
-      name: "Sfida del corridoio",
-      description: "Attraversa un corridoio stretto",
-      instructions: "L'ambiente è più difficile. Usa i parametri disponibili per aiutare l'agente a trovare il percorso migliore nel corridoio."
-    },
-    4: {
-      name: "Sfida delle due stanze",
-      description: "Muoviti tra due stanze facendo attenzione alla porta chiusa",
-      instructions: "L'agente deve prima raccogliere la chiave per aprire la porta. Regola i parametri per aiutarlo a imparare questo meccanismo."
-    },
-    5: {
-      name: "Maestro del labirinto",
-      description: "Apri la porta e raggiungi il trofeo senza cadere nella trap",
-      instructions: "La sfida finale è un labirinto complesso. Trova una struttura di ricompense che guidi l'agente verso il percorso corretto."
-    }
-  },
-  fr: {
-    1: {
-      name: "Demo",
-      description: "Apprends les bases sur une petite grille",
-      instructions: "Bienvenue dans le laboratoire RL. Dans cette zone ouverte, l'agent doit atteindre l'objectif. Lance la simulation et observe comment il apprend par essais et erreurs. L'agent part en bas à gauche et l'objectif est en haut à droite."
-    },
-    2: {
-      name: "Réglage de la memoire",
-      description: "À toi d'ajuster les paramètres de mémoire",
-      instructions: "Teste différentes combinaisons de paramètres pour aider l'agent à apprendre plus vite."
-    },
-    3: {
-      name: "Défi du couloir",
-      description: "Traverse un couloir étroit",
-      instructions: "L'environnement est plus difficile. Ajuste les paramètres pour aider l'agent à trouver le meilleur chemin dans le couloir."
-    },
-    4: {
-      name: "Défi des deux salles",
-      description: "Navigue entre deux salles en tenant compte de la porte verrouillée",
-      instructions: "L'agent doit d'abord récupérer la clé pour ouvrir la porte. Règle les paramètres afin qu'il apprenne ce mécanisme."
-    },
-    5: {
-      name: "Maître du labyrinthe",
-      description: "Ouvre la porte, atteins le trophée et évite la lave",
-      instructions: "Le dernier niveau est un labyrinthe complexe. Trouve une structure de récompense qui guide correctement l'agent."
-    }
-  },
-  es: {
-    1: {
-      name: "Demostración",
-      description: "Aprende lo básico en una cuadrícula pequeña",
-      instructions: "Bienvenido al laboratorio de RL. En este campo abierto el agente debe llegar a la meta. Inicia la simulación y observa cómo aprende por prueba y error. El agente empieza abajo a la izquierda y la meta está arriba a la derecha."
-    },
-    2: {
-      name: "Ajuste de memoria",
-      description: "Ahora te toca ajustar los parámetros de memoria",
-      instructions: "Prueba distintas combinaciones de memoria para ayudar al agente a aprender más rápido."
-    },
-    3: {
-      name: "Desafío del pasillo",
-      description: "Navega por un pasillo estrecho",
-      instructions: "El entorno ahora es más difícil. Ajusta los parámetros para ayudar al agente a encontrar el mejor camino por el pasillo."
-    },
-    4: {
-      name: "Desafío de dos salas",
-      description: "Aprende a moverte entre dos salas con una puerta cerrada",
-      instructions: "El agente debe recoger primero la llave para abrir la puerta. Ajusta los parámetros para que aprenda esta mecánica."
-    },
-    5: {
-      name: "Maestro del laberinto",
-      description: "Abre la puerta y llega al trofeo evitando la trap",
-      instructions: "El reto final es un laberinto complejo. Encuentra una estructura de recompensa que guíe al agente por el camino correcto."
-    }
-  }
-};
 
 const UI_TEXT: Record<Locale, any> = {
   en: {
@@ -258,11 +142,11 @@ const UI_TEXT: Record<Locale, any> = {
       },
       {
         title: "Environment",
-        body: "You are Nova’s coach at the Detective Academy. Build a training room where she learns to recover a lost watch while avoiding hazards. The watch reward starts at 10 points. Nova’s percept is her grid position: colored objects decorate the room but do not change the input to her policy.",
+        body: "You are Nova’s coach at the Detective Academy. Build a training room where she learns to recover a lost watch while avoiding hazards. The watch reward starts at 10 points. Nova perceives colors and objects, and in later levels whether she has a key. Cells with the same percept share one memory.",
         items: [
           { label: "Nova:", body: "The detective student who learns by exploring" },
           { label: "Lost watch (⌚):", body: "The goal where Nova receives a reward, initially 10" },
-          { label: "Trap (💀):", body: "A penalty zone that the agent learns to avoid" },
+          { label: "Trap (🧨):", body: "A penalty zone that the agent learns to avoid" },
           { label: "Walls:", body: "Obstacles the agent cannot pass through" },
           { label: "Reward:", body: "Feedback signal that guides learning" }
         ]
@@ -309,7 +193,7 @@ const UI_TEXT: Record<Locale, any> = {
       { label: "Run the simulation:", body: "Click the play button to start training" },
       { label: "Adjust parameters:", body: "Use the sliders to tune the adjustable parameters above" },
       { label: "Monitor learning:", body: "Watch the policy arrows and reward curves update" },
-      { label: "Achieve the win condition:", body: "At an episode’s end, the combined probability of all shortest routes to the watch must reach at least 75%." },
+      { label: "Achieve the win condition:", body: "Case 1 requires at least 75% probability of a shortest route to the watch. Case 3 requires 75% for the key, the door, and the shortest route from the door to the watch. Case 4 evaluates the watch with two extra steps. Case 2 ends with an exploration quiz." },
       { label: "Advance:", body: "Complete the level to unlock the next challenge!" }
     ],
     levelComplete: "complete",
@@ -429,7 +313,7 @@ const UI_TEXT: Record<Locale, any> = {
     generalSections: [
       { title: "Reinforcement Learning (RL)", body: "Ein Paradigma des maschinellen Lernens, bei dem ein Agent durch Interaktion mit einer Umgebung lernt, Belohnungen für Aktionen erhält und versucht, die kumulative Belohnung zu maximieren. Es wird in Bereichen wie Robotik und Spielstrategien eingesetzt." },
       { title: "Projective Simulation (PS)", body: "Ein Lernverfahren, das Entscheidungen als Zufallsweg auf einem Graphen modelliert. Die Erfahrungen des Agenten werden in Clips gespeichert, und belohnte Übergänge werden im Gedächtnisnetzwerk verstärkt." },
-      { title: "Trainingsraum", body: "Du trainierst Nova in der Detektivakademie. Sie soll verlorene Uhren finden und Gefahren meiden. Novas Perzept ist ihre Rasterposition. Farben und Gegenstände schmücken den Raum, verändern aber nicht die Eingabe ihrer Policy. Wände, Gefahren, Schlüssel und Türen beeinflussen die Aufgabe." },
+      { title: "Trainingsraum", body: "Du trainierst Nova in der Detektivakademie. Sie soll die verlorene Uhr finden und Gefahren meiden. Nova nimmt Farben und Gegenstände wahr, später auch, ob sie einen Schlüssel hat. Zellen mit demselben Perzept teilen sich ein Gedächtnis. Die Uhr bringt anfangs 10 Punkte." },
       { title: "Drei Ansichten von Novas Gedächtnis", body: "Glow markiert kürzlich gewählte Aktionen, H-Werte speichern erlernte Stärken und die Policy zeigt Aktionswahrscheinlichkeiten gesteuert allein durch die inverse Temperatur β. Du kannst die Ansicht ohne Neustart wechseln. Dickere Pfeile zeigen stärkere Werte; die Zahlen bleiben gut lesbar." }
     ],
     psModalTitle: "Projective Simulation (PS)",
@@ -448,7 +332,7 @@ const UI_TEXT: Record<Locale, any> = {
       "Starte die Simulation und beobachte die Erkundung.",
       "Passe die verfügbaren Regler an.",
       "Nutze Speicherpfeile und Belohnungskurven zur Bewertung.",
-      "Erreiche am Episodenende mindestens 75% Wahrscheinlichkeit für alle kürzesten Wege zur Uhr zusammen.",
+      "Erreiche in Fall 1 mindestens 75 % Wahrscheinlichkeit für einen kürzesten Weg zur Uhr. Fall 3 verlangt je 75 % für Schlüssel, Tür und den kürzesten Weg von der Tür zur Uhr. Fall 4 bewertet die Uhr mit zwei Zusatzschritten. Fall 2 endet mit einem Quiz.",
       "Schließe ein Level ab, um das nächste freizuschalten."
     ],
     levelComplete: "abgeschlossen",
@@ -1052,19 +936,36 @@ function findStartPosition(grid: CellType[][]): { x: number; y: number } {
   return { x: 0, y: Math.max(0, grid.length - 1) };
 }
 
+function findCellPosition(grid: CellType[][], predicate: (cell: CellType) => boolean): { x: number; y: number } | null {
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < (grid[y]?.length ?? 0); x++) if (predicate(grid[y][x])) return { x, y };
+  }
+  return null;
+}
+
+function reachableWithoutDoor(grid: CellType[][], start: { x: number; y: number }, target: { x: number; y: number }): boolean {
+  const queue = [start];
+  const seen = new Set([`${start.x},${start.y}`]);
+  for (let index = 0; index < queue.length; index++) {
+    const point = queue[index];
+    if (point.x === target.x && point.y === target.y) return true;
+    for (const action of ACTIONS) {
+      const next = stepXY(point.x, point.y, action);
+      const cell = grid[next.y]?.[next.x];
+      const id = `${next.x},${next.y}`;
+      if (!cell || cell === "wall" || isDoorCell(cell) || cell === "trap" || seen.has(id)) continue;
+      seen.add(id);
+      queue.push(next);
+    }
+  }
+  return false;
+}
+
 function getLevelText(level: LevelConfig | undefined, language: Locale) {
   if (!level) {
     return { name: "", description: "", instructions: "" };
   }
-  if (language === "en" || language === "de") {
-    return LAB_STORY_TEXT[language].cases[level.id - 1] ?? level;
-  }
-  const translated = LEVEL_TRANSLATIONS[language][level.id];
-  return {
-    name: translated?.name ?? level.name,
-    description: translated?.description ?? level.description,
-    instructions: translated?.instructions ?? level.instructions,
-  };
+  return LAB_STORY_TEXT[language].cases[level.id - 1] ?? level;
 }
 
 function getMiscText(language: Locale) {
@@ -1187,6 +1088,60 @@ function getMiscText(language: Locale) {
   }
 }
 
+const LAB_FEATURE_TEXT: Record<Locale, {
+  percepts: string; actions: string; rewardSummary: string; currentEpisode: string;
+  stepPenalties: string; watchReward: string; keyReward: string; doorReward: string;
+  instantReward: string; shortestPath: string; keyObjective: string; doorObjective: string;
+  watchObjective: string; objectiveMark: string; chartsHint: string; visitFrequencies: string;
+  construction: string; constructionHint: string; yourObjectives: string; positionAxis: string; frequencyAxis: string;
+}> = {
+  en: {
+    percepts: "Percepts", actions: "Actions", rewardSummary: "Rewards in this environment", currentEpisode: "Current episode",
+    stepPenalties: "Accumulated step penalty", watchReward: "Watch reward", keyReward: "Key reward", doorReward: "Door reward",
+    instantReward: "Instantaneous reward", shortestPath: "Shortest-path probability", keyObjective: "Get the key",
+    doorObjective: "Open the door", watchObjective: "Reach the watch quickly from the door", objectiveMark: "75% objective",
+    chartsHint: "Select a title to open its graph.", visitFrequencies: "Normalized location visits", construction: "Environment under construction",
+    constructionHint: "Close Environment settings when the room is ready. Nova cannot move while construction is open.",
+    yourObjectives: "Your objectives", positionAxis: "Position", frequencyAxis: "Frequency",
+  },
+  de: {
+    percepts: "Perzepte", actions: "Aktionen", rewardSummary: "Belohnungen in dieser Umgebung", currentEpisode: "Aktuelle Episode",
+    stepPenalties: "Kumulierte Schrittstrafe", watchReward: "Uhr-Belohnung", keyReward: "Schlüssel-Belohnung", doorReward: "Tür-Belohnung",
+    instantReward: "Momentane Belohnung", shortestPath: "Kürzeste-Wege-Wahrscheinlichkeit", keyObjective: "Schlüssel holen",
+    doorObjective: "Tür öffnen", watchObjective: "Von der Tür schnell zur Uhr", objectiveMark: "75-%-Ziel",
+    chartsHint: "Wähle einen Titel, um das Diagramm zu öffnen.", visitFrequencies: "Normalisierte Ortsbesuche", construction: "Umgebung im Bau",
+    constructionHint: "Schließe die Umgebungseinstellungen, wenn der Raum fertig ist. Während des Bauens kann Nova sich nicht bewegen.",
+    yourObjectives: "Deine Ziele", positionAxis: "Position", frequencyAxis: "Häufigkeit",
+  },
+  it: {
+    percepts: "Percezioni", actions: "Azioni", rewardSummary: "Ricompense in questo ambiente", currentEpisode: "Episodio corrente",
+    stepPenalties: "Penalità di passo accumulata", watchReward: "Ricompensa orologio", keyReward: "Ricompensa chiave", doorReward: "Ricompensa porta",
+    instantReward: "Ricompensa istantanea", shortestPath: "Probabilità del percorso più breve", keyObjective: "Prendere la chiave",
+    doorObjective: "Aprire la porta", watchObjective: "Raggiungere rapidamente l'orologio dalla porta", objectiveMark: "Obiettivo 75%",
+    chartsHint: "Seleziona un titolo per aprire il grafico.", visitFrequencies: "Visite normalizzate delle posizioni", construction: "Ambiente in costruzione",
+    constructionHint: "Chiudi le impostazioni dell'ambiente quando la stanza è pronta. Nova non può muoversi durante la costruzione.",
+    yourObjectives: "I tuoi obiettivi", positionAxis: "Posizione", frequencyAxis: "Frequenza",
+  },
+  fr: {
+    percepts: "Percepts", actions: "Actions", rewardSummary: "Récompenses dans cet environnement", currentEpisode: "Épisode en cours",
+    stepPenalties: "Pénalité de pas cumulée", watchReward: "Récompense de la montre", keyReward: "Récompense de la clé", doorReward: "Récompense de la porte",
+    instantReward: "Récompense instantanée", shortestPath: "Probabilité du chemin le plus court", keyObjective: "Obtenir la clé",
+    doorObjective: "Ouvrir la porte", watchObjective: "Atteindre vite la montre depuis la porte", objectiveMark: "Objectif 75 %",
+    chartsHint: "Sélectionnez un titre pour ouvrir son graphique.", visitFrequencies: "Visites normalisées des positions", construction: "Environnement en construction",
+    constructionHint: "Fermez les paramètres de l'environnement lorsque la salle est prête. Nova ne peut pas bouger pendant la construction.",
+    yourObjectives: "Vos objectifs", positionAxis: "Position", frequencyAxis: "Fréquence",
+  },
+  es: {
+    percepts: "Percepciones", actions: "Acciones", rewardSummary: "Recompensas en este entorno", currentEpisode: "Episodio actual",
+    stepPenalties: "Penalización acumulada por pasos", watchReward: "Recompensa del reloj", keyReward: "Recompensa de la llave", doorReward: "Recompensa de la puerta",
+    instantReward: "Recompensa instantánea", shortestPath: "Probabilidad del camino más corto", keyObjective: "Conseguir la llave",
+    doorObjective: "Abrir la puerta", watchObjective: "Llegar rápido al reloj desde la puerta", objectiveMark: "Objetivo 75 %",
+    chartsHint: "Selecciona un título para abrir su gráfica.", visitFrequencies: "Visitas normalizadas de ubicaciones", construction: "Entorno en construcción",
+    constructionHint: "Cierra los ajustes del entorno cuando la sala esté lista. Nova no puede moverse durante la construcción.",
+    yourObjectives: "Tus objetivos", positionAxis: "Posición", frequencyAxis: "Frecuencia",
+  },
+};
+
 function makeGrid(w: number, h: number, preset: string): CellType[][] {
   const grid: CellType[][] = Array.from({ length: h }, () => Array.from({ length: w }, () => "empty" as CellType));
   if (preset === "open") {
@@ -1206,7 +1161,7 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
     }
     grid[doorY][mid] = makeClosedDoorCell("blue");
     grid[h - 1][0] = "start";
-    grid[h - 2][1] = makeKeyCell("blue");
+    grid[0][0] = makeKeyCell("blue");
     grid[0][w - 2] = "goal";
   } else if (preset === "maze") {
     // for (let y = 1; y < h - 1; y += 2) {
@@ -1233,6 +1188,33 @@ function makeGrid(w: number, h: number, preset: string): CellType[][] {
     grid[0][w - 2] = "goal";
   }
   return grid;
+}
+
+function makeLevelMemory(grid: CellType[][], percepts: LabPercepts, level: number): PSLayer {
+  const memory = makeLabMemory(grid, percepts);
+  if (level === 2) {
+    grid.forEach((row, y) => row.forEach((cell, x) => {
+      if (cell === "wall") return;
+      const color = percepts.colors[y][x];
+      if (color === LAB_COLORS[1]) memory.hvals[memory.idx(x, y, 0)] = 1.12;
+      if (color === LAB_COLORS[2]) memory.hvals[memory.idx(x, y, 1)] = 1.12;
+      if (color === LAB_COLORS[4]) memory.hvals[memory.idx(x, y, 0)] = 1.06;
+    }));
+  }
+  if (level === 3) {
+    const doorX = Math.floor(grid[0].length / 2);
+    const doorY = Math.floor(grid.length / 2);
+    grid.forEach((row, y) => row.forEach((cell, x) => {
+      if (cell === "wall") return;
+      // Before collecting the key, favor the upper-left corner.
+      if (x < doorX) memory.hvals[memory.idx(x, y, y > 0 ? 0 : 3, 0)] = 1.1;
+      // With the key, favor the doorway and then the watch room.
+      const action = x < doorX ? x < doorX - 1 ? 1 : y < doorY ? 2 : y > doorY ? 0 : 1
+        : x < grid[0].length - 2 ? 1 : y > 0 ? 0 : 1;
+      memory.hvals[memory.idx(x, y, action, 1)] = 1.15;
+    }));
+  }
+  return memory;
 }
 
 function stepXY(x:number,y:number,a:Action){
@@ -1352,12 +1334,12 @@ function SliderWithVal({ label, min, max, step=1, value, onChange, help, disable
   );
 }
 
-function LabDecisionReadout({ decision, agent, gridW, text }: { decision: LabDecision | null; agent: { x: number; y: number }; gridW: number; text: typeof LAB_STORY_TEXT.en }) {
+function LabDecisionReadout({ decision, agent, grid, percepts, text }: { decision: LabDecision | null; agent: { x: number; y: number }; grid: CellType[][]; percepts: LabPercepts; text: typeof LAB_STORY_TEXT.en }) {
   const percept = decision?.percept ?? agent;
   const colors = ["#256d55", "#376bb5", "#d2764e", "#7357a6"];
   return <aside className="lab-decision-readout" aria-live="polite">
     <strong title={text.decisionHint}>{text.currentPercept}</strong>
-    <div className="lab-percept-preview" style={{ background: perceptColor(percept.x, percept.y) }} aria-hidden="true">{ROOM_OBJECTS[(percept.y * gridW + percept.x) % ROOM_OBJECTS.length]}</div>
+    <div className="lab-percept-preview" style={{ background: percepts.useColors ? percepts.colors[percept.y]?.[percept.x] : "#fff" }} aria-hidden="true">{percepts.useObjects || grid[percept.y]?.[percept.x] === "goal" ? perceptObject(percepts, grid, percept.x, percept.y) : ""}</div>
     <span className="lab-percept-position">({percept.x + 1}, {percept.y + 1})</span>
     <strong>{text.currentAction}</strong>
     {decision ? <div className="lab-current-action" style={{ color: colors[decision.action] }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22V3M6 9L12 3L18 9" transform={`rotate(${decision.action * 90} 12 12)`} fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" /></svg><span>{text.actions[decision.action]}</span></div> : <small>{text.noAction}</small>}
@@ -1401,30 +1383,166 @@ class PSInspectorErrorBoundary extends React.Component<
   }
 }
 
-function PSInspector({ grid, ps, text, view, agent, greediness }: {
+function PerceptGraph({ grid, percepts, ps, text, labels, view, greediness, seen }: {
+  grid: CellType[][]; percepts: LabPercepts; ps: PSLayer; text: typeof LAB_STORY_TEXT.en;
+  labels: (typeof LAB_FEATURE_TEXT)[Locale];
+  view: MemoryView; greediness: number; seen: Set<string>;
+}) {
+  const nodes = new Map<string, { x: number; y: number; color: string }>();
+  grid.forEach((row, y) => row.forEach((cell, x) => {
+    if (cell === "wall") return;
+    const id = perceptId(percepts, grid, x, y);
+    if (seen.has(id) && !nodes.has(id)) nodes.set(id, { x, y, color: percepts.colors[y][x] });
+  }));
+  const entries = [...nodes.values()];
+  const actionColors = ["#256d55", "#376bb5", "#d2764e", "#7357a6"];
+  const values = entries.map(({ x, y }) => {
+    const h = ACTIONS.map((_, action) => ps.getH(x, y, action));
+    return view === "h" ? h : view === "glow" ? ACTIONS.map((_, action) => ps.getG(x, y, action)) : labPolicy(h, greediness);
+  });
+  const visualValues = values.flat().map((value) => view === "h" ? Math.max(0, value) : Math.abs(value));
+  const maxValue = Math.max(1, ...visualValues);
+  return <div className="lab-percept-graph" aria-label={text.memoryRepresentation}>
+    <strong>{labels.percepts}</strong>
+    <svg viewBox="0 0 360 250" role="img" aria-label={text.memoryShown.replace("{view}", view)}>
+      {entries.map((_, index) => values[index].map((value, action) => {
+        const visualValue = view === "h" ? Math.max(0, value) : Math.abs(value);
+        const magnitude = view === "policy" ? value : visualValue / maxValue;
+        return <line key={`${index}-${action}`} x1={(index + 1) * 360 / (entries.length + 1)} y1="48" x2={(action + 1) * 72} y2="205" stroke={actionColors[action]} strokeWidth={1 + 6 * magnitude} opacity={.18 + .82 * magnitude} />;
+      }))}
+      {entries.map((node, index) => <g key={`${node.x}-${node.y}`}>
+        <circle cx={(index + 1) * 360 / (entries.length + 1)} cy="36" r="21" fill={node.color} stroke="#315b4c" strokeWidth="2" />
+        <title>{node.color}</title>
+      </g>)}
+      {text.actions.map((action, index) => <g key={action}>
+        <circle cx={(index + 1) * 72} cy="215" r="21" fill={actionColors[index]} />
+        <text x={(index + 1) * 72} y="220" textAnchor="middle" fill="white" fontSize="17" fontWeight="bold">{["↑", "→", "↓", "←"][index]}</text>
+      </g>)}
+      <text x="180" y="248" textAnchor="middle" fill="#315342" fontSize="13" fontWeight="700">{labels.actions}</text>
+    </svg>
+  </div>;
+}
+
+function PSInspector({ grid, percepts, ps, text, view, agent, greediness, keyState = false, visitCounts, seenPercepts, compact = false, heatmap = false, showGlowHalo = true }: {
   grid: CellType[][];
+  percepts: LabPercepts;
   ps: PSLayer;
   text: (typeof LAB_STORY_TEXT)["en"];
   view: MemoryView;
   agent: { x: number; y: number };
   greediness: number;
+  keyState?: boolean;
+  visitCounts?: number[][];
+  seenPercepts?: Set<string>;
+  compact?: boolean;
+  heatmap?: boolean;
+  showGlowHalo?: boolean;
 }) {
   const memory = grid.map((row, y) => row.map((cell, x) => {
     const h = ACTIONS.map((_, action) => {
-      const value = ps.getH(x, y, action);
+      const value = ps.getH(x, y, action, keyState ? 1 : 0);
       return Number.isFinite(value) ? value : 1;
     });
     const glow = ACTIONS.map((_, action) => {
-      const value = ps.getG(x, y, action);
+      const value = ps.getG(x, y, action, keyState ? 1 : 0);
       return Number.isFinite(value) ? value : 0;
     });
-    return { h, glow, probabilities: labPolicy(h, greediness), blocked: cell === "wall" };
+    return { h, glow, probabilities: labPolicy(h, greediness), blocked: cell === "wall", known: !seenPercepts || seenPercepts.has(perceptId(percepts, grid, x, y)), percept: { color: percepts.colors[y][x], object: percepts.useObjects ? perceptObject(percepts, grid, x, y) : "" } };
   }));
   return (
     <div className="academy-memory-body">
-      <MemoryGrid memory={memory} view={view} focus={agent} text={text} cellSize={84} fitToPanel emphasizeStrength colorActions={view === "policy"} showAgent />
+      <MemoryGrid memory={memory} view={view} focus={agent} text={text} cellSize={compact ? 46 : 84} fitToPanel={!compact} showValues={!compact} emphasizeStrength colorActions={view === "policy"} showAgent showPercepts hideUnknown={Boolean(seenPercepts)} visitCounts={visitCounts} heatmap={heatmap} showGlowHalo={showGlowHalo} />
     </div>
   );
+}
+
+function ProgressCursor({ label, value, min, max, target, targetLabel, format = (number) => fmt(number) }: {
+  label: string; value: number; min: number; max: number; target?: number; targetLabel?: string; format?: (value: number) => string;
+}) {
+  const span = max - min || 1;
+  const position = clamp((value - min) / span * 100, 0, 100);
+  const targetPosition = target === undefined ? null : clamp((target - min) / span * 100, 0, 100);
+  return <div className="lab-progress-cursor">
+    <div><strong>{label}</strong><b>{format(value)}</b></div>
+    <div className="lab-cursor-track" aria-label={`${label}: ${format(value)}`}>
+      <i className="lab-cursor-fill" style={{ width: `${position}%` }} />
+      {targetPosition !== null && <span className="lab-cursor-target" style={{ left: `${targetPosition}%` }} title={targetLabel}><small>{targetLabel}</small></span>}
+      <em style={{ left: `${position}%` }} />
+    </div>
+  </div>;
+}
+
+function VisitHistogram({ counts, grid, colors, gridW, label, positionAxis, frequencyAxis }: {
+  counts: number[]; grid: CellType[][]; colors: string[][]; gridW: number; label: string; positionAxis: string; frequencyAxis: string;
+}) {
+  const maximum = Math.max(1, ...counts);
+  // Give the plot substantially more vertical room than the old compact bars.
+  // Each setting is normalized independently so small differences remain legible.
+  const plot = { left: 42, right: 252, top: 9, bottom: 177 };
+  const plotWidth = plot.right - plot.left;
+  const plotHeight = plot.bottom - plot.top;
+  const slotWidth = plotWidth / Math.max(1, counts.length);
+  const barWidth = Math.max(2, slotWidth - 2);
+  const markers = [0, 25, 50, 75, 100];
+  return <div className="lab-visit-histogram">
+    <small>{label}</small>
+    <svg viewBox="0 0 260 225" role="img" aria-label={`${label}: ${frequencyAxis} by ${positionAxis}`}>
+      {markers.map((marker) => {
+        const y = plot.bottom - marker / 100 * plotHeight;
+        return <g key={marker}>
+          <line x1={plot.left} x2={plot.right} y1={y} y2={y} className="lab-histogram-gridline" />
+          <text x={plot.left - 5} y={y + 3} textAnchor="end" className="lab-histogram-y-tick">{marker}%</text>
+        </g>;
+      })}
+      {counts.map((count, index) => {
+        const x = index % gridW;
+        const y = Math.floor(index / gridW);
+        const frequency = count / maximum;
+        const wall = grid[y]?.[x] === "wall";
+        const height = wall ? 2 : frequency * plotHeight;
+        const barX = plot.left + index * slotWidth + (slotWidth - barWidth) / 2;
+        return <g key={index}>
+          <title>{`${positionAxis} ${index + 1} (${x + 1}, ${y + 1}): ${(frequency * 100).toFixed(1)}%`}</title>
+          <rect className={wall ? "lab-histogram-bar wall" : "lab-histogram-bar"} x={barX} y={plot.bottom - height} width={barWidth} height={height} fill={wall ? "#8d9993" : colors[y]?.[x]} />
+          <text x={barX + barWidth / 2} y={plot.bottom + 10} textAnchor="middle" className="lab-histogram-x-tick">{index + 1}</text>
+        </g>;
+      })}
+      <line x1={plot.left} x2={plot.right} y1={plot.bottom} y2={plot.bottom} className="lab-histogram-axis" />
+      <line x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} className="lab-histogram-axis" />
+      <text x={(plot.left + plot.right) / 2} y="216" textAnchor="middle" className="lab-histogram-axis-label">{positionAxis}</text>
+      <text x="11" y={(plot.top + plot.bottom) / 2} textAnchor="middle" className="lab-histogram-axis-label" transform={`rotate(-90 11 ${(plot.top + plot.bottom) / 2})`}>{frequencyAxis}</text>
+    </svg>
+  </div>;
+}
+
+function BetaSelector({ value, onChange, text, histogramLabel, positionAxis, frequencyAxis, runs, visits, grid, colors, gridW, showHistograms = false }: {
+  value: number; onChange: (value: number) => void; text: typeof LAB_STORY_TEXT.en;
+  histogramLabel: string; positionAxis: string; frequencyAxis: string; runs?: Record<string, number>; visits?: Record<string, number[]>; grid: CellType[][]; colors: string[][]; gridW: number; showHistograms?: boolean;
+}) {
+  const labels = [text.explore, text.balanced, text.exploit];
+  const empty = Array(grid.length * gridW).fill(0);
+  return <div className="lab-exploration-controls">
+    <strong>{text.temperatureLabel}</strong>
+    <div className="lab-beta-scale-labels">{labels.map((label) => <span key={label}>{label}</span>)}</div>
+    <input aria-label={text.temperatureLabel} type="range" min={0} max={2} step={1} value={Math.max(0, BETA_SETTINGS.indexOf(value as typeof BETA_SETTINGS[number]))} onChange={(event) => onChange(BETA_SETTINGS[Number(event.target.value)])} />
+    <div className="lab-beta-marks">{BETA_SETTINGS.map((beta, index) => <button type="button" key={beta} aria-label={labels[index]} className={value === beta ? "selected" : ""} onClick={() => onChange(beta)}>
+      <strong>{labels[index]}</strong>
+      {runs && <small>{runs[String(beta)] ?? 0}/5 {text.trajectories}</small>}
+      {showHistograms && <VisitHistogram counts={visits?.[String(beta)] ?? empty} grid={grid} colors={colors} gridW={gridW} label={histogramLabel} positionAxis={positionAxis} frequencyAxis={frequencyAxis} />}
+    </button>)}</div>
+  </div>;
+}
+
+function RewardSummary({ rewards, stepCost, goalReward, showKey, showDoor, labels }: {
+  rewards: RewardBreakdown; stepCost: number; goalReward: number; showKey: boolean; showDoor: boolean; labels: (typeof LAB_FEATURE_TEXT)[Locale];
+}) {
+  return <section className="lab-reward-summary">
+    <div><strong>{labels.rewardSummary}</strong><small>{labels.currentEpisode}</small></div>
+    <ProgressCursor label={labels.stepPenalties} value={rewards.steps} min={Math.min(-1, stepCost * 50)} max={0} />
+    <ProgressCursor label={labels.watchReward} value={rewards.watch} min={0} max={Math.max(1, goalReward)} />
+    {showKey && <ProgressCursor label={labels.keyReward} value={rewards.key} min={0} max={1} />}
+    {showDoor && <ProgressCursor label={labels.doorReward} value={rewards.door} min={0} max={1} />}
+  </section>;
 }
 
 function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }: { rewardTrace: PointTR[]; cumTrace: PointTC[]; episodeReturns: PointEG[]; text: any; miscText: any; }) {
@@ -1449,11 +1567,11 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }:
           </div>
         </details>
 
-        <div className="mb-2 sm:mb-4">
-          <div className="flex items-center gap-2 mb-3">
+        <details className="mb-2 sm:mb-4">
+          <summary className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">{text.rewardCharts.cumulative}</h3>
             <HelpTooltipButton help={text.rewardCharts.cumulativeHelp} title={text.rewardCharts.cumulativeHelp} />
-          </div>
+          </summary>
           <div className="academy-chart w-full overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={cumTrace} margin={{ top: 10, right: 0, bottom: 20, left: 0 }}>
@@ -1465,12 +1583,12 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }:
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
-        <div>
-          <div className="flex items-center gap-2 mb-3">
+        </details>
+        <details>
+          <summary className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">{text.rewardCharts.episode}</h3>
             <HelpTooltipButton help={text.rewardCharts.episodeHelp} title={text.rewardCharts.episodeHelp} />
-          </div>
+          </summary>
           <div className="academy-chart w-full overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={episodeReturns} margin={{ top: 10, right: 0, bottom: 20, left: 0 }}>
@@ -1482,7 +1600,7 @@ function RewardsPanel({ rewardTrace, cumTrace, episodeReturns, text, miscText }:
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </details>
       </CardContent>
     </Card>
   );
@@ -1514,6 +1632,7 @@ export default function InteractiveRLLab({
   const [gridHInput, setGridHInput] = useState(String(LEVELS[0].gridH));
   const [preset,setPreset]=useState(LEVELS[0].preset);
   const [grid,setGrid]=useState<CellType[][]>(()=>makeGrid(LEVELS[0].gridW, LEVELS[0].gridH, LEVELS[0].preset));
+  const [percepts, setPercepts] = useState<LabPercepts>(() => makeLabPercepts(LEVELS[0].gridW, LEVELS[0].gridH, 1));
   //const [startPos,setStartPos]=useState<{x:number,y:number}>(()=>({x:0,y:5}));
   // start positions depend on gridH (use gridH - 1 safely)
   const [startPos, setStartPos] = useState<{ x: number; y: number }>(() => ({ x: 0, y: Math.max(0, gridH - 1) }));
@@ -1538,7 +1657,9 @@ export default function InteractiveRLLab({
   const [episodeReturns,setEpisodeReturns]=useState<PointEG[]>([]);
   const [currentEpReturn,setCurrentEpReturn]=useState(0);
   const [pathAssessment, setPathAssessment] = useState<PathAssessment | null>(null);
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [caseThreeAssessments, setCaseThreeAssessments] = useState<CaseThreeAssessments | null>(null);
+  const [episodeRewards, setEpisodeRewards] = useState<RewardBreakdown>(EMPTY_REWARD_BREAKDOWN);
+  const [showInstructions, setShowInstructions] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [showPsInfo, setShowPsInfo] = useState(false);
   const [showTips, setShowTips] = useState(false);
@@ -1548,6 +1669,20 @@ export default function InteractiveRLLab({
   const [collectedKeys, setCollectedKeys] = useState<KeyId[]>([]);
   const [psVersion, setPsVersion] = useState(0);
   const [memoryView, setMemoryView] = useState<MemoryView>("h");
+  const [seenPercepts, setSeenPercepts] = useState<Set<string>>(() => new Set([perceptId(percepts, grid, 0, gridH - 1)]));
+  const [level2Stage, setLevel2Stage] = useState<"training" | "prompt" | "compare" | "quiz">("training");
+  const [comparisonVisits, setComparisonVisits] = useState<Record<string, number[]>>({});
+  const [comparisonRuns, setComparisonRuns] = useState<Record<string, number>>({});
+  const [comparisonBeta, setComparisonBeta] = useState(0.75);
+  const [mapVisits, setMapVisits] = useState<number[]>([]);
+  const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
+  const [editorMode, setEditorMode] = useState<"cell" | "color" | "object">("cell");
+  const [selectedColor, setSelectedColor] = useState(LAB_COLORS[0]);
+  const [selectedObject, setSelectedObject] = useState(LAB_OBJECTS[0]);
+  const [editorError, setEditorError] = useState("");
+  const [environmentUnderConstruction, setEnvironmentUnderConstruction] = useState(false);
+  const constructionRef = useRef(false);
+  useEffect(() => { constructionRef.current = environmentUnderConstruction; }, [environmentUnderConstruction]);
   const tRef=useRef(0);
   const totalReturnRef=useRef(0);
   const currentEpReturnRef=useRef(0);
@@ -1560,7 +1695,16 @@ export default function InteractiveRLLab({
   const episodeReturnsRef=useRef<PointEG[]>(episodeReturns);
   const gridWRef=useRef(gridW);
   const gridHRef=useRef(gridH);
-  const psRef=useRef<PSLayer>(new PSLayer(gridW,gridH));
+  const perceptsRef = useRef(percepts);
+  const seenPerceptsRef = useRef(seenPercepts);
+  const level2StageRef = useRef(level2Stage);
+  const comparisonVisitsRef = useRef<Record<string, number[]>>({});
+  const comparisonRunsRef = useRef<Record<string, number>>({});
+  const comparisonEpisodeBetaRef = useRef(0.75);
+  const comparisonEpisodeVisitsRef = useRef<number[]>([]);
+  const mapVisitsRef = useRef<number[]>([]);
+  const episodeRewardsRef = useRef<RewardBreakdown>({ ...EMPTY_REWARD_BREAKDOWN });
+  const psRef=useRef<PSLayer>(makeLevelMemory(grid, percepts, 1));
   const [displayMemory, setDisplayMemory] = useState(() => psRef.current.copy());
   const episodeNumberRef = useRef(1);
   const episodeStepsRef = useRef(0);
@@ -1591,22 +1735,24 @@ export default function InteractiveRLLab({
     setGridHInput(String(nextH));
     setGameWon(false);
     gameWonRef.current = false;
-    setRunning(playbackMode !== "click");
+    setRunning(currentLevelRef.current !== 4 && playbackMode !== "click");
   };
 
   const text = UI_TEXT[language];
-  const storyText = LAB_STORY_TEXT[language === "de" ? "de" : "en"];
+  const storyText = LAB_STORY_TEXT[language];
   const miscText = getMiscText(language);
+  const featureText = LAB_FEATURE_TEXT[language];
   const isEnglish = language === "en";
   const currentLevelConfig = LEVELS.find(l => l.id === currentLevel);
   const currentLevelText = getLevelText(currentLevelConfig, language);
-  const supportsDoorMechanics = currentLevel >= 4;
+  const supportsDoorMechanics = currentLevel >= 3;
   const placedKeyIds = KEY_IDS.filter((keyId) => gridSome(grid, (cell) => cell === makeKeyCell(keyId)));
   const placedDoorIds = KEY_IDS.filter((keyId) => gridSome(grid, (cell) => cell === makeClosedDoorCell(keyId) || cell === makeOpenDoorCell(keyId)));
   const missingDoorKeyIds = placedDoorIds.filter((keyId) => !placedKeyIds.includes(keyId) && !collectedKeys.includes(keyId));
   const keyListFormatter = new Intl.ListFormat(language, { style: "short", type: "conjunction" });
   const formatKeyList = (keyIds: KeyId[]) => keyListFormatter.format(keyIds.map((keyId) => text.keyColors[keyId]));
   const getCellLabel = (cell: CellType) => {
+    if (cell === "trap") return language === "de" ? "Dynamit-Falle 🧨" : "Dynamite trap 🧨";
     if (isKeyCell(cell)) {
       return `${text.keyBrushLabel} ${text.keyColors[getKeyIdFromCell(cell) as KeyId]}`;
     }
@@ -1633,7 +1779,7 @@ export default function InteractiveRLLab({
     }
   };
 
-  const resetSimulationState = (nextStart: { x: number; y: number }, nextW: number, nextH: number) => {
+  const resetSimulationState = (nextStart: { x: number; y: number }, nextGrid = baseGridRef.current, nextPercepts = perceptsRef.current) => {
     clearLevelTransition();
     setEpisode(1);
     episodeNumberRef.current = 1;
@@ -1649,6 +1795,9 @@ export default function InteractiveRLLab({
     setCumTrace([]);
     setEpisodeReturns([]);
     setPathAssessment(null);
+    setCaseThreeAssessments(null);
+    episodeRewardsRef.current = { ...EMPTY_REWARD_BREAKDOWN };
+    setEpisodeRewards({ ...EMPTY_REWARD_BREAKDOWN });
     episodeReturnsRef.current = [];
     setCurrentEpReturn(0);
     setCollectedKeys([]);
@@ -1663,9 +1812,25 @@ export default function InteractiveRLLab({
     currentEpReturnRef.current = 0;
     setAgent(nextStart);
     agentRef.current = nextStart;
-    psRef.current = new PSLayer(nextW, nextH);
+    psRef.current = makeLevelMemory(nextGrid, nextPercepts, currentLevelRef.current);
     setDisplayMemory(psRef.current.copy());
     setPsVersion((v) => v + 1);
+    const initialSeen = new Set([perceptId(nextPercepts, nextGrid, nextStart.x, nextStart.y)]);
+    seenPerceptsRef.current = initialSeen;
+    setSeenPercepts(initialSeen);
+    level2StageRef.current = "training";
+    setLevel2Stage("training");
+    comparisonVisitsRef.current = {};
+    comparisonRunsRef.current = {};
+    comparisonEpisodeBetaRef.current = 0.75;
+    comparisonEpisodeVisitsRef.current = [];
+    mapVisitsRef.current = [];
+    setComparisonVisits({});
+    setComparisonRuns({});
+    setComparisonBeta(0.75);
+    setMapVisits([]);
+    setQuizAnswer(null);
+    setEditorError("");
   };
 
   // Function to load a specific level
@@ -1673,14 +1838,23 @@ export default function InteractiveRLLab({
     const level = LEVELS.find(l => l.id === levelId);
     if (!level) return;
     currentLevelRef.current = levelId;
+    if (levelId === 2) {
+      setPlaybackMode("click");
+      setRunning(false);
+    }
+    setEnvironmentUnderConstruction(levelId === 4);
+    constructionRef.current = levelId === 4;
 
     // Update grid dimensions and preset
     setGridW(level.gridW);
     setGridH(level.gridH);
     setPreset(level.preset);
-    const newGrid = level.id <= 3
+    const newGrid = level.id <= 2
       ? stripDoorMechanics(makeGrid(level.gridW, level.gridH, level.preset))
       : makeGrid(level.gridW, level.gridH, level.preset);
+    const nextPercepts = makeLabPercepts(level.gridW, level.gridH, levelId);
+    setPercepts(nextPercepts);
+    perceptsRef.current = nextPercepts;
     setGrid(newGrid);
     gridRef.current = newGrid;
     baseGridRef.current = cloneGrid(newGrid);
@@ -1723,8 +1897,9 @@ export default function InteractiveRLLab({
     }
 
     // Reset game state
-    resetSimulationState(newStartPos, level.gridW, level.gridH);
+    resetSimulationState(newStartPos, newGrid, nextPercepts);
     startPosRef.current = newStartPos; // Ensure ref is in sync
+    setShowInstructions(true);
   };
 
   // Load initial level
@@ -1770,10 +1945,13 @@ export default function InteractiveRLLab({
     };
   }, []);
 
-  useEffect(()=>{psRef.current=new PSLayer(gridW,gridH);},[gridW,gridH]);
+  useEffect(() => { perceptsRef.current = percepts; }, [percepts]);
 
   useEffect(()=>{
     const g=(supportsDoorMechanics ? makeGrid(gridW,gridH,preset) : stripDoorMechanics(makeGrid(gridW,gridH,preset)));
+    const nextPercepts = makeLabPercepts(gridW, gridH, currentLevel);
+    perceptsRef.current = nextPercepts;
+    setPercepts(nextPercepts);
     setGrid(g);
     gridRef.current = g;
     baseGridRef.current = cloneGrid(g);
@@ -1782,7 +1960,7 @@ export default function InteractiveRLLab({
     startPosRef.current = sp;
     setAgent(sp);
     agentRef.current = sp;
-    resetSimulationState(sp, gridW, gridH);
+    resetSimulationState(sp, g, nextPercepts);
   },[gridW,gridH,preset]);
 
   useEffect(() => {
@@ -1807,7 +1985,7 @@ export default function InteractiveRLLab({
       if (ending) beginNextEpisode();
       if (playbackMode === "immediate") {
         // Yield between chunks so long episodes cannot freeze the controls.
-        for (let i = 0; i < 200 && !episodeEndRef.current && !gameWonRef.current; i++) tick(false);
+        for (let i = 0; i < 200 && !episodeEndRef.current && !gameWonRef.current && (currentLevelRef.current !== 2 || ["training", "compare"].includes(level2StageRef.current)); i++) tick(false);
       } else tick();
       timer = setTimeout(pump, playbackMode === "slow" ? 850 : playbackMode === "fast" ? 80 : 0);
     };
@@ -1844,7 +2022,7 @@ export default function InteractiveRLLab({
       const newG = cloneGrid(gridRef.current);
       newG[y][x] = "empty";
       gridRef.current = newG;
-      return 0; // No extra reward for key, just collect it
+      return 1;
     }
     return stepCostRef.current;
   }
@@ -1880,7 +2058,8 @@ export default function InteractiveRLLab({
     if (x < 0 || y < 0 || x >= gridWRef.current || y >= gridHRef.current) {
       return Math.floor(Math.random() * 4);
     }
-    const weights = ACTIONS.map((_, action) => psRef.current.getH(x, y, action));
+    const keys = collectedKeysRef.current.length ? 1 : 0;
+    const weights = ACTIONS.map((_, action) => psRef.current.getH(x, y, action, keys));
     const probabilities = labPolicy(weights, greedinessRef.current);
     const draw = Math.random();
     let cumulative = 0;
@@ -1896,20 +2075,47 @@ export default function InteractiveRLLab({
     if (actionIdx < 0 || actionIdx >= ACTIONS.length) return {x, y};
     
     const next=stepXY(x,y,ACTIONS[actionIdx]);
-    if(!legal(next.x,next.y))return{x,y};
-    if (!gridRef.current[next.y]) return {x, y};
-    const c = gridRef.current[next.y][next.x];
+    const c = gridRef.current[next.y]?.[next.x];
+    if (!c) return {x, y};
     if (isClosedDoorCell(c)) {
       const keyId = getKeyIdFromCell(c);
       if (!keyId || !collectedKeysRef.current.includes(keyId)) {
-        return {x, y};
+        return {x, y, reward: -1, skipEnvReward: true};
       }
       const newG = cloneGrid(gridRef.current);
       newG[next.y][next.x] = makeOpenDoorCell(keyId);
       gridRef.current = newG;
-      return {x: next.x, y: next.y, reward: goalRewardRef.current / 2};
+      return {x: next.x, y: next.y, reward: 1, skipEnvReward: true};
     }
+    if(!legal(next.x,next.y))return{x,y};
     return {x: next.x, y: next.y};
+  }
+
+  function recordComparisonVisit(x: number, y: number) {
+    if (currentLevelRef.current !== 2 || level2StageRef.current !== "compare") return;
+    const key = String(comparisonEpisodeBetaRef.current);
+    if ((comparisonRunsRef.current[key] ?? 0) >= 5) return;
+    const size = gridWRef.current * gridHRef.current;
+    if (!comparisonEpisodeVisitsRef.current.length) comparisonEpisodeVisitsRef.current = Array(size).fill(0);
+    if (!mapVisitsRef.current.length) mapVisitsRef.current = Array(size).fill(0);
+    const total = comparisonVisitsRef.current[key]?.slice() ?? Array(size).fill(0);
+    total[y * gridWRef.current + x] += 1;
+    comparisonVisitsRef.current = { ...comparisonVisitsRef.current, [key]: total };
+    comparisonEpisodeVisitsRef.current[y * gridWRef.current + x] += 1;
+    mapVisitsRef.current[y * gridWRef.current + x] += 1;
+  }
+
+  function assessCaseThree(): CaseThreeAssessments | null {
+    const sourceGrid = baseGridRef.current;
+    const keyPoint = findCellPosition(sourceGrid, isKeyCell);
+    const doorPoint = findCellPosition(sourceGrid, isClosedDoorCell);
+    if (!keyPoint || !doorPoint) return null;
+    const weightsAt = (x: number, y: number, keys: number) => ACTIONS.map((_, action) => psRef.current.getH(x, y, action, keys));
+    return {
+      key: timelyPathProbability(sourceGrid, startPosRef.current, weightsAt, greedinessRef.current, "key-blue", 2),
+      door: timelyPathProbability(sourceGrid, keyPoint, weightsAt, greedinessRef.current, "door-blue-closed", 2, 1),
+      watch: timelyPathProbability(sourceGrid, doorPoint, weightsAt, greedinessRef.current, "goal", 0, 1),
+    };
   }
 
   function finishEpisode(lastReward: number, reason: EpisodeEnd){
@@ -1925,12 +2131,39 @@ export default function InteractiveRLLab({
     setEpisodeReturns(nextReturns);
     episodeReturnsRef.current = nextReturns;
 
-    const assessment = shortestPathProbability(baseGridRef.current, startPosRef.current,
-      (x, y) => ACTIONS.map((_, action) => psRef.current.getH(x, y, action)), greedinessRef.current);
+    const assessment = timelyPathProbability(baseGridRef.current, startPosRef.current,
+      (x, y, keys) => ACTIONS.map((_, action) => psRef.current.getH(x, y, action, keys)),
+      greedinessRef.current, "goal", currentLevelRef.current >= 4 ? 2 : 0);
     setPathAssessment(assessment);
+    const nextCaseThreeAssessments = currentLevelRef.current === 3 ? assessCaseThree() : null;
+    setCaseThreeAssessments(nextCaseThreeAssessments);
+    if (currentLevelRef.current === 2 && level2StageRef.current === "training" && nextReturns.length >= 5) {
+      const possible = new Set(baseGridRef.current.flatMap((row, y) => row.map((cell, x) =>
+        cell === "wall" ? "" : perceptId(perceptsRef.current, baseGridRef.current, x, y),
+      ).filter(Boolean)));
+      if ([...possible].every((id) => seenPerceptsRef.current.has(id))) {
+        level2StageRef.current = "prompt";
+        setLevel2Stage("prompt");
+        setRunning(false);
+      }
+    }
+    if (currentLevelRef.current === 2 && level2StageRef.current === "compare") {
+      const key = String(comparisonEpisodeBetaRef.current);
+      const completed = Math.min(5, (comparisonRunsRef.current[key] ?? 0) + 1);
+      comparisonRunsRef.current = { ...comparisonRunsRef.current, [key]: completed };
+      setComparisonRuns(comparisonRunsRef.current);
+      if (BETA_SETTINGS.every((beta) => (comparisonRunsRef.current[String(beta)] ?? 0) >= 5)) {
+        level2StageRef.current = "quiz";
+        setLevel2Stage("quiz");
+        setRunning(false);
+      } else if (completed === 5) setRunning(false);
+    }
     const hasCampaignWin =
       !freePlayModeRef.current &&
-      assessment.minimumSteps !== null && assessment.probability >= 0.75 &&
+      currentLevelRef.current !== 2 &&
+      (currentLevelRef.current === 3
+        ? Boolean(nextCaseThreeAssessments && Object.values(nextCaseThreeAssessments).every((item) => item.minimumSteps !== null && item.probability >= 0.75))
+        : assessment.minimumSteps !== null && assessment.probability >= 0.75) &&
       !gameWonRef.current;
 
     if (hasCampaignWin) {
@@ -1961,8 +2194,12 @@ export default function InteractiveRLLab({
     // Reset for next episode (but don't reset game won state here)
     episodeNumberRef.current += 1;
     currentEpReturnRef.current=0;
+    episodeRewardsRef.current = { ...EMPTY_REWARD_BREAKDOWN };
     agentRef.current=startPosRef.current;
     psRef.current.gvals.fill(0);
+    comparisonEpisodeBetaRef.current = greedinessRef.current;
+    comparisonEpisodeVisitsRef.current = [];
+    recordComparisonVisit(startPosRef.current.x, startPosRef.current.y);
   }
 
   function publishSimulationSnapshot() {
@@ -1971,24 +2208,31 @@ export default function InteractiveRLLab({
     setCollectedKeys([...collectedKeysRef.current]);
     setEpisode(episodeNumberRef.current);
     setCurrentEpReturn(currentEpReturnRef.current);
+    setEpisodeRewards({ ...episodeRewardsRef.current });
     setEpisodeEnd(episodeEndRef.current?.reason ?? null);
     setEpisodeHolding(Boolean(episodeEndRef.current && performance.now() < episodeEndRef.current.resumeAt));
     setLastDecision(decisionRef.current);
+    setSeenPercepts(new Set(seenPerceptsRef.current));
     setRewardTrace([...rewardTraceRef.current]);
     setCumTrace([...cumTraceRef.current]);
     setDisplayMemory(psRef.current.copy());
+    setComparisonVisits(comparisonVisitsRef.current);
+    setMapVisits([...mapVisitsRef.current]);
     setPsVersion((v) => v + 1);
   }
 
   function selectPlaybackMode(mode: PlaybackMode) {
+    if (environmentUnderConstruction) return;
     if (mode === playbackMode) return;
     if (playbackMode === "immediate" && mode !== "immediate") publishSimulationSnapshot();
     setPlaybackMode(mode);
-    setRunning(mode !== "click" && !gameWonRef.current);
+    setRunning(mode !== "click" && !gameWonRef.current && (currentLevelRef.current !== 2 || ["training", "compare"].includes(level2StageRef.current)));
   }
 
   function takeManualStep() {
+    if (environmentUnderConstruction) return;
     if (gameWonRef.current) return;
+    if (currentLevelRef.current === 2 && !["training", "compare"].includes(level2StageRef.current)) return;
     if (episodeEndRef.current && performance.now() < episodeEndRef.current.resumeAt) return;
     if (episodeEndRef.current) beginNextEpisode();
     tick();
@@ -1997,11 +2241,13 @@ export default function InteractiveRLLab({
   function tick(displayStep = true){
     // Check game won using ref to avoid stale state issues
     if (gameWonRef.current) return;
+    if (currentLevelRef.current === 4 && constructionRef.current) return;
+    if (currentLevelRef.current === 2 && !["training", "compare"].includes(level2StageRef.current)) return;
     
     try {
       if (!gridRef.current.length || !gridRef.current[0]?.length) return;
       if (psRef.current.w !== gridWRef.current || psRef.current.h !== gridHRef.current) {
-        psRef.current = new PSLayer(gridWRef.current, gridHRef.current);
+        psRef.current = makeLevelMemory(baseGridRef.current, perceptsRef.current, currentLevelRef.current);
         setPsVersion(v => v + 1);
       }
       const {x,y}=agentRef.current;
@@ -2015,8 +2261,11 @@ export default function InteractiveRLLab({
       }
       
       const a=pickAction(x,y);
+      const attempted = stepXY(x, y, ACTIONS[a]);
+      const attemptedCell = gridRef.current[attempted.y]?.[attempted.x];
+      const hadKeyForDoor = isClosedDoorCell(attemptedCell ?? "empty") && Boolean(getKeyIdFromCell(attemptedCell!) && collectedKeysRef.current.includes(getKeyIdFromCell(attemptedCell!)!));
       decisionRef.current = { percept: { x, y }, action: a };
-      psRef.current.updateGlow(x, y, a, psGlowEtaRef.current);
+      psRef.current.updateGlow(x, y, a, psGlowEtaRef.current, collectedKeysRef.current.length ? 1 : 0);
       const s1=attemptMove(x,y,a);
       
       // Validate new position
@@ -2025,8 +2274,11 @@ export default function InteractiveRLLab({
         return;
       }
       
-      const r = (s1.reward || 0) + envReward(s1.x,s1.y);
-      psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
+      const r = s1.skipEnvReward ? s1.reward : (s1.reward || 0) + envReward(s1.x,s1.y);
+      seenPerceptsRef.current.add(perceptId(perceptsRef.current, baseGridRef.current, s1.x, s1.y, collectedKeysRef.current.length ? 1 : 0));
+      if (!(currentLevelRef.current === 2 && level2StageRef.current === "compare")) {
+        psRef.current.rewardUpdate(r,psGammaRef.current,psLambdaRef.current);
+      }
       psRef.current.normalize();
       tRef.current+=1;
       totalReturnRef.current+=r;
@@ -2035,7 +2287,12 @@ export default function InteractiveRLLab({
       cumTraceRef.current.push({ t: tRef.current, C: totalReturnRef.current });
       if (cumTraceRef.current.length > 500) cumTraceRef.current.shift();
       currentEpReturnRef.current += r;
+      if (attemptedCell === "goal" && s1.x === attempted.x && s1.y === attempted.y) episodeRewardsRef.current.watch += r;
+      else if (attemptedCell && isKeyCell(attemptedCell) && s1.x === attempted.x && s1.y === attempted.y) episodeRewardsRef.current.key += r;
+      else if (attemptedCell && isClosedDoorCell(attemptedCell) && hadKeyForDoor && s1.x === attempted.x && s1.y === attempted.y) episodeRewardsRef.current.door += r;
+      else if (r === stepCostRef.current) episodeRewardsRef.current.steps += r;
       agentRef.current = { x: s1.x, y: s1.y };
+      recordComparisonVisit(s1.x, s1.y);
       episodeStepsRef.current += 1;
       if (isTerminal(s1.x, s1.y)) finishEpisode(r, gridRef.current[s1.y][s1.x] === "goal" ? "goal" : "trap");
       else if (episodeStepsRef.current >= Math.max(200, gridWRef.current * gridHRef.current * 40)) finishEpisode(r, "limit");
@@ -2059,14 +2316,32 @@ export default function InteractiveRLLab({
   const canvasW=gridW*cellSize;
   const canvasH=gridH*cellSize;
   const [tool,setTool]=useState<"draw"|"pick"|"erase">("draw");
-  const [brush,setBrush]=useState<CellType>("wall");
+  const [brush,setBrush]=useState<CellType>("empty");
 
   function onCellClick(x:number,y:number){
-    if(tool==="pick"){ setBrush(gridRef.current[y]?.[x] ?? "empty"); return; }
+    if (currentLevelRef.current !== 4 || !constructionRef.current) return;
+    setEditorError("");
+    if (editorMode === "color" || editorMode === "object") {
+      if (gridRef.current[y]?.[x] === "wall") return;
+      const kind = editorMode === "color" ? "colors" : "objects";
+      const matrix = perceptsRef.current[kind].map((row) => [...row]);
+      matrix[y][x] = kind === "colors" ? selectedColor : selectedObject;
+      const next = { ...perceptsRef.current, [kind]: matrix };
+      perceptsRef.current = next;
+      setPercepts(next);
+      resetSimulationState(startPosRef.current, baseGridRef.current, next);
+      return;
+    }
+    if(tool==="pick"){ setBrush(baseGridRef.current[y]?.[x] ?? "empty"); return; }
     const b = tool==="erase"?"empty":brush;
     if (!supportsDoorMechanics && (isKeyCell(b) || isDoorCell(b))) return;
     clearLevelTransition();
-    const g = cloneGrid(gridRef.current);
+    const g = cloneGrid(baseGridRef.current);
+
+    if (isDoorCell(b) && g[y][x] !== "wall" && !isDoorCell(g[y][x])) { setEditorError(language === "de" ? "Male zuerst eine Wand. Wähle dann Tür und klicke ein markiertes Wandfeld an." : "Paint a wall first, then select Door and click a highlighted wall cell."); return; }
+    if (b === "goal") g.forEach((row) => row.forEach((cell, column) => { if (cell === "goal") row[column] = "empty"; }));
+    if (isKeyCell(b)) g.forEach((row) => row.forEach((cell, column) => { if (cell === b) row[column] = "empty"; }));
+    if (isDoorCell(b)) g.forEach((row) => row.forEach((cell, column) => { if (cell === b) row[column] = "wall"; }));
 
     if (b === "start") {
       for (let yy = 0; yy < gridH; yy++) {
@@ -2077,11 +2352,6 @@ export default function InteractiveRLLab({
         }
       }
       g[y][x] = "start";
-      const sp = { x, y };
-      setStartPos(sp);
-      startPosRef.current = sp;
-      setAgent(sp);
-      agentRef.current = sp;
     } else {
       g[y][x] = b;
     }
@@ -2090,6 +2360,14 @@ export default function InteractiveRLLab({
       const fallbackStart = { x: clamp(startPosRef.current.x, 0, gridW - 1), y: clamp(startPosRef.current.y, 0, gridH - 1) };
       g[fallbackStart.y][fallbackStart.x] = "start";
     }
+
+    const nextStart = findStartPosition(g);
+    const keyPoint = g.flatMap((row, yy) => row.map((cell, xx) => isKeyCell(cell) ? { x: xx, y: yy } : null)).find((point) => point !== null);
+    if (keyPoint && !reachableWithoutDoor(g, nextStart, keyPoint)) { setEditorError(language === "de" ? "Der Schlüssel muss ohne Tür vom Start aus erreichbar sein." : "The key must be reachable from the start before opening the door."); return; }
+    setStartPos(nextStart);
+    startPosRef.current = nextStart;
+    setAgent(nextStart);
+    agentRef.current = nextStart;
 
     setGrid(g);
     gridRef.current = g;
@@ -2109,7 +2387,7 @@ export default function InteractiveRLLab({
     tRef.current = 0;
     totalReturnRef.current = 0;
     currentEpReturnRef.current = 0;
-    psRef.current = new PSLayer(gridW, gridH);
+    psRef.current = makeLevelMemory(g, perceptsRef.current, currentLevelRef.current);
     episodeNumberRef.current = 1;
     episodeStepsRef.current = 0;
     episodeEndRef.current = null;
@@ -2127,6 +2405,9 @@ export default function InteractiveRLLab({
 
 const StaticGrid = React.memo(function StaticGrid({
   grid,
+  percepts,
+  editable,
+  doorPlacement,
   gridW,
   gridH,
   cellSize,
@@ -2135,6 +2416,9 @@ const StaticGrid = React.memo(function StaticGrid({
   cellLabel,
 }: {
   grid: CellType[][],
+  percepts: LabPercepts,
+  editable: boolean,
+  doorPlacement: boolean,
   gridW: number,
   gridH: number,
   cellSize: number,
@@ -2159,42 +2443,40 @@ const StaticGrid = React.memo(function StaticGrid({
               <div
                 key={`${x}-${y}`}
                 onPointerDown={(e) => {
+                  if (!editable) return;
                   e.preventDefault();
                   onCellClick(x, y);
                 }}
                 onPointerEnter={(e) => {
-                  if (e.buttons === 1) onCellClick(x, y);
+                  if (editable && e.buttons === 1) onCellClick(x, y);
                 }}
-                role="button"
-                tabIndex={0}
+                role={editable ? "button" : undefined}
+                tabIndex={editable ? 0 : undefined}
                 aria-label={`${cellLabel(cell)} (${x + 1}, ${y + 1})`}
                 onKeyDown={(e) => {
+                  if (!editable) return;
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     onCellClick(x, y);
                   }
                 }}
-                className="adventure-cell academy-lab-cell"
+                className={`adventure-cell academy-lab-cell ${!editable ? "lab-fixed-cell" : ""} ${cell === "wall" ? "lab-wall-cell" : ""} ${cell === "trap" ? "lab-trap-cell" : ""} ${doorPlacement && cell === "wall" ? "lab-door-target" : ""}`}
                 style={{
                   width: cellSize,
                   height: cellSize,
-                  background: cell === "empty" || cell === "start" || cell === "goal" ? perceptColor(x, y) : cellBG(cell),
+                  background: cell === "wall" ? "repeating-linear-gradient(135deg, #344e44, #344e44 5px, #405c50 5px, #405c50 10px)"
+                    : cell === "trap" ? "repeating-radial-gradient(circle at center, #450910 0 5px, #98212b 6px 10px, #5f1019 11px 15px)"
+                    : cell === "empty" || cell === "start" || cell === "goal" ? percepts.useColors ? percepts.colors[y][x] : "#fff" : cellBG(cell),
                 }}
                 title={`(${x},${y})`}
               >
-                {(cell === "empty" || cell === "start" || cell === "goal") && (
-                  <span className="cell-object" aria-hidden="true" style={{ background: perceptColor(x, y) }}>
-                    {cell === "goal" ? "⌚" : ROOM_OBJECTS[(y * gridW + x) % ROOM_OBJECTS.length]}
+                {(cell === "empty" || cell === "start" || cell === "goal") && (percepts.useObjects || cell === "goal") && (
+                  <span className="cell-object" aria-hidden="true" style={{ background: percepts.useColors ? percepts.colors[y][x] : "#fff" }}>
+                    {cell === "goal" ? "⌚" : percepts.objects[y][x]}
                   </span>
-                )}
-                {cell === "trap" && (
-                  <Skull className="w-5 h-5 text-red-500" strokeWidth={2.5} />
                 )}
                 {cell === "start" && (
                   <CirclePlay className="academy-start-marker" strokeWidth={2.5} />
-                )}
-                {cell === "wall" && (
-                  <Ban className="w-5 h-5 text-gray-500 opacity-60" strokeWidth={2.5} />
                 )}
                 {isKeyCell(cell as CellType) && (
                   <KeyRound className="w-5 h-5 opacity-80" strokeWidth={2.5} style={{ color: keyAccentColor(cell as CellType) }} />
@@ -2282,8 +2564,8 @@ const StaticGrid = React.memo(function StaticGrid({
       language === "fr" ? "η (décroissance du glow) : 0,02 à 0,15 aide sur les tâches à plusieurs étapes." :
       language === "es" ? "η (decaimiento del glow): 0,02 a 0,15 ayuda en tareas de varios pasos." :
       "η (glow decay): 0.02 to 0.15 helps on multi-step tasks because past actions stay relevant.",
-    language === "de" ? "β (inverse Temperatur): Starte bei 1. Ein kleineres β ermöglicht mehr Exploration; ein größeres β bevorzugt gelernte Entscheidungen stärker." :
-      "β (inverse temperature): Start at 1. Lower β allows more exploration; higher β favors learned decisions more strongly.",
+    language === "de" ? "Inverse Temperatur: Starte mit Ausgewogen. Erkunden verteilt die Auswahl breiter; Nutzen bevorzugt gelernte Entscheidungen stärker." :
+      "Inverse temperature: Start with Balance. Explore spreads choices more broadly; Exploit favors learned decisions more strongly.",
   ];
   const strategyNotes = [
     language === "de" ? "Beobachte zuerst die Episoden-Returns. Wenn sie flach bleiben, fehlen meist klarere Belohnungssignale oder weniger Exploration." :
@@ -2305,22 +2587,14 @@ const StaticGrid = React.memo(function StaticGrid({
       "Use Reset Level after large parameter changes. Otherwise you mix new settings with old learned h-values.",
   ];
 
-  const editorBrushes: CellType[] = supportsDoorMechanics
-    ? [
-        "wall",
-        "empty",
-        "goal",
-        "trap",
-        "start",
-        makeKeyCell("blue"),
-        makeKeyCell("red"),
-        makeKeyCell("green"),
-        makeClosedDoorCell("blue"),
-        makeClosedDoorCell("red"),
-        makeClosedDoorCell("green"),
-      ]
-    : ["wall", "empty", "goal", "trap", "start"];
-  const availablePresets = supportsDoorMechanics ? ["open", "corridor", "two-rooms", "maze"] : ["open", "corridor"];
+  const editorBrushes: CellType[] = ["wall", "empty", "goal", "trap", "start", makeKeyCell("blue"), makeClosedDoorCell("blue")];
+  const usedColors = [...new Set(percepts.colors.flat())];
+  const usedObjects = [...new Set(percepts.objects.flat())];
+  const updatePercepts = (next: LabPercepts) => {
+    setPercepts(next);
+    perceptsRef.current = next;
+    resetSimulationState(startPosRef.current, baseGridRef.current, next);
+  };
 
   const continueFreePlay = () => {
     clearLevelTransition();
@@ -2345,6 +2619,53 @@ const StaticGrid = React.memo(function StaticGrid({
     setRunning(false);
   };
 
+  const selectBeta = (beta: number) => {
+    if (beta === greedinessRef.current) return;
+    setRunning(false);
+    setComparisonBeta(beta);
+    setGreediness(beta);
+    greedinessRef.current = beta;
+    const assessment = timelyPathProbability(baseGridRef.current, startPosRef.current,
+      (x, y, keys) => ACTIONS.map((_, action) => psRef.current.getH(x, y, action, keys)), beta, "goal", currentLevelRef.current >= 4 ? 2 : 0);
+    setPathAssessment(assessment);
+    if (currentLevelRef.current === 3) setCaseThreeAssessments(assessCaseThree());
+    if (level2StageRef.current === "compare") {
+      mapVisitsRef.current = Array(gridWRef.current * gridHRef.current).fill(0);
+      setMapVisits([...mapVisitsRef.current]);
+      beginNextEpisode();
+      publishSimulationSnapshot();
+    }
+  };
+
+  const startLevelTwoComparison = () => {
+    setRunning(false);
+    psRef.current = makeLevelTwoComparisonMemory(baseGridRef.current, perceptsRef.current);
+    setGreediness(0.75);
+    greedinessRef.current = 0.75;
+    setComparisonBeta(0.75);
+    comparisonEpisodeBetaRef.current = 0.75;
+    comparisonVisitsRef.current = {};
+    comparisonRunsRef.current = {};
+    mapVisitsRef.current = [];
+    setComparisonVisits({});
+    setComparisonRuns({});
+    setMapVisits([]);
+    level2StageRef.current = "compare";
+    setLevel2Stage("compare");
+    beginNextEpisode();
+    publishSimulationSnapshot();
+  };
+  const shownMemory = displayMemory;
+  const shownGreediness = greediness;
+  const visitGrid = mapVisits.length ? grid.map((row, y) => row.map((_, x) => mapVisits[y * gridW + x] ?? 0)) : undefined;
+  const levelSuccessLabel = currentLevel === 2
+    ? `${storyText.fiveTrajectories} · ${storyText.takeQuiz}`
+    : currentLevel === 3
+      ? `${featureText.keyObjective} · ${featureText.doorObjective} · ${featureText.watchObjective} ≥ 75%`
+      : currentLevel === 4
+        ? `${featureText.shortestPath} (+2) ≥ 75%`
+        : storyText.successCriterion;
+
   return (
     <div className="adventure-shell academy-lab">
       <header className="adventure-header academy-lab-header">
@@ -2357,59 +2678,56 @@ const StaticGrid = React.memo(function StaticGrid({
           <LanguageToggle language={language as AppLanguage} onChange={setLanguage} className="adventure-language-toggle" />
         </div>
       </header>
-    {/* Instructions Modal */}
-    {showInstructions && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <Card className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg">
-          <CardHeader className="flex items-center justify-between sticky top-0 bg-white border-b">
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <BookOpen className="w-6 h-6" /> {text.levelLabel} {currentLevel}: {currentLevelText.name}
-            </CardTitle>
-            <button onClick={() => setShowInstructions(false)} className="text-slate-500 hover:text-slate-700">
-              <X className="w-6 h-6" />
-            </button>
-          </CardHeader>
-          <CardContent className="space-y-4 text-slate-700 text-sm p-6">
-            <div>
-              <h3 className="font-bold mb-2">{currentLevelText.description}</h3>
-              <p className="mb-4">
-                {currentLevelText.instructions}
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">{text.winCondition}:</h4>
-<p>{storyText.successExplanation} ≥ 75%.</p>
-            </div>
-            {currentLevelConfig?.lockedParams && Object.keys(currentLevelConfig?.lockedParams || {}).length > 0 && (
-              <div>
-                <h4 className="font-semibold mb-2">{text.lockedParameters}:</h4>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  {Object.entries(currentLevelConfig?.lockedParams || {}).map(([param, value]) => (
-                    <li key={param}>
-                      <strong>{param}:</strong> {miscText.fixedAt} {value}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div>
-              <h4 className="font-semibold mb-2">{text.howToPlay}:</h4>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                {text.howToPlayItems.map((item: string | { label: string; body: string }) => (
-                  typeof item === "string" ? (
-                    <li key={item}>{item}</li>
-                  ) : (
-                    <li key={item.label}>
-<strong>{item.label}</strong> {item.body}
-                    </li>
-                  )
-                ))}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+    {showInstructions && <div className="lab-level-overlay" role="dialog" aria-modal="true" aria-labelledby="lab-level-title">
+      <div className="lab-level-intro">
+        <img className="lab-level-character" src={CoachStanding} alt="Academy coach" />
+        <div className="lab-level-card">
+          <span className="story-eyebrow"><BookOpen size={18} /> {text.levelLabel} {currentLevel}</span>
+          <h2 id="lab-level-title">{currentLevelText.name}</h2>
+          <strong>{currentLevelText.description}</strong>
+          <p>{currentLevelText.instructions}</p>
+          <p className="lab-level-goal">{levelSuccessLabel}</p>
+          <button className="button-primary" onClick={() => setShowInstructions(false)}>{storyText.continue}</button>
+        </div>
+        <img className="lab-level-character" src={NovaStanding} alt={storyText.agentLabel} />
       </div>
-    )}
+    </div>}
+
+    {gameWon && !showInstructions && <div className="lab-level-overlay" role="dialog" aria-modal="true" aria-labelledby="lab-win-title" onClick={() => { setGameWon(false); gameWonRef.current = false; }}>
+      <div className="lab-level-intro" onClick={(event) => event.stopPropagation()}>
+        <img className="lab-level-character" src={CoachStanding} alt="Academy coach" />
+        <div className="lab-level-card lab-win-card">
+          <span className="story-eyebrow"><Trophy size={18} /> {storyText.case} {currentLevel}</span>
+          <div className="lab-celebration" aria-hidden="true">🎉</div>
+          <h2 id="lab-win-title">{storyText.youWon}</h2>
+          {currentLevel < LEVELS.length ? <button className="button-primary" onClick={goToNextLevel}>{text.nextLevelButton}</button>
+            : <button className="button-primary" onClick={continueFreePlay}>{text.continueFreePlay}</button>}
+        </div>
+        <img className="lab-level-character" src={NovaStanding} alt={storyText.agentLabel} />
+      </div>
+    </div>}
+
+    {currentLevel === 2 && level2Stage === "prompt" && !showInstructions && <div className="lab-level-overlay" role="dialog" aria-modal="true" aria-labelledby="exploration-title">
+      <div className="lab-level-intro">
+        <img className="lab-level-character" src={CoachStanding} alt="Academy coach" />
+        <div className="lab-level-card">
+          <h2 id="exploration-title">{storyText.compareModes}</h2>
+          <p>{storyText.explorePrompt}</p>
+          <button className="button-primary" onClick={startLevelTwoComparison}>{storyText.continue}</button>
+        </div>
+        <img className="lab-level-character" src={NovaStanding} alt={storyText.agentLabel} />
+      </div>
+    </div>}
+
+    {currentLevel === 2 && level2Stage === "quiz" && !gameWon && <div className="lab-level-overlay" role="dialog" aria-modal="true" aria-labelledby="exploration-quiz-title">
+      <div className="lab-level-card lab-quiz-card">
+        <h2 id="exploration-quiz-title">{storyText.quizQuestion}</h2>
+        {storyText.quizAnswers.map((answer, index) => <button key={answer} className={`lab-quiz-answer ${quizAnswer === index ? "selected" : ""}`} onClick={() => setQuizAnswer(index)}>{answer}</button>)}
+        {quizAnswer !== null && quizAnswer !== 1 && <p>{storyText.quizTryAgain}</p>}
+        <button className="lab-quiz-review" onClick={() => { level2StageRef.current = "compare"; setLevel2Stage("compare"); }}>{storyText.reviewModes}</button>
+        <button className="button-primary" disabled={quizAnswer !== 1} onClick={() => { setGameWon(true); gameWonRef.current = true; }}>{storyText.continue}</button>
+      </div>
+    </div>}
     
     {/* Info Modal */}
     {showInfo && (
@@ -2617,40 +2935,29 @@ const StaticGrid = React.memo(function StaticGrid({
     <CardHeader className="academy-lab-toolbar-inner">
       <div className="academy-lab-toolbar-status">
         <strong>{storyText.case} {currentLevel} · {currentLevelText.name}</strong>
-    {gameWon && (
-      <div className="academy-case-result">
-        <span title={currentLevel === LEVELS.length ? text.rlMaster : text.levelComplete}><Trophy /> {currentLevel === LEVELS.length ? text.congratulations : text.levelComplete}</span>
-        {currentLevel < LEVELS.length ? (
-          <Button size="sm" onClick={goToNextLevel} title={getLevelText(LEVELS.find(l => l.id === currentLevel + 1), language).name}>{text.nextLevelButton}</Button>
-        ) : freePlayUnlocked && (
-          <Button size="sm" onClick={continueFreePlay}>{text.continueFreePlay}</Button>
-        )}
-      </div>
-    )}
+        <div className="lab-banner-case-menu">
+          <Label className="text-sm !text-slate-700">{storyText.case}:</Label>
+          <Select value={freePlayMode ? "free-play" : currentLevel.toString()} onValueChange={(value) => {
+            if (value === "free-play") { continueFreePlay(); return; }
+            const levelId = parseInt(value, 10);
+            setCurrentLevel(levelId);
+            loadLevel(levelId);
+            setRunning(false);
+          }}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LEVELS.map(level => <SelectItem key={level.id} value={level.id.toString()}>{level.id}. {getLevelText(level, language).name}</SelectItem>)}
+              {(freePlayUnlocked || freePlayMode) && <SelectItem value="free-play">{text.freePlayMenu}</SelectItem>}
+            </SelectContent>
+          </Select>
+          <button onClick={() => setShowInstructions(true)} title={miscText.instructionsButtonTitle} aria-label={miscText.instructionsButtonTitle}><BookOpen size={20} /></button>
+        </div>
     {freePlayMode && <span className="academy-free-play" title={text.freePlayActive}>{text.freePlayMenu}</span>}
     </div>
     <div className="academy-lab-controls">
     <button onClick={() => setShowInfo(true)} title={miscText.infoButtonTitle} className="text-slate-500 hover:text-slate-700 transition-colors">
       <Info className="w-5 h-5 sm:w-6 sm:h-6" />
     </button>
-    <Button
-          variant={running ? "secondary" : "default"}
-          size="sm"
-          onClick={() => playbackMode === "click" ? takeManualStep() : setRunning(r => !r)}
-          disabled={gameWon || (playbackMode === "click" && episodeHolding)}
-          className={running ? "button-secondary" : "button-primary"}
-        >
-          {playbackMode === "click" ? <><Footprints className="w-4 h-4 mr-1" />{episodeEnd ? storyText.nextStep : storyText.step}</> : running ? (
-            <>
-              <Pause className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> {text.pause}
-            </>
-          ) : (
-            <>
-              <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> {text.run}
-            </>
-          )}
-    </Button>
-
     <Button
         variant="outline"
         size="sm"
@@ -2674,71 +2981,31 @@ const StaticGrid = React.memo(function StaticGrid({
     </CardHeader>
     </Card>
 
-      <div className="academy-lab-panels">
+      <div className={`academy-lab-panels ${currentLevel === 2 ? "academy-lab-level-two" : ""}`}>
          <Card className="lesson-panel environment-panel academy-lab-panel">
           <div className="panel-heading panel-heading-with-counter"><span><Search /></span><div><strong>{storyText.trainingRoom}</strong><small>{storyText.environmentHint.replace("{reward}", String(goalReward))}</small></div><div className="card-counter"><strong>{episode}</strong><small>{storyText.trajectories}</small></div></div>
           <CardContent className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
-                <Label className="text-sm !text-slate-700">{storyText.case}:</Label>
-	                <Select 
-	                  value={freePlayMode ? "free-play" : currentLevel.toString()} 
-	                  onValueChange={(value) => {
-	                    if (value === "free-play") {
-	                      continueFreePlay();
-	                      return;
-	                    }
-	                    const levelId = parseInt(value);
-	                    setCurrentLevel(levelId);
-	                    loadLevel(levelId);
-	                    setGameWon(false);
-	                    setRunning(false);
-                  }}
-                >
-                  <SelectTrigger className="flex-1 min-w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-	                  <SelectContent>
-	                    {LEVELS.map(level => (
-	                      <SelectItem key={level.id} value={level.id.toString()}>
-	                        {level.id}. {getLevelText(level, language).name}
-	                      </SelectItem>
-	                    ))}
-                      {(freePlayUnlocked || freePlayMode) && (
-                        <SelectItem value="free-play">
-                          {text.freePlayMenu}
-                        </SelectItem>
-                      )}
-	                  </SelectContent>
-	                </Select>
-                <button onClick={() => setShowInstructions(true)} title={miscText.instructionsButtonTitle} className="text-slate-500 hover:text-slate-700 transition-colors">
-                  <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 min-w-0">
-                <Label className="text-sm !text-slate-700">{text.preset}</Label>
-                <Select value={preset} onValueChange={setPreset}>
-                  <SelectTrigger className="min-w-[140px] flex-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {availablePresets.map((presetOption) => (
-                      <SelectItem key={presetOption} className="!text-slate-700" value={presetOption}>
-                        {text.presetLabels[presetOption]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
+              {currentLevel >= 3 && <div className="flex flex-wrap items-center gap-2">
                 <Label className="text-sm !text-slate-700">{text.keyStatus}:</Label>
                 <span className="text-sm text-slate-700 break-words">{keyStatus}</span>
-              </div>
-              <fieldset className="lab-playback-modes"><legend>{storyText.playback}</legend><div>{(["click", "slow", "fast", "immediate"] as PlaybackMode[]).map((mode) => <button type="button" key={mode} aria-pressed={playbackMode === mode} title={storyText.playbackHints[mode]} onClick={() => selectPlaybackMode(mode)}>{storyText.playbackModes[mode]}</button>)}</div></fieldset>
+              </div>}
+              <fieldset className="lab-playback-modes" disabled={environmentUnderConstruction}><legend>{storyText.playback}</legend><div>{(["click", "slow", "fast", "immediate"] as PlaybackMode[]).map((mode) => <button type="button" key={mode} aria-pressed={playbackMode === mode} title={storyText.playbackHints[mode]} onClick={() => selectPlaybackMode(mode)}>{storyText.playbackModes[mode]}</button>)}</div></fieldset>
+              <Button variant={running ? "secondary" : "default"} size="sm"
+                onClick={() => playbackMode === "click" ? takeManualStep() : setRunning(r => !r)}
+                disabled={gameWon || environmentUnderConstruction || (playbackMode === "click" && episodeHolding) || (currentLevel === 2 && ["prompt", "quiz"].includes(level2Stage))}
+                className={`lab-move-button ${running ? "button-secondary" : "button-primary"}`}>
+                {playbackMode === "click" ? <><Footprints className="w-4 h-4 mr-1" />{episodeEnd ? storyText.nextStep : storyText.step}</> : running ? <><Pause className="w-4 h-4 mr-1" />{text.pause}</> : <><Play className="w-4 h-4 mr-1" />{text.run}</>}
+              </Button>
               {episodeEnd && <div className={`lab-episode-ending ${episodeEnd}`} role="status"><strong>{storyText.episodeFinished}</strong><span>{storyText.episodeOutcomes[episodeEnd]}</span></div>}
             <div className="academy-environment-body">
               <div ref={roomRef} className="academy-grid-scroll">
                 <div className="academy-training-grid" style={{ width: canvasW, height: canvasH }}>
                 {/* Static grid layer */}
-                <StaticGrid
+                  <StaticGrid
                   grid={grid}
+                  percepts={percepts}
+                  editable={currentLevel === 4 && environmentUnderConstruction}
+                  doorPlacement={currentLevel === 4 && environmentUnderConstruction && editorMode === "cell" && isDoorCell(brush)}
                   gridW={gridW}
                   gridH={gridH}
                   cellSize={cellSize}
@@ -2765,11 +3032,18 @@ const StaticGrid = React.memo(function StaticGrid({
                   </div>
               </div>
 
-              <details className="academy-room-controls academy-parameter-settings">
-                {/* <Card className="rounded-xl"> */}
-                  <summary>{storyText.roomEditor}</summary>
-                  {/* <CardContent className="space-y-1"> */}
+              <RewardSummary rewards={episodeRewards} stepCost={stepCost} goalReward={goalReward} showKey={gridSome(baseGridRef.current, isKeyCell)} showDoor={gridSome(baseGridRef.current, isDoorCell)} labels={featureText} />
 
+              {currentLevel === 4 && <details className="academy-room-controls academy-parameter-settings" open={environmentUnderConstruction} onToggle={(event) => {
+                const open = event.currentTarget.open;
+                constructionRef.current = open;
+                setEnvironmentUnderConstruction(open);
+                if (open) setRunning(false);
+              }}>
+                  <summary>{storyText.roomEditor}{environmentUnderConstruction ? ` · ${featureText.construction}` : ""}</summary>
+                  <p className="lab-construction-hint">{featureText.constructionHint}</p>
+                  <div className="lab-editor-group">
+                    <h4>{language === "de" ? "Größe" : "Size"}</h4>
                     <div className="grid w-full grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-end gap-2">
                       <div>
                         <Label className="mb-1 text-slate-700">{text.width}</Label>
@@ -2806,6 +3080,7 @@ const StaticGrid = React.memo(function StaticGrid({
                         {text.apply}
                       </Button>
                     </div>
+                  </div>
 
                 {/*<div className="flex-col grid grid-cols-3 gap-2 mt-3 ustify-center items-center">
                       <Button variant={tool==="draw"?"default":"outline"} onClick={()=>setTool("draw")}><MousePointer2 className="w-4 h-4 mr-1"/>Draw</Button>
@@ -2813,29 +3088,53 @@ const StaticGrid = React.memo(function StaticGrid({
                       <Button variant={tool==="erase"?"default":"outline"} onClick={()=>setTool("erase")}><Eraser className="w-4 h-4 mr-1"/>Erase</Button>
                     </div>*/}
 
-	                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 py-2 text-xs">
+	                    <div className="lab-editor-group">
+                      <h4>{language === "de" ? "Ziele und Hindernisse" : "Objectives and obstacles"}</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 py-2 text-xs">
 	                      {editorBrushes.map(c => (
 	                        <button
                             key={c}
-                            onClick={()=>{ setBrush(c); setTool("draw"); }}
+                            onClick={()=>{ setEditorMode("cell"); setBrush(c); setTool("draw"); }}
                             className="min-h-10 rounded-md border p-2 flex items-center justify-center text-center"
-                            style={editorBrushButtonStyle(c, brush === c && tool === "draw")}
+                            style={editorBrushButtonStyle(c, editorMode === "cell" && brush === c && tool === "draw")}
                           >
                             {getCellLabel(c)}
                           </button>
 	                      ))}
-	                    </div>
+	                      </div>
+                      <small>{isDoorCell(brush) && editorMode === "cell"
+                        ? language === "de" ? "Klicke ein markiertes Wandfeld an, um die Tür einzusetzen." : "Click a highlighted wall cell to insert the door."
+                        : language === "de" ? "Wähle Wände ausdrücklich aus. Male dann eine Wand und setze die Tür auf ein Wandfeld. Der Schlüssel muss ohne Tür vom Start aus erreichbar sein." : "Select Walls to paint them. Then select Door and click a wall cell. The key must be reachable from the start without opening a door."}</small>
+                      {editorError && <p className="lab-editor-error" role="alert">{editorError}</p>}
+                    </div>
 
-                    {/* <div className="flex items-center justify-between space-y-3 ">
-                      <Label>Wind/Stochasticity</Label>
-                      <Switch checked={wind} onCheckedChange={setWind} />
-                    </div> */}
+                    <div className="lab-editor-group">
+                      <h4>{language === "de" ? "Belohnungen" : "Rewards"}</h4>
+                      <SliderWithVal locale={language} label={text.goalReward} min={0.1} max={20} step={0.1} value={goalReward} onChange={setGoalReward} help={text.envSliderHelp.goalReward} />
+                      <SliderWithVal locale={language} label={text.trapPenalty} min={-10} max={-0.1} step={0.1} value={trapPenalty} onChange={setTrapPenalty} help={text.envSliderHelp.trapPenalty} />
+                      <SliderWithVal locale={language} label={text.stepCost} min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} help={text.envSliderHelp.stepCost} />
+                    </div>
 
-                  <div className="flex-row items-center justify-between space-y-4 w-full">
-                    <SliderWithVal locale={language} label={text.stepCost} min={-0.2} max={0} step={0.01} value={stepCost} onChange={setStepCost} help={text.envSliderHelp.stepCost} disabled={!currentLevelConfig?.adjustableParams.includes('stepCost')}/>
-                    <SliderWithVal locale={language} label={text.goalReward} min={0.1} max={10} step={0.1} value={goalReward} onChange={setGoalReward} help={text.envSliderHelp.goalReward} disabled={!currentLevelConfig?.adjustableParams.includes('goalReward')}/>
-                    <SliderWithVal locale={language} label={text.trapPenalty} min={-10} max={-0.1} step={0.1} value={trapPenalty} onChange={setTrapPenalty} help={text.envSliderHelp.trapPenalty} disabled={!currentLevelConfig?.adjustableParams.includes('trapPenalty')}/>
-                  </div>
+                    <div className="lab-percept-editor">
+                      <strong>{language === "de" ? "Perzepte" : "Percepts"}</strong>
+                      <div className="lab-percept-toggles">
+                        <label><input type="checkbox" checked={percepts.useColors} onChange={(event) => { if (event.target.checked || percepts.useObjects) updatePercepts({ ...percepts, useColors: event.target.checked }); }} />{language === "de" ? "Farben" : "Colors"}</label>
+                        <label><input type="checkbox" checked={percepts.useObjects} onChange={(event) => { if (event.target.checked || percepts.useColors) updatePercepts({ ...percepts, useObjects: event.target.checked }); }} />{language === "de" ? "Gegenstände" : "Objects"}</label>
+                      </div>
+                      {percepts.useColors && <div>
+                        <small>{language === "de" ? "Verwendete Farben (× entfernt sie)" : "Colors in the grid (× removes one)"}</small>
+                        <div className="lab-percept-palette">{usedColors.map((color) => <span key={color}><button className={editorMode === "color" && selectedColor === color ? "selected" : ""} style={{ background: color }} aria-label={`${color} ${language === "de" ? "aufmalen" : "paint"}`} onClick={() => { setEditorMode("color"); setSelectedColor(color); }} />{usedColors.length > 1 && <button aria-label={`${language === "de" ? "Farbe entfernen" : "Remove color"} ${color}`} onClick={() => updatePercepts(replacePerceptValue(percepts, "colors", color, usedColors.find((value) => value !== color)!))}>×</button>}</span>)}</div>
+                        <small>{language === "de" ? "Farbe wählen und dann Zellen anklicken" : "Choose a color, then click cells to repeat it"}</small>
+                        <div className="lab-percept-palette">{LAB_COLORS.map((color) => <button key={color} style={{ background: color }} aria-label={`${language === "de" ? "Farbe wählen" : "Choose color"} ${color}`} onClick={() => { setEditorMode("color"); setSelectedColor(color); }} />)}</div>
+                      </div>}
+                      {percepts.useObjects && <div>
+                        <small>{language === "de" ? "Verwendete Gegenstände (× entfernt sie)" : "Objects in the grid (× removes one)"}</small>
+                        <div className="lab-percept-palette">{usedObjects.map((object) => <span key={object}><button className={editorMode === "object" && selectedObject === object ? "selected" : ""} onClick={() => { setEditorMode("object"); setSelectedObject(object); }}>{object}</button>{usedObjects.length > 1 && <button aria-label={`${language === "de" ? "Gegenstand entfernen" : "Remove object"} ${object}`} onClick={() => updatePercepts(replacePerceptValue(percepts, "objects", object, usedObjects.find((value) => value !== object)!))}>×</button>}</span>)}</div>
+                        <small>{language === "de" ? "Gegenstand wählen und dann Zellen anklicken" : "Choose an object, then click cells to repeat it"}</small>
+                        <div className="lab-percept-palette">{LAB_OBJECTS.map((object) => <button key={object} onClick={() => { setEditorMode("object"); setSelectedObject(object); }}>{object}</button>)}</div>
+                      </div>}
+                    </div>
+
                   {/* </CardContent> */}
                 {/* </Card> */}
 
@@ -2854,7 +3153,7 @@ const StaticGrid = React.memo(function StaticGrid({
                 </Card> */}
 
                 {/* <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} /> */}
-              </details>
+              </details>}
             </div>
           </CardContent>
         </Card>
@@ -2863,59 +3162,59 @@ const StaticGrid = React.memo(function StaticGrid({
           <div className="panel-heading"><span><Brain /></span><div><strong>{storyText.memoryTitle}</strong><small>{storyText.memoryHint}</small></div><button className="memory-info-button" onClick={() => setShowPsInfo(true)} title={text.learnMorePS} aria-label={text.learnMorePS}><Info /></button></div>
           <CardContent className="min-w-0 overflow-x-hidden">
             <MemoryTabs value={memoryView} onChange={setMemoryView} text={storyText} />
-            <div className="lab-memory-workspace">
-              <LabDecisionReadout decision={lastDecision} agent={agent} gridW={gridW} text={storyText} />
+            {currentLevel === 2 && <div className="lab-memory-compare">
+              <PerceptGraph grid={baseGridRef.current} percepts={percepts} ps={shownMemory} text={storyText} labels={featureText} view={memoryView} greediness={shownGreediness} seen={seenPercepts} />
+              <div className="lab-map-view" data-memory-revision={psVersion}>
+                <strong>{storyText.mapView}</strong>
+                <PSInspectorErrorBoundary text={miscText}>
+                  <PSInspector grid={baseGridRef.current} percepts={percepts} ps={shownMemory} text={storyText} view={memoryView === "glow" ? "h" : memoryView} agent={agent} greediness={shownGreediness} seenPercepts={seenPercepts} visitCounts={visitGrid} compact heatmap showGlowHalo={false} />
+                </PSInspectorErrorBoundary>
+                {visitGrid && <small>{storyText.visited}</small>}
+              </div>
+            </div>}
+            {currentLevel !== 2 && <div className="lab-memory-workspace">
+              <LabDecisionReadout decision={lastDecision} agent={agent} grid={baseGridRef.current} percepts={percepts} text={storyText} />
               <div data-memory-revision={psVersion}>
                 <PSInspectorErrorBoundary text={miscText}>
-                  <PSInspector grid={grid} ps={displayMemory} text={storyText} view={memoryView} agent={agent} greediness={greediness} />
+                  <PSInspector grid={baseGridRef.current} percepts={percepts} ps={shownMemory} text={storyText} view={memoryView} agent={agent} greediness={shownGreediness} keyState={collectedKeys.length > 0} />
                 </PSInspectorErrorBoundary>
               </div>
-            </div>
+            </div>}
             <details className="view-explanation"><summary>{storyText.memoryRepresentation}</summary><p>{memoryView === "glow" ? storyText.glowExplanation : memoryView === "h" ? storyText.hExplanation : storyText.policyExplanation}</p></details>
           </CardContent>
-          {/* <Card className="rounded-xl"> */}
-                  <details className="academy-parameter-settings">
+          <details className="academy-parameter-settings" key={`memory-parameters-${currentLevel}`}>
                     <summary>{storyText.tuneMemory}</summary>
                   <CardContent className="space-y-3">
-                    <SliderWithVal locale={language} label={text.paramLabels.psGlowEta} min={0} max={0.3} scale="log" value={psGlowEta} onChange={setPsGlowEta} help={text.paramHelp.psGlowEta} disabled={!currentLevelConfig?.adjustableParams.includes('psGlowEta')} />
-                    <SliderWithVal
-                        label={text.paramLabels.psGamma}
-                        locale={language}
-                        min={0}
-                        max={0.3}
-                        scale="log"
-                        value={psGamma}
-                        onChange={setPsGamma}
-                        help={text.paramHelp.psGamma}
-                      />
-                    <SliderWithVal
-                        label={text.paramLabels.psLambda}
-                        locale={language}
-                        min={0}
-                        max={10}
-                        step={0.5}
-                        value={psLambda}
-                        onChange={setPsLambda}
-                        help={text.paramHelp.psLambda}
-                      />
-                    <SliderWithVal locale={language} label={storyText.temperatureLabel} min={0} max={5} step={0.05} value={greediness} onChange={setGreediness} help={storyText.temperatureHelp} disabled={!currentLevelConfig?.adjustableParams.includes('greediness')} />
-
-                    {/* <SliderWithVal label="Forgetting (γ)" min={0} max={0.2} step={0.001} value={psGamma} onChange={setPsGamma} help="Controls how quickly the agent forgets past experiences. Lower values = better long-term memory, higher values = quick memory decay." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGamma')}/> */}
-                    {/* <SliderWithVal label="Reward sensitivity (λ)" min={0} max={10} step={1} value={psLambda} onChange={setPsLambda} help="Scales how strongly rewards influence learning. Higher values = stronger reward signals that update the agent's policy more aggressively." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psLambda')}/> */}
-                    {/* <SliderWithVal label="Glow decay (η)" min={0} max={1} step={0.001} value={psGlowEta} onChange={setPsGlowEta} help="Controls how quickly temporary activation patterns fade. Controls the exploration-exploitation balance in the random walk." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('psGlowEta')}/> */}
-                    {/* <SliderWithVal label="Temperature parameter (β)" min={0.05} max={5} step={0.05} value={greediness} onChange={setGreediness} help="Controls softmax randomness in action selection. Lower values = sharper action selection, higher values = softer/more random choices." disabled={!LEVELS.find(l => l.id === currentLevel)?.adjustableParams.includes('greediness')}/> */}
+                    <SliderWithVal locale={language} label={text.paramLabels.psGlowEta} min={0} max={0.3} scale="log" value={psGlowEta} onChange={setPsGlowEta} help={text.paramHelp.psGlowEta} />
+                    <SliderWithVal label={text.paramLabels.psGamma} locale={language} min={0} max={0.3} scale="log" value={psGamma} onChange={setPsGamma} help={text.paramHelp.psGamma} />
                   </CardContent>
                   </details>
-                {/* </Card> */}
+          {currentLevel >= 2 && <>
+            <BetaSelector value={currentLevel === 2 ? comparisonBeta : greediness} onChange={selectBeta} text={storyText} histogramLabel={featureText.visitFrequencies} positionAxis={featureText.positionAxis} frequencyAxis={featureText.frequencyAxis} runs={currentLevel === 2 ? comparisonRuns : undefined} visits={currentLevel === 2 ? comparisonVisits : undefined} grid={baseGridRef.current} colors={percepts.colors} gridW={gridW} showHistograms={currentLevel === 2} />
+            {currentLevel === 2 && level2Stage === "compare" && <small className="lab-compare-hint">{storyText.compareRunHint}</small>}
+            {currentLevel === 2 && BETA_SETTINGS.every((value) => (comparisonRuns[String(value)] ?? 0) >= 5) && <button className="lab-compare-quiz" onClick={() => { level2StageRef.current = "quiz"; setLevel2Stage("quiz"); }}>{storyText.takeQuiz}</button>}
+          </>}
         </Card>
         <Card className="lesson-panel forgetting-panel practice-progress academy-lab-panel">
           <div className="panel-heading"><span><Trophy /></span><div><strong>{storyText.progressTitle}</strong><small>{storyText.progressHint}</small></div></div>
           <CardContent className="space-y-2">
-            <div className="academy-success-criterion">
-              <strong>{storyText.successCriterion} <HelpTooltipButton help={storyText.successExplanation} title={storyText.successExplanation} /></strong>
-              <span>{pathAssessment ? pathAssessment.minimumSteps === null ? storyText.noRoute : `${(pathAssessment.probability * 100).toFixed(1)}% · ${pathAssessment.minimumSteps} ${storyText.minimumSteps}` : storyText.awaitEpisode}</span>
+            <div className="lab-objectives-with-coach">
+              <div className="lab-objectives-coach">
+                <img src={CoachPortrait} alt="Academy coach" />
+                <span>{featureText.yourObjectives}</span>
+              </div>
+              <div className="lab-learning-cursors">
+                <ProgressCursor label={featureText.instantReward} value={rewardTrace.at(-1)?.R ?? 0} min={Math.min(trapPenalty, stepCost, -1)} max={Math.max(goalReward, 1)} />
+                {currentLevel === 3 ? <>
+                  <ProgressCursor label={featureText.keyObjective} value={caseThreeAssessments?.key.probability ?? 0} min={0} max={1} target={0.75} targetLabel={featureText.objectiveMark} format={(value) => `${(value * 100).toFixed(1)}%`} />
+                  <ProgressCursor label={featureText.doorObjective} value={caseThreeAssessments?.door.probability ?? 0} min={0} max={1} target={0.75} targetLabel={featureText.objectiveMark} format={(value) => `${(value * 100).toFixed(1)}%`} />
+                  <ProgressCursor label={featureText.watchObjective} value={caseThreeAssessments?.watch.probability ?? 0} min={0} max={1} target={0.75} targetLabel={featureText.objectiveMark} format={(value) => `${(value * 100).toFixed(1)}%`} />
+                </> : <ProgressCursor label={featureText.shortestPath} value={pathAssessment?.probability ?? 0} min={0} max={1} target={0.75} targetLabel={featureText.objectiveMark} format={(value) => `${(value * 100).toFixed(1)}%`} />}
+              </div>
             </div>
+            {currentLevel === 3 && isStruggling && <div className="lab-struggle-hint"><Lightbulb size={17} /> {language === "de" ? "Tipp: Halte Glow länger aktiv (kleineres η), damit die späte Belohnung frühere Schritte stärkt. Senke γ, wenn nützliche Verknüpfungen verblassen; erhöhe β erst, wenn gute H-Werte sichtbar sind." : "Hint: Lower glow decay η so the late reward can reinforce earlier steps. Lower forgetting γ if useful links fade, then raise β once good H-values are visible."}</div>}
               <p className="text-sm text-neutral-600">{text.stats.episode}: {episode} · {text.stats.currentReturn}: {fmt(currentEpReturn)} · {text.stats.totalReturn}: {fmt(totalReturnRef.current)}</p>
+            <p className="lab-chart-hint">{featureText.chartsHint}</p>
             <RewardsPanel rewardTrace={rewardTrace} cumTrace={cumTrace} episodeReturns={episodeReturns} text={text} miscText={miscText} />
             <details className="academy-tip practice-coach"><summary><Lightbulb /> {storyText.coachObservation}</summary><p>{storyText.observation}</p></details>
           </CardContent>

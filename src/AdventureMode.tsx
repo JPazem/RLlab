@@ -84,7 +84,7 @@ const ADVENTURE_TEXT = {
     previousLesson: "Previous lesson",
     reviewLesson: "Review this lesson",
     nextLesson: "Next lesson",
-    openLabMode: "Open Lab mode",
+    openLabMode: "Back to the welcome page",
     quizzes: [
       {
         eyebrow: "Case note 1 of 3",
@@ -262,7 +262,7 @@ const ADVENTURE_TEXT = {
     previousLesson: "Vorherige Lektion",
     reviewLesson: "Diese Lektion ansehen",
     nextLesson: "Nächste Lektion",
-    openLabMode: "Labormodus öffnen",
+    openLabMode: "Zurück zur Startseite",
     quizzes: [
       {
         eyebrow: "Fallnotiz 1 von 3",
@@ -1200,12 +1200,10 @@ function PracticeLevel({ onPrevious, onComplete, text }: { onPrevious: () => voi
 
 export default function AdventureMode({
   onHome,
-  onOpenLab,
   language,
   onLanguageChange,
 }: {
   onHome: () => void;
-  onOpenLab: () => void;
   language: AppLanguage;
   onLanguageChange: (language: AppLanguage) => void;
 }) {
@@ -1249,7 +1247,7 @@ export default function AdventureMode({
         {level === 0 && <WelcomeLevel key={navigationRevision} onNext={() => completeLesson(0, 1)} text={text} language={language} />}
         {level === 1 && <LoopLevel key={navigationRevision} onPrevious={() => goTo(0)} onComplete={() => completeLesson(1, 2)} text={text} />}
         {level === 2 && <GlowLevel key={navigationRevision} onPrevious={() => goTo(1)} onComplete={() => completeLesson(2, 3)} text={text} />}
-        {level === 3 && <PracticeLevel key={navigationRevision} onPrevious={() => goTo(2)} onComplete={onOpenLab} text={text} />}
+        {level === 3 && <PracticeLevel key={navigationRevision} onPrevious={() => goTo(2)} onComplete={onHome} text={text} />}
       </div>
     </main>
   );

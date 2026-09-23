@@ -5,6 +5,8 @@ import AdventureMode from "./AdventureMode";
 import InteractiveRLLab from "./InteractiveRLLAb";
 import LanguageToggle, { type AppLanguage } from "./LanguageToggle";
 import WelcomeShare from "./WelcomeShare";
+import CoachStanding from "./assets/Coach_Standing.png";
+import NovaStanding from "./assets/Nova_Standing_noBackground.png";
 
 type AppMode = "choose" | "adventure" | "lab";
 
@@ -23,6 +25,8 @@ const MODE_TEXT = {
     openLab: "Open the lab",
     note: "No prior knowledge is needed for Adventure mode.",
     modes: "Modes",
+    coachAlt: "Academy coach",
+    novaAlt: "Detective student Nova",
   },
   de: {
     kicker: "Akademie für projektive Simulation",
@@ -38,6 +42,8 @@ const MODE_TEXT = {
     openLab: "Labor öffnen",
     note: "Für den Abenteuermodus brauchst du keine Vorkenntnisse.",
     modes: "Modi",
+    coachAlt: "Coach der Akademie",
+    novaAlt: "Detektivschülerin Nova",
   },
 };
 
@@ -60,21 +66,25 @@ function ModeChooser({
         <div className="mode-kicker"><Sparkles size={17} /> {text.kicker}</div>
         <h1>{text.title}</h1>
         <p>{text.intro}</p>
-        <div className="mode-options">
-          <button className="mode-card mode-card-adventure" onClick={() => onChoose("adventure")}>
-            <span className="mode-icon"><Compass /></span>
-            <span className="mode-label">{text.guided}</span>
-            <strong>{text.adventure}</strong>
-            <span>{text.adventureDescription}</span>
-            <span className="mode-cta">{text.begin} <span aria-hidden>→</span></span>
-          </button>
-          <button className="mode-card mode-card-lab" onClick={() => onChoose("lab")}>
-            <span className="mode-icon"><Beaker /></span>
-            <span className="mode-label">{text.openEnded}</span>
-            <strong>{text.lab}</strong>
-            <span>{text.labDescription}</span>
-            <span className="mode-cta">{text.openLab} <span aria-hidden>→</span></span>
-          </button>
+        <div className="mode-choice-stage">
+          <img className="mode-standing-character mode-coach-standing" src={CoachStanding} alt={text.coachAlt} />
+          <div className="mode-options">
+            <button className="mode-card mode-card-adventure" onClick={() => onChoose("adventure")}>
+              <span className="mode-icon"><Compass /></span>
+              <span className="mode-label">{text.guided}</span>
+              <strong>{text.adventure}</strong>
+              <span>{text.adventureDescription}</span>
+              <span className="mode-cta">{text.begin} <span aria-hidden>→</span></span>
+            </button>
+            <button className="mode-card mode-card-lab" onClick={() => onChoose("lab")}>
+              <span className="mode-icon"><Beaker /></span>
+              <span className="mode-label">{text.openEnded}</span>
+              <strong>{text.lab}</strong>
+              <span>{text.labDescription}</span>
+              <span className="mode-cta">{text.openLab} <span aria-hidden>→</span></span>
+            </button>
+          </div>
+          <img className="mode-standing-character mode-nova-standing" src={NovaStanding} alt={text.novaAlt} />
         </div>
         <p className="mode-note"><BookOpen size={16} /> {text.note}</p>
         <WelcomeShare language={language} />
@@ -104,7 +114,7 @@ export default function App() {
 
   if (mode === "choose") return <ModeChooser onChoose={setMode} language={language} onLanguageChange={setLanguage} />;
   if (mode === "adventure") {
-    return <AdventureMode onHome={() => setMode("choose")} onOpenLab={() => setMode("lab")} language={language} onLanguageChange={setLanguage} />;
+    return <AdventureMode onHome={() => setMode("choose")} language={language} onLanguageChange={setLanguage} />;
   }
 
   return (
